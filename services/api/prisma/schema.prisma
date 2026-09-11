@@ -7,13 +7,159 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Placeholder model for the scaffold phase. The real regulatory schema
-// (BusinessProfile, Approval, Document, Authority, ...) lands in Phase 1.
-model HealthCheck {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now()) @map("created_at")
+// NOTE (Phase 1): partial immutability is enforced in the service layer, not via
+// DB triggers. Once a KnowledgeRelease.status = 'published', the API layer must
+// reject edits to any ApprovalDefinition / DocumentDefinition / Dependency row
+// tied to that release. A proper append-only versioned model (with a formal
+// draft/review/publish state machine and claim/evidence-per-fact granularity)
+// arrives in Phase 13.
 
-  @@map("health_checks")
+model Industry {
+  id        String               @id @default(uuid())
+  code      String               @unique
+  name      String
+  approvals ApprovalDefinition[]
+
+  @@map("industries")
+}
+
+model Authority {
+  id           String               @id @default(uuid())
+  code         String               @unique
+  name         String
+  department   String?
+  jurisdiction String?
+  officialUrl  String?              @map("official_url")
+  approvals    ApprovalDefinition[]
+  issuedDocs   DocumentDefinition[] @relation("IssuingAuthority")
+
+  @@map("authorities")
+}
+
+enum VerificationStatus {
+  research_verified
+  production_verified
+}
+
+model Source {
+  id                 String               @id @default(uuid())
+  url                String
+  title              String
+  department         String?
+  publishedDate      DateTime?            @map("published_date")
+  retrievedDate      DateTime             @map("retrieved_date")
+  lastVerifiedDate   DateTime             @map("last_verified_date")
+  verifiedBy         String               @map("verified_by")
+  notes              String?              @db.Text
+  sourceLastReviewed DateTime?            @map("source_last_reviewed") @db.Date
+  verificationStatus VerificationStatus   @default(research_verified) @map("verification_status")
+  stalenessFlag      Boolean              @default(false) @map("staleness_flag")
+  approvals          ApprovalDefinition[]
+
+  @@map("sources")
+}
+
+enum KnowledgeReleaseStatus {
+  draft
+  published
+}
+
+model KnowledgeRelease {
+  id            String                 @id @default(uuid())
+  version       String                 @unique
+  status        KnowledgeReleaseStatus @default(draft)
+  publishedAt   DateTime?              @map("published_at")
+  publishedBy   String?                @map("published_by")
+  changeSummary String?                @map("change_summary") @db.Text
+  approvals     ApprovalDefinition[]
+
+  @@map("knowledge_releases")
+}
+
+model ApprovalDefinition {
+  id                      String                        @id @default(uuid())
+  code                    String                        @unique
+  name                    String
+  industryId              String                        @map("industry_id")
+  industry                Industry                      @relation(fields: [industryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  authorityId             String                        @map("authority_id")
+  authority               Authority                     @relation(fields: [authorityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  whyRequired             String                        @map("why_required") @db.Text
+  applicabilityConditions Json?                         @map("applicability_conditions") @db.JsonB
+  inspectionRequired      Boolean                       @map("inspection_required")
+  renewalRequired         Boolean                       @map("renewal_required")
+  slaDays                 Int?                          @map("sla_days")
+  officialApplicationUrl  String?                       @map("official_application_url")
+  // Verification state is INHERITED via sourceId -> Source
+  // (verificationStatus/stalenessFlag/lastVerifiedDate). Do NOT duplicate those
+  // columns here; per-row copies drift out of sync.
+  sourceId                String                        @map("source_id")
+  source                  Source                        @relation(fields: [sourceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lastVerifiedDate        DateTime                      @map("last_verified_date")
+  releaseId               String?                       @map("release_id")
+  release                 KnowledgeRelease?             @relation(fields: [releaseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  requirements            ApprovalDocumentRequirement[]
+  outgoingDeps            Dependency[]                  @relation("DepFrom")
+  incomingDeps            Dependency[]                  @relation("DepTo")
+
+  @@map("approval_definitions")
+}
+
+enum DocumentReusability {
+  reusable
+  conditional
+  fresh_required
+}
+
+model DocumentDefinition {
+  id                 String                        @id @default(uuid())
+  code               String                        @unique
+  name               String
+  documentType       String                        @map("document_type")
+  issuingAuthorityId String?                       @map("issuing_authority_id")
+  issuingAuthority   Authority?                    @relation("IssuingAuthority", fields: [issuingAuthorityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  validityRule       String                        @map("validity_rule")
+  reusability        DocumentReusability
+  reuseConditions    String                        @map("reuse_conditions") @db.Text
+  verificationMethod String                        @map("verification_method") @db.Text
+  requirements       ApprovalDocumentRequirement[]
+
+  @@map("document_definitions")
+}
+
+model ApprovalDocumentRequirement {
+  id                   String             @id @default(uuid())
+  approvalDefinitionId String             @map("approval_definition_id")
+  approvalDefinition   ApprovalDefinition @relation(fields: [approvalDefinitionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  documentDefinitionId String             @map("document_definition_id")
+  documentDefinition   DocumentDefinition @relation(fields: [documentDefinitionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  condition            String?            @db.Text
+
+  @@map("approval_document_requirements")
+}
+
+enum DependencyRelationship {
+  depends_on
+  informational
+  parallel_with
+  unknown
+}
+
+model Dependency {
+  id              String                 @id @default(uuid())
+  fromApprovalId  String                 @map("from_approval_id")
+  fromApproval    ApprovalDefinition     @relation("DepFrom", fields: [fromApprovalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  relationship    DependencyRelationship
+  toApprovalId    String                 @map("to_approval_id")
+  toApproval      ApprovalDefinition     @relation("DepTo", fields: [toApprovalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  condition       String?                @db.Text
+  // REQUIRED when relationship = depends_on: specific evidence for a genuine
+  // workflow-gating relationship. Enforced by CHECK constraint
+  // dependencies_depends_on_requires_rationale in the migration + service-layer
+  // validation (reject depends_on with empty gatingRationale).
+  gatingRationale String?                @map("gating_rationale") @db.Text
+
+  @@map("dependencies")
 }
 
 enum Role {
