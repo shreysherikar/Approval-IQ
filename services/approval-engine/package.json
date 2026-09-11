@@ -1,0 +1,22 @@
+{
+  "name": "@approvaliq/approval-engine",
+  "version": "0.0.1",
+  "private": true,
+  "description": "ApprovalIQ approval engine — pure TypeScript, no NestJS/DB/HTTP imports allowed",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@approvaliq/domain-types": "workspace:*"
+  },
+  "devDependencies": {
+    "eslint": "^9.10.0",
+    "typescript": "^5.6.2"
+  }
+}

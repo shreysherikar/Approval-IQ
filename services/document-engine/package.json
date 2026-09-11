@@ -1,0 +1,12 @@
+{
+  "name": "@approvaliq/document-engine",
+  "version": "0.0.1",
+  "private": true,
+  "description": "ApprovalIQ document engine (placeholder — Phase 6+)",
+  "scripts": {
+    "build": "echo \"@approvaliq/document-engine: nothing to build yet\"",
+    "test": "echo \"@approvaliq/document-engine: no tests yet\"",
+    "lint": "echo \"@approvaliq/document-engine: nothing to lint yet\"",
+    "typecheck": "echo \"@approvaliq/document-engine: nothing to type-check yet\""
+  }
+}

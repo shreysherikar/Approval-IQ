@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    name: lint / typecheck / test / build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: approvaliq
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/approvaliq
+      JWT_SECRET: ci-test-secret
+      JWT_EXPIRY: 1d
+      JWT_REFRESH_EXPIRY: 7d
+      STORAGE_PROVIDER: local
+      STORAGE_LOCAL_PATH: ./data/storage
+      LLM_PROVIDER: mock
+      PORT: 3001
+      VITE_API_URL: http://localhost:3001
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read Node version from .nvmrc
+        id: node-version
+        run: echo "version=$(cat .nvmrc)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node-version.outputs.version }}
+          cache: pnpm
+
+      - name: Get pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        # Must run before typecheck/test/build: @prisma/client types
+        # (e.g. the Role enum) only exist after generation. A stale or
+        # missing client fails typecheck with "has no exported member".
+        run: pnpm --filter api prisma generate
+
+      - name: Lint all workspaces
+        run: pnpm -r --if-present run lint
+
+      - name: Type-check all workspaces
+        run: pnpm -r --if-present run typecheck
+
+      - name: Run Prisma migrations
+        run: pnpm --filter api prisma migrate deploy
+
+      - name: Test all workspaces
+        run: pnpm -r --if-present run test
+
+      - name: Build web app
+        run: pnpm --filter web build
+
+      - name: Build API
+        run: pnpm --filter api build

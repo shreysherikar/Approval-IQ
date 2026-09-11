@@ -1,0 +1,28 @@
+{
+  "name": "approvaliq",
+  "version": "0.0.1",
+  "private": true,
+  "description": "ApprovalIQ — industrial approvals platform (pnpm monorepo)",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n docker,api,web -c blue,green,magenta \"docker compose up\" \"pnpm --filter api dev\" \"pnpm --filter @approvaliq/web dev\"",
+    "test": "pnpm -r --if-present run test",
+    "lint": "pnpm -r --if-present run lint",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "build": "pnpm -r --if-present run build",
+    "ci:check": "pnpm install --frozen-lockfile && pnpm --filter api prisma generate && pnpm -r --if-present run lint && pnpm -r --if-present run typecheck && pnpm --filter api prisma migrate deploy && pnpm -r --if-present run test && pnpm --filter web build && pnpm --filter api build",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "eslint": "^9.10.0",
+    "eslint-config-prettier": "^10.0.0",
+    "@eslint/js": "^9.10.0",
+    "typescript-eslint": "^8.6.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2"
+  }
+}

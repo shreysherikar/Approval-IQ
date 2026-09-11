@@ -1,0 +1,12 @@
+{
+  "name": "@approvaliq/workflow-engine",
+  "version": "0.0.1",
+  "private": true,
+  "description": "ApprovalIQ workflow engine (placeholder — Phase 4+)",
+  "scripts": {
+    "build": "echo \"@approvaliq/workflow-engine: nothing to build yet\"",
+    "test": "echo \"@approvaliq/workflow-engine: no tests yet\"",
+    "lint": "echo \"@approvaliq/workflow-engine: nothing to lint yet\"",
+    "typecheck": "echo \"@approvaliq/workflow-engine: nothing to type-check yet\""
+  }
+}
