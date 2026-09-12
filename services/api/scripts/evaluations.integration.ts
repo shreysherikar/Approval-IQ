@@ -92,6 +92,36 @@ async function main(): Promise<void> {
     assert(brl?.outcome === 'applicable', `BRL-001 applicable for Maharashtra brewery, got ${brl?.outcome}`);
     console.log(`POST ok: ${approvals.length} approvals, run ${created.id as string}`);
 
+    // Prose/unresolved applicability (free-text in approvals.csv) must surface
+    // as not_evaluable — check manually — never as a fabricated not_applicable
+    // (regression: the old industry == "__never__" sentinel).
+    const outcomeById = new Map(approvals.map((a) => [a.approval.id, a.outcome]));
+    for (const proseId of ['DISH-LICENCE-001', 'FSSAI-LICENCE-001', 'LM-PACKAGED-001']) {
+      assert(
+        outcomeById.get(proseId) === 'not_evaluable',
+        `${proseId} (prose applicability) is not_evaluable, got ${outcomeById.get(proseId)}`,
+      );
+    }
+    // EXCISE-LABEL-001's own source note: unresolved/unconfirmed — never a
+    // mandatory required roadmap step. It must not be applicable, and neither
+    // its documents nor its id may appear in the applicable roadmap output.
+    const exciseOutcome = outcomeById.get('EXCISE-LABEL-001');
+    assert(
+      exciseOutcome !== 'applicable',
+      `EXCISE-LABEL-001 must not be applicable, got ${exciseOutcome}`,
+    );
+    assert(
+      !(created.orderedApprovalIds as string[] | undefined)?.includes('EXCISE-LABEL-001'),
+      'EXCISE-LABEL-001 must not appear in the applicable ordered roadmap',
+    );
+    assert(
+      !(created.requiredDocuments as Array<{ id: string }> | undefined)?.some(
+        (d) => d.id === 'EXCISE-LABEL-001',
+      ),
+      'EXCISE-LABEL-001 must not contribute required documents to the roadmap',
+    );
+    console.log('PROSE ok: DISH/FSSAI/LM not_evaluable; EXCISE-LABEL-001 excluded from roadmap');
+
     const get = await call('GET', `/evaluations/${created.id as string}`);
     assert(get.status === 200, `GET /evaluations/:id -> 200, got ${get.status}`);
     const replayed = get.json as Record<string, unknown>;
@@ -154,6 +184,42 @@ async function main(): Promise<void> {
     for (const a of partialApprovals) {
       assert(validOutcomes.has(a.outcome), `approval ${a.approval.id} has a valid outcome`);
     }
+
+    // Regression: the prose-applicability fix (not_evaluable for unrepresentable
+    // conditions) must not change mismatch semantics of valid structured
+    // conditions. BRL-001's real seeded condition is
+    // {all:[{industry=brewery},{state=Maharashtra}]} — a fully-known Gujarat
+    // brewery profile mismatches `state=Maharashtra` and must be a clean,
+    // deterministic not_applicable, never not_evaluable.
+    const gujaratProfile = { ...breweryProfile(), state: known('Gujarat') };
+    const gujarat = await call('POST', '/evaluations', {
+      profile: gujaratProfile,
+      industryCode: 'brewery',
+    });
+    assert(
+      gujarat.status === 201,
+      `POST /evaluations (Gujarat brewery) -> 201, got ${gujarat.status}: ${JSON.stringify(gujarat.json)}`,
+    );
+    const gujaratApprovals = (gujarat.json as Record<string, unknown>).approvals as ApprovalResult[];
+    const brlGujarat = gujaratApprovals.find((a) => a.approval.id === 'BRL-001');
+    assert(!!brlGujarat, 'Gujarat response contains BRL-001');
+    assert(
+      brlGujarat!.outcome === 'not_applicable',
+      `BRL-001 (structured mismatch, Gujarat) is not_applicable, got ${brlGujarat!.outcome}`,
+    );
+    assert(
+      brlGujarat!.outcome !== 'not_evaluable',
+      'BRL-001 structured mismatch must not be reclassified as not_evaluable',
+    );
+    // The prose approvals are unaffected by the profile: still not_evaluable.
+    for (const proseId of ['DISH-LICENCE-001', 'FSSAI-LICENCE-001', 'LM-PACKAGED-001']) {
+      const p = gujaratApprovals.find((a) => a.approval.id === proseId);
+      assert(
+        p?.outcome === 'not_evaluable',
+        `${proseId} stays not_evaluable on the Gujarat profile, got ${p?.outcome}`,
+      );
+    }
+    console.log('MISMATCH ok: BRL-001 Gujarat brewery is not_applicable (not not_evaluable)');
 
     console.log('INTEGRATION PASS');
   } finally {

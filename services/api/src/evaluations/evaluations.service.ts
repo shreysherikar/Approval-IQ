@@ -33,19 +33,30 @@ type DbApproval = {
   requirements: Array<{ documentDefinition: { code: string; name: string } }>;
 };
 
-/** Marker that never matches a real profile: forces a clean not_applicable. */
-const NEVER_MATCH: EngineCondition = { kind: 'eq', field: 'industry', value: '__never__' };
+/**
+ * Marker for an applicability condition that cannot be represented as the
+ * engine's supported typed condition tree (e.g. free-text prose from the
+ * regulatory dataset, or structured JSON with no supported clauses). The
+ * engine's interpreter treats any unrecognized condition kind as unsupported
+ * and reports the approval as `not_evaluable` — never a false `not_applicable`
+ * and never a thrown error that would break sibling approvals.
+ */
+const NOT_MACHINE_EVALUABLE: EngineCondition = {
+  kind: 'not_machine_evaluable',
+} as unknown as EngineCondition;
 
 /**
  * Translate the Phase-1 CSV condition shape
  * `{ all: [{ field, op: 'equals', value }] }` into the engine's typed
- * Condition tree. Free-text prose rows are not machine-evaluable: they map
- * to NEVER_MATCH so the engine reports not_applicable instead of throwing.
+ * Condition tree. Free-text prose rows (and structured rows with no
+ * supported clauses) are not machine-evaluable: they map to
+ * NOT_MACHINE_EVALUABLE so the engine reports not_evaluable (check manually)
+ * instead of a fabricated not_applicable.
  */
 export function toEngineCondition(raw: unknown): EngineCondition | undefined {
   if (raw === null || raw === undefined) return undefined;
   if (typeof raw === 'string') {
-    return raw.trim() === '' ? undefined : NEVER_MATCH;
+    return raw.trim() === '' ? undefined : NOT_MACHINE_EVALUABLE;
   }
   if (typeof raw !== 'object') return undefined;
   const all = (raw as { all?: unknown }).all;
@@ -58,7 +69,7 @@ export function toEngineCondition(raw: unknown): EngineCondition | undefined {
       conditions.push({ kind: 'eq', field: c.field, value: c.value });
     }
   }
-  if (conditions.length === 0) return NEVER_MATCH;
+  if (conditions.length === 0) return NOT_MACHINE_EVALUABLE;
   return { kind: 'all', conditions };
 }
 
