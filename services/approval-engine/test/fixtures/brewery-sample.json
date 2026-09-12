@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Real Phase-1 brewery snapshot for approval-engine tests. Translated from data/approvals.csv + data/documents.csv + data/dependencies.csv into engine ApprovalDefinition/Dependency shapes.",
+  "approvals": [
+    {
+      "id": "BRL-001",
+      "name": "Form BRL Licence — Constructing and Working a Brewery for Manufacture of Beer",
+      "description": "Statutory licence under Rule 3(2) of the Maharashtra Manufacture of Beer and Wine Rules, 1966.",
+      "condition": {
+        "kind": "all",
+        "conditions": [
+          { "kind": "eq", "field": "industry", "value": "brewery" },
+          { "kind": "eq", "field": "state", "value": "Maharashtra" }
+        ]
+      },
+      "requiredDocuments": [
+        { "id": "DOC-002", "name": "Beer Manufacturing Process Statement (4 copies)" },
+        { "id": "DOC-006", "name": "MPCB Consent to Establish (certificate)" },
+        { "id": "DOC-008", "name": "Fire NOC (stage not specified by source)" }
+      ]
+    },
+    {
+      "id": "MPCB-CTE-001",
+      "name": "MPCB Consent to Establish",
+      "description": "Required under the Water and Air Acts before commencement of establishment works.",
+      "condition": {
+        "kind": "all",
+        "conditions": [
+          { "kind": "eq", "field": "industry", "value": "brewery" },
+          { "kind": "eq", "field": "state", "value": "Maharashtra" }
+        ]
+      },
+      "requiredDocuments": [
+        { "id": "DOC-002", "name": "Beer Manufacturing Process Statement (4 copies)" },
+        { "id": "DOC-019", "name": "CA Certificate / Balance Sheet (capital investment evidence)" },
+        { "id": "DOC-023", "name": "Land Ownership Certificate" }
+      ]
+    },
+    {
+      "id": "MPCB-CTO-001",
+      "name": "MPCB Consent to Operate",
+      "description": "Required before commencement of production, including trial production.",
+      "condition": {
+        "kind": "all",
+        "conditions": [
+          { "kind": "eq", "field": "industry", "value": "brewery" },
+          { "kind": "eq", "field": "state", "value": "Maharashtra" }
+        ]
+      },
+      "requiredDocuments": [
+        { "id": "DOC-002", "name": "Beer Manufacturing Process Statement (4 copies)" },
+        { "id": "DOC-006", "name": "MPCB Consent to Establish (certificate)" },
+        { "id": "DOC-019", "name": "CA Certificate / Balance Sheet (capital investment evidence)" }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "BRL-001",
+      "to": "MPCB-CTE-001",
+      "relationship": "depends_on",
+      "gatingRationale": "State Excise BRL checklist (item 12) explicitly requires MPCB Consent to Establish before/at the letter-of-intent stage."
+    },
+    {
+      "from": "BRL-001",
+      "to": "MPCB-CTO-001",
+      "relationship": "depends_on",
+      "gatingRationale": "State Excise BRL checklist (item 12) explicitly requires MPCB Consent to Operate at the brewery licence stage."
+    },
+    {
+      "from": "MPCB-CTO-001",
+      "to": "MPCB-CTE-001",
+      "relationship": "depends_on",
+      "gatingRationale": "MPCB Consent to Operate checklist requires previous Consent to Establish copy."
+    }
+  ]
+}

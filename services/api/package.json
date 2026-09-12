@@ -16,9 +16,11 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "import:regulatory": "tsx scripts/import-regulatory-data.ts"
+    "import:regulatory": "tsx scripts/import-regulatory-data.ts",
+    "test:integration:evaluations": "tsx scripts/evaluations.integration.ts"
   },
   "dependencies": {
+    "@approvaliq/approval-engine": "workspace:*",
     "@approvaliq/contracts": "workspace:*",
     "@approvaliq/domain-types": "workspace:*",
     "@nestjs/common": "^10.4.1",

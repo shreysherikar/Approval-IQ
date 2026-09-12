@@ -72,6 +72,7 @@ model KnowledgeRelease {
   publishedBy   String?                @map("published_by")
   changeSummary String?                @map("change_summary") @db.Text
   approvals     ApprovalDefinition[]
+  evaluationRuns EvaluationRun[]
 
   @@map("knowledge_releases")
 }
@@ -102,6 +103,7 @@ model ApprovalDefinition {
   requirements            ApprovalDocumentRequirement[]
   outgoingDeps            Dependency[]                  @relation("DepFrom")
   incomingDeps            Dependency[]                  @relation("DepTo")
+  evaluationResults       EvaluationResult[]
 
   @@map("approval_definitions")
 }
@@ -180,4 +182,29 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+model EvaluationRun {
+  id              String             @id @default(uuid())
+  profileSnapshot Json               @map("profile_snapshot") @db.JsonB
+  releaseId       String?            @map("release_id")
+  release         KnowledgeRelease?  @relation(fields: [releaseId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  engineVersion   String             @map("engine_version")
+  resultSnapshot  Json               @map("result_snapshot") @db.JsonB
+  createdAt       DateTime           @default(now()) @map("created_at")
+  results         EvaluationResult[]
+
+  @@map("evaluation_runs")
+}
+
+model EvaluationResult {
+  id                   String             @id @default(uuid())
+  evaluationRunId      String             @map("evaluation_run_id")
+  evaluationRun        EvaluationRun      @relation(fields: [evaluationRunId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalDefinitionId String             @map("approval_definition_id")
+  approvalDefinition   ApprovalDefinition @relation(fields: [approvalDefinitionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  outcome              String
+  missingFields        Json               @map("missing_fields") @db.JsonB
+
+  @@map("evaluation_results")
 }

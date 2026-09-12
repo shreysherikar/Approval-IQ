@@ -8,7 +8,8 @@
   "types": "./src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/evaluate.test.ts test/spec-compliance.test.ts",
+    "test:types": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -16,6 +17,7 @@
     "@approvaliq/domain-types": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^22.5.4",
     "eslint": "^9.10.0",
     "typescript": "^5.6.2"
   }

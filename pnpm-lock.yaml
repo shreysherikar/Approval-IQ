@@ -119,6 +119,9 @@ importers:
 
   services/api:
     dependencies:
+      '@approvaliq/approval-engine':
+        specifier: workspace:*
+        version: link:../approval-engine
       '@approvaliq/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -205,6 +208,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/domain-types
     devDependencies:
+      '@types/node':
+        specifier: ^22.5.4
+        version: 22.20.2
       eslint:
         specifier: ^9.10.0
         version: 9.39.5(jiti@2.7.0)
