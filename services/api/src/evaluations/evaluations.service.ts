@@ -25,7 +25,11 @@ type DbApproval = {
   id: string;
   code: string;
   name: string;
+  whyRequired: string;
+  officialApplicationUrl: string | null;
+  lastVerifiedDate: Date;
   applicabilityConditions: unknown;
+  source: { url: string } | null;
   requirements: Array<{ documentDefinition: { code: string; name: string } }>;
 };
 
@@ -89,7 +93,10 @@ export class EvaluationsService {
     if (!release) throw new NotFoundException('No draft KnowledgeRelease found');
     const dbApprovals = (await this.prisma.approvalDefinition.findMany({
       where: { releaseId: release.id, industry: { code: industryCode } },
-      include: { requirements: { include: { documentDefinition: true } } },
+      include: {
+        requirements: { include: { documentDefinition: true } },
+        source: { select: { url: true } },
+      },
       orderBy: { code: 'asc' },
     })) as unknown as DbApproval[];
     if (dbApprovals.length === 0) {
@@ -97,9 +104,16 @@ export class EvaluationsService {
         `No approvals for industry '${industryCode}' in draft release '${release.version}'`,
       );
     }
+    // Display-only metadata (description, provenance) rides on the definition
+    // and is echoed verbatim into the result snapshot by the engine, so the
+    // results UI can show applicants WHY an approval applies and WHERE the
+    // authoritative source is. It never influences evaluation logic.
     const engineDefs = dbApprovals.map((a) => ({
       id: a.code,
       name: a.name,
+      description: a.whyRequired,
+      sourceUrl: a.officialApplicationUrl ?? a.source?.url ?? undefined,
+      lastVerifiedDate: a.lastVerifiedDate ? new Date(a.lastVerifiedDate).toISOString() : undefined,
       condition: toEngineCondition(a.applicabilityConditions),
       requiredDocuments: a.requirements.map((r) => ({
         id: r.documentDefinition.code,

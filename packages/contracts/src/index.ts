@@ -80,4 +80,41 @@ export const createEvaluationSchema = z.object({
 
 export type CreateEvaluationInput = z.infer<typeof createEvaluationSchema>;
 
+// ---------------------------------------------------------------------------
+// BusinessProfile drafts (Phase 3). A draft accepts ANY SUBSET of the
+// BusinessProfile fields because the intake form is filled incrementally.
+// Each field that IS provided must still match the shared schema's
+// types/units: non-empty strings, non-negative numbers (areaSqft positive),
+// and exactly the shared enum values. Absent fields mean "not yet asked" —
+// never null/0/empty-string.
+// ---------------------------------------------------------------------------
+
+function draftKnownField<T extends z.ZodTypeAny>(value: T): z.ZodTypeAny {
+  return z.union([
+    z.object({ status: z.literal('known'), value }),
+    z.object({ status: z.literal('unknown') }),
+  ]);
+}
+
+export const businessProfileDraftSchema = z
+  .object({
+    industry: draftKnownField(z.string().min(1)).optional(),
+    state: draftKnownField(z.string().min(1)).optional(),
+    district: draftKnownField(z.string().min(1)).optional(),
+    landStatus: draftKnownField(z.enum(['owned', 'leased', 'not_yet_acquired'])).optional(),
+    areaSqft: draftKnownField(z.number().positive()).optional(),
+    areaType: draftKnownField(
+      z.enum(['plot', 'built_up', 'leased', 'operational', 'unknown']),
+    ).optional(),
+    investmentAmountInr: draftKnownField(z.number().nonnegative()).optional(),
+    investmentDefinition: draftKnownField(z.enum(['total_project_cost'])).optional(),
+    employeeCount: draftKnownField(z.number().int().nonnegative()).optional(),
+    employeeCountDefinition: draftKnownField(z.enum(['full_operational_capacity'])).optional(),
+    activityType: draftKnownField(z.string().min(1)).optional(),
+  })
+  .strict();
+
+export type BusinessProfileDraftInput = z.infer<typeof businessProfileDraftSchema>;
+
+
 

@@ -17,7 +17,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "import:regulatory": "tsx scripts/import-regulatory-data.ts",
-    "test:integration:evaluations": "tsx scripts/evaluations.integration.ts"
+    "test:integration:evaluations": "tsx scripts/evaluations.integration.ts",
+    "test:integration:profiles": "tsx scripts/profiles.integration.ts"
   },
   "dependencies": {
     "@approvaliq/approval-engine": "workspace:*",

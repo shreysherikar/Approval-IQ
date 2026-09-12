@@ -171,7 +171,6 @@ enum Role {
   officer
   admin
 }
-
 // Minimal user record backing the auth skeleton. Extended in later phases.
 model User {
   id           String   @id @default(uuid())
@@ -207,4 +206,47 @@ model EvaluationResult {
   missingFields        Json               @map("missing_fields") @db.JsonB
 
   @@map("evaluation_results")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3: Projects + BusinessProfileVersioning. Intentionally minimal — full
+// business/premises/membership modeling (Section 4 of the blueprint) is
+// Phase 4+ work. Only what's needed to anchor profile versions is modeled now.
+// ---------------------------------------------------------------------------
+
+model Project {
+  id          String                   @id @default(uuid())
+  name        String
+  industry    String
+  businessId  String                   @map("business_id")
+  profiles    BusinessProfileVersion[]
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  updatedAt   DateTime                 @updatedAt @map("updated_at")
+
+  @@map("projects")
+}
+
+enum ProfileStatus {
+  draft
+  confirmed
+}
+
+// Append-only profile versioning: a draft can be mutated freely; once
+// confirmed it is immutable — further edits create a NEW version. Immutability
+// is enforced in the ProfilesService (explicit status check), not via DB
+// triggers (same approach as the Phase-1 KnowledgeRelease note above).
+model BusinessProfileVersion {
+  id            String        @id @default(uuid())
+  projectId     String        @map("project_id")
+  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  versionNumber Int           @map("version_number")
+  values        Json          @db.JsonB
+  status        ProfileStatus @default(draft)
+  confirmedAt   DateTime?     @map("confirmed_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  @@unique([projectId, versionNumber])
+  @@index([projectId])
+  @@map("business_profile_versions")
 }

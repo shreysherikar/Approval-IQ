@@ -7,6 +7,7 @@ import {
   ProjectRoadmapPage,
   ProjectsPage,
 } from './project-pages';
+import { EvaluationResultsPage } from './evaluation-results';
 
 export const router = createBrowserRouter([
   {
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: 'register', element: <RegisterPage /> },
       { path: 'projects', element: <ProjectsPage /> },
       { path: 'projects/:id/profile', element: <ProjectProfilePage /> },
+      { path: 'projects/:id/approvals', element: <EvaluationResultsPage /> },
       { path: 'projects/:id/roadmap', element: <ProjectRoadmapPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],

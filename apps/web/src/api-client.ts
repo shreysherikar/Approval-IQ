@@ -104,12 +104,114 @@ export function post<T>(
   return request<T>(path, { method: 'POST', body: JSON.stringify(body) }, options);
 }
 
+export function patch<T>(
+  path: string,
+  body: unknown,
+  options?: RequestOptions,
+): Promise<T> {
+  return request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }, options);
+}
+
 export const authApi = {
   login(body: LoginRequest): Promise<LoginResponse> {
     return post<LoginResponse>('/auth/login', body);
   },
   register(body: RegisterRequest): Promise<RegisteredUser> {
     return post<RegisteredUser>('/auth/register', body);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Projects / profile versions / evaluations (Phases 2–3 API).
+// ---------------------------------------------------------------------------
+
+/** One BusinessProfile field: `{ status: 'known', value }` or `{ status: 'unknown' }`. */
+export type KnownFieldValue =
+  | { status: 'known'; value: unknown }
+  | { status: 'unknown' };
+
+export interface ProfileVersion {
+  id: string;
+  projectId: string;
+  versionNumber: number;
+  values: Record<string, unknown>;
+  status: 'draft' | 'confirmed';
+  confirmedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConfirmProfileResponse {
+  profile: ProfileVersion;
+  evaluation: EvaluationResponse;
+}
+
+export interface MissingFieldInfo {
+  field: string;
+  reason: 'unknown' | 'type_mismatch';
+  detail?: string;
+}
+
+export interface ApprovalEvaluationInfo {
+  approval: {
+    id: string;
+    name: string;
+    description?: string;
+    sourceUrl?: string;
+    lastVerifiedDate?: string;
+    requiredDocuments?: Array<{ id: string; name: string }>;
+  };
+  outcome: 'applicable' | 'not_applicable' | 'needs_information' | 'not_evaluable';
+  neededInformation: MissingFieldInfo[];
+}
+
+export interface EvaluationResponse {
+  id: string;
+  releaseId?: string | null;
+  engineVersion: string;
+  createdAt?: string;
+  approvals: ApprovalEvaluationInfo[];
+  requiredDocuments: Array<{ id: string; name: string }>;
+  warnings: string[];
+}
+
+export const projectsApi = {
+  create(body: { name: string; industry: string; businessId: string }): Promise<{
+    id: string;
+    name: string;
+    industry: string;
+    businessId: string;
+  }> {
+    return post('/projects', body);
+  },
+};
+
+export const profilesApi = {
+  /** POST /projects/:projectId/profiles — create a new draft version. */
+  createDraft(projectId: string, values: Record<string, KnownFieldValue>): Promise<ProfileVersion> {
+    return post(`/projects/${projectId}/profiles`, { values });
+  },
+  /** PATCH /projects/:projectId/profiles/:versionId — update a DRAFT version. */
+  updateDraft(
+    projectId: string,
+    versionId: string,
+    values: Record<string, KnownFieldValue>,
+  ): Promise<ProfileVersion> {
+    return patch(`/projects/${projectId}/profiles/${versionId}`, { values });
+  },
+  /**
+   * POST /projects/:projectId/profiles/:versionId/confirm — locks the version
+   * and automatically runs the approval evaluation; returns both.
+   */
+  confirm(projectId: string, versionId: string): Promise<ConfirmProfileResponse> {
+    return post(`/projects/${projectId}/profiles/${versionId}/confirm`, {});
+  },
+};
+
+export const evaluationsApi = {
+  /** GET /evaluations/:id — replayable read of a persisted evaluation run. */
+  get(id: string): Promise<EvaluationResponse> {
+    return get(`/evaluations/${id}`);
   },
 };
 
