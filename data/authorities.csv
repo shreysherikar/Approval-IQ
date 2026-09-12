@@ -1,1 +1,7 @@
-id,name,jurisdiction,contact_email
+authority_id,department,authority_name,approval_types,jurisdiction,official_url
+AUTH-EXCISE,Maharashtra State Excise Department,"Commissioner, State Excise (Government of Maharashtra)",Manufacturing licences (BRL); label/brand registration,Maharashtra,https://stateexcise.maharashtra.gov.in/
+AUTH-MPCB,Maharashtra Pollution Control Board,Maharashtra Pollution Control Board,Consent to Establish; Consent to Operate,Maharashtra,https://www.mpcb.gov.in/
+AUTH-FIRE,Maharashtra Fire & Emergency Services,State Directorate of Fire Services / local Chief Fire Officer (varies by site jurisdiction),Provisional Fire NOC; Final Fire NOC,Maharashtra; exact competent authority varies by local/planning jurisdiction,https://mahafireservice.gov.in/
+AUTH-DISH,"Labour Department, Government of Maharashtra",Directorate of Industrial Safety and Health (DISH),Factory plan approval; factory registration/licence,Maharashtra; DISH regional office jurisdiction,https://labour.maharashtra.gov.in/
+AUTH-FSSAI,Food Safety and Standards Authority of India,FSSAI / designated licensing authority via FoSCoS,Food business licence/registration,India; Maharashtra licensing jurisdiction applies,https://fssai.gov.in/
+AUTH-LM,Department of Consumer Affairs,Legal Metrology Division (state implementation authority),Packaged-commodity manufacturer/packer registration,India; Maharashtra implementation,https://consumeraffairs.nic.in/

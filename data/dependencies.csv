@@ -1,1 +1,7 @@
-approval_id,depends_on_approval_id,dependency_type
+from_id,relationship,to_id,condition,gating_rationale,notes
+BRL-001,depends_on,MPCB-CTE-001,Required at the letter-of-intent stage of the BRL application.,State Excise BRL checklist (item 12) explicitly requires MPCB Consent to Establish before/at the letter-of-intent stage.,
+BRL-001,depends_on,MPCB-CTO-001,Required at the brewery licence stage of the BRL application.,State Excise BRL checklist (item 12) explicitly requires MPCB Consent to Operate at the brewery licence stage.,
+MPCB-CTO-001,depends_on,MPCB-CTE-001,Previous consent copy is a required document for Consent to Operate.,"MPCB's Consent to Operate document checklist explicitly requires 'Previous Consent to Establish or other previous consent copy' (mpcb.gov.in/en/node/4201, heading 'For Consent to Operate/Renewal').",
+FIRE-FINAL-001,informational,FIRE-PROVISIONAL-001,Copy of provisional Fire NOC required only 'if issued.',,"Evidence marked verified_conditional ('if issued') — not a guaranteed gating relationship, so NOT modeled as depends_on."
+BRL-001,informational,FIRE-PROVISIONAL-001,BRL checklist item 10 lists 'Fire NOC' as a required document without specifying provisional vs final stage.,,"Real Fire NOC requirement exists (see DOC-008), but which specific approval instance (provisional vs final) satisfies it is not established by the retrieved source. Do not use for ordering until confirmed."
+DISH-LICENCE-001,unknown,DISH-PLAN-001,Standard Factories Act practice suggests plan approval typically precedes registration/licence.,,"NOT explicitly stated in the retrieved DISH service page — treat as unknown, not depends_on, until the department confirms sequencing."

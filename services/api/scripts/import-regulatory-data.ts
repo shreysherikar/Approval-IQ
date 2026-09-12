@@ -1,6 +1,7 @@
 ﻿import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 type CsvRow = Record<string, string>;
 function parseArgs(a: string[]): { industry: string; dataDir: string; release: string; validateOnly: boolean } {
   const o = { industry: 'brewery', dataDir: resolve(process.cwd(), '..', '..', 'data'), release: '2026.09.11-brewery-v1', validateOnly: false };
@@ -69,9 +70,12 @@ function cell(r: CsvRow, ...ns: string[]): string {
 }
 function toBool(raw: string, fb: boolean): boolean {
   const v = raw.trim().toLowerCase();
-  if (v === 'true' || v === 'yes' || v === 'y' || v === '1') return true;
-  if (v === 'false' || v === 'no' || v === 'n' || v === '0') return false;
-  return raw.trim() === '' ? fb : false;
+  // Handle annotated values like "yes — FSSAI licences are renewed..." and
+  // "no — sequential after MPCB-CTE-001" by matching the leading word.
+  if (v === '') return fb;
+  if (/^(yes|true|y|1)\b/.test(v)) return true;
+  if (/^(no|false|n|0)\b/.test(v)) return false;
+  return fb;
 }
 function splitCodes(raw: string): string[] {
   return raw.split(';').map((s) => s.trim()).filter((s) => s.length > 0);
@@ -82,15 +86,30 @@ function toDateOrNull(raw: string): Date | null {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+// applicability_conditions may be either structured JSON (parsed to an object)
+// or free-text prose (stored verbatim as a JSON string). Probe for JSON only
+// when the trimmed value actually looks like JSON, so prose is never warped.
+function toConditionJson(raw: string | null): Prisma.InputJsonValue | undefined {
+  if (raw === null) return undefined;
+  const t = raw.trim();
+  if (t.startsWith('{') || t.startsWith('[')) {
+    try {
+      return JSON.parse(t) as Prisma.InputJsonValue;
+    } catch {
+      /* not JSON — fall through and store the raw text as a JSON string */
+    }
+  }
+  return raw;
+}
 
 type Rel = 'depends_on' | 'informational' | 'parallel_with' | 'unknown';
 const RELS: string[] = ['depends_on', 'informational', 'parallel_with', 'unknown'];
-type Reuse = 'reusable' | 'conditional' | 'fresh_required';
-const REUSES: string[] = ['reusable', 'conditional', 'fresh_required'];
+type Reuse = 'reusable' | 'conditional' | 'fresh_required' | 'unknown';
+const REUSES: string[] = ['reusable', 'conditional', 'fresh_required', 'unknown'];
 type VStatus = 'research_verified' | 'production_verified';
 interface AuthRec { line: number; code: string; name: string; dept: string | null; jur: string | null; url: string | null; }
 interface SrcRec { line: number; key: string; url: string; title: string; dept: string | null; pub: Date | null; ret: Date; ver: Date; by: string; notes: string | null; reviewed: Date | null; status: VStatus; stale: boolean; }
-interface ApprRec { line: number; code: string; name: string; industry: string; auth: string; why: string; cond: string | null; docs: string[]; insp: boolean; renew: boolean; sla: number | null; url: string | null; src: string; verified: Date; }
+interface ApprRec { line: number; code: string; name: string; industry: string; auth: string; why: string; cond: string | null; notes: string | null; docs: string[]; insp: boolean; renew: boolean; sla: number | null; url: string | null; src: string; verified: Date; }
 interface DocRec { line: number; code: string; name: string; dtype: string; issuer: string | null; validity: string; reuse: Reuse; recond: string; vmethod: string; }
 interface DepRec { line: number; from: string; to: string; rel: Rel; cond: string | null; rationale: string; }
 function findCycle(nodes: string[], edges: Map<string, string[]>): string[] | null {
@@ -151,10 +170,10 @@ async function main(): Promise<void> {
   for (let i = 0; i < authCsv.rows.length; i++) {
     const row = authCsv.rows[i] as CsvRow;
     const line = i + 2;
-    const code = cell(row, 'authority_code', 'code', 'authority', 'id');
-    if (!code) { errors.push(`authorities.csv:${line}: missing authority_code`); continue; }
+    const code = cell(row, 'authority_id', 'authority', 'code');
+    if (!code) { errors.push(`authorities.csv:${line}: missing authority_id`); continue; }
     if (auths.has(code)) errors.push(`authorities.csv:${line}: duplicate authority "${code}"`);
-    const name = cell(row, 'name');
+    const name = cell(row, 'authority_name', 'name');
     if (!name) errors.push(`authorities.csv:${line}: authority "${code}" missing name`);
     auths.set(code, { line, code, name, dept: cell(row, 'department') || null, jur: cell(row, 'jurisdiction') || null, url: cell(row, 'official_url') || null });
   }
@@ -162,7 +181,7 @@ async function main(): Promise<void> {
   for (let i = 0; i < srcCsv.rows.length; i++) {
     const row = srcCsv.rows[i] as CsvRow;
     const line = i + 2;
-    const key = cell(row, 'source_key', 'source', 'key', 'id', 'code');
+    const key = cell(row, 'source_id', 'source', 'key');
     if (!key) { errors.push(`sources.csv:${line}: missing source_key`); continue; }
     if (srcs.has(key)) errors.push(`sources.csv:${line}: duplicate source "${key}"`);
     const raw = cell(row, 'verification_status').trim() || 'research_verified';
@@ -177,10 +196,10 @@ async function main(): Promise<void> {
     const code = cell(row, 'document_id', 'code', 'id');
     if (!code) { errors.push(`documents.csv:${line}: missing document_id`); continue; }
     if (docs.has(code)) errors.push(`documents.csv:${line}: duplicate document "${code}"`);
-    const raw = cell(row, 'reusability').trim() || 'fresh_required';
-    const reuse: Reuse = REUSES.includes(raw) ? (raw as Reuse) : 'fresh_required';
-    if (!REUSES.includes(raw)) errors.push(`documents.csv:${line}: bad reusability "${raw}"`);
-    docs.set(code, { line, code, name: cell(row, 'name') || code, dtype: cell(row, 'document_type') || 'certificate', issuer: cell(row, 'issuing_authority') || null, validity: cell(row, 'validity_rule') || 'no expiry', reuse, recond: cell(row, 'reuse_conditions') || '', vmethod: cell(row, 'verification_method') || 'manual review' });
+    const raw = (cell(row, 'reusable', 'reusability').trim() || 'fresh_required') as Reuse;
+    const reuse: Reuse = REUSES.includes(raw) ? raw : 'fresh_required';
+    if (!REUSES.includes(raw)) warnings.push(`documents.csv:${line}: "${code}" reusability "${raw}" is not a valid enum value; mapped to fresh_required`);
+    docs.set(code, { line, code, name: cell(row, 'document_name', 'name') || code, dtype: cell(row, 'document_type') || 'certificate', issuer: cell(row, 'issuing_authority_id', 'issuing_authority') || null, validity: cell(row, 'validity', 'validity_rule') || 'no expiry', reuse, recond: cell(row, 'reuse_conditions') || '', vmethod: cell(row, 'verification_method') || 'manual review' });
   }
 
   const apprs = new Map<string, ApprRec>();
@@ -193,23 +212,22 @@ async function main(): Promise<void> {
     if (!code) { errors.push(`approvals.csv:${line}: missing approval_id`); continue; }
     if (apprs.has(code)) errors.push(`approvals.csv:${line}: duplicate approval "${code}"`);
     const slaRaw = cell(row, 'sla', 'sla_days').trim();
-    const sla = slaRaw === '' ? null : Number.parseInt(slaRaw, 10);
-    if (slaRaw !== '' && (sla === null || Number.isNaN(sla))) errors.push(`approvals.csv:${line}: bad sla "${slaRaw}"`);
-    let cond: string | null = null;
-    const condRaw = cell(row, 'applicability_conditions').trim();
-    if (condRaw) {
-      try { JSON.parse(condRaw); cond = condRaw; } catch { errors.push(`approvals.csv:${line}: bad JSON conditions`); }
-    }
+    const slaUnknown = slaRaw === '' || /^unknown$/i.test(slaRaw);
+    const sla = slaUnknown ? null : Number.parseInt(slaRaw, 10);
+    if (!slaUnknown && (sla === null || Number.isNaN(sla))) errors.push(`approvals.csv:${line}: bad sla "${slaRaw}"`);
+    // applicability_conditions is free-text prose in the dataset; store it
+    // verbatim as a JSON string rather than requiring a JSON document.
+    const cond: string | null = cell(row, 'applicability_conditions').trim() || null;
     const verified = toDateOrNull(cell(row, 'last_verified'));
     if (!verified) errors.push(`approvals.csv:${line}: missing last_verified`);
-    apprs.set(code, { line, code, name: cell(row, 'approval_name') || code, industry: cell(row, 'industry') || opts.industry, auth: cell(row, 'authority'), why: cell(row, 'why_required'), cond, docs: splitCodes(cell(row, 'required_documents')), insp: toBool(cell(row, 'inspection_required'), false), renew: toBool(cell(row, 'renewal'), false), sla: sla ?? null, url: cell(row, 'official_url') || null, src: cell(row, 'source'), verified: verified ?? new Date(0) });
+    apprs.set(code, { line, code, name: cell(row, 'approval_name', 'name') || code, industry: cell(row, 'industry') || opts.industry, auth: cell(row, 'authority_id', 'authority'), why: cell(row, 'why_required'), cond, notes: cell(row, 'notes').trim() || null, docs: splitCodes(cell(row, 'required_documents')), insp: toBool(cell(row, 'inspection_required'), false), renew: toBool(cell(row, 'renewal'), false), sla, url: cell(row, 'official_url') || null, src: cell(row, 'source_id', 'source'), verified: verified ?? new Date(0) });
   }
   const deps: DepRec[] = [];
   for (let i = 0; i < depCsv.rows.length; i++) {
     const row = depCsv.rows[i] as CsvRow;
     const line = i + 2;
-    const from = cell(row, 'from_approval_id', 'from', 'approval_id');
-    const to = cell(row, 'to_approval_id', 'to', 'depends_on_approval_id');
+    const from = cell(row, 'from_id', 'from_approval_id', 'from');
+    const to = cell(row, 'to_id', 'to_approval_id', 'to');
     const raw = cell(row, 'relationship', 'dependency_type').trim() || 'unknown';
     if (!from || !to) { errors.push(`dependencies.csv:${line}: missing from/to id`); continue; }
     if (!RELS.includes(raw)) { errors.push(`dependencies.csv:${line}: bad relationship "${raw}"`); continue; }
@@ -306,8 +324,8 @@ async function main(): Promise<void> {
         const aid = authIds.get(a.auth);
         const sid = srcIds.get(a.src);
         if (!aid || !sid) throw new Error(`missing FK for "${a.code}"`);
-        const conds = a.cond === null ? undefined : (JSON.parse(a.cond) as object);
-        const r = await tx.approvalDefinition.upsert({ where: { code: a.code }, update: { name: a.name, industryId: industry.id, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id }, create: { code: a.code, name: a.name, industryId: industry.id, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id } });
+        const conds = toConditionJson(a.cond);
+        const r = await tx.approvalDefinition.upsert({ where: { code: a.code }, update: { name: a.name, industryId: industry.id, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, ambiguityNotes: a.notes, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id }, create: { code: a.code, name: a.name, industryId: industry.id, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, ambiguityNotes: a.notes, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id } });
         apprIds.set(a.code, r.id);
         await tx.approvalDocumentRequirement.deleteMany({ where: { approvalDefinitionId: r.id } });
         for (const dc of a.docs) {

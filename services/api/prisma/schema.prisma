@@ -90,6 +90,7 @@ model ApprovalDefinition {
   renewalRequired         Boolean                       @map("renewal_required")
   slaDays                 Int?                          @map("sla_days")
   officialApplicationUrl  String?                       @map("official_application_url")
+  ambiguityNotes          String?                       @db.Text
   // Verification state is INHERITED via sourceId -> Source
   // (verificationStatus/stalenessFlag/lastVerifiedDate). Do NOT duplicate those
   // columns here; per-row copies drift out of sync.
@@ -109,6 +110,7 @@ enum DocumentReusability {
   reusable
   conditional
   fresh_required
+  unknown
 }
 
 model DocumentDefinition {
