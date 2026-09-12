@@ -213,15 +213,21 @@ export function EvaluationResultsPage(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Your approvals</h1>
-        <p className="text-sm text-gray-600">
-          Based on your confirmed business profile.{' '}
-          <Link to={`/projects/${projectId ?? ''}/profile`} className="text-blue-600 hover:underline">
-            Update profile (creates a new version)
-          </Link>
-        </p>
+        <Link
+          to={`/projects/${projectId ?? ''}/roadmap`}
+          className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+        >
+          View approval roadmap
+        </Link>
       </div>
+      <p className="text-sm text-gray-600">
+        Based on your confirmed business profile.{' '}
+        <Link to={`/projects/${projectId ?? ''}/profile`} className="text-blue-600 hover:underline">
+          Update profile (creates a new version)
+        </Link>
+      </p>
       <EvaluationResultsView evaluation={query.data} />
     </div>
   );

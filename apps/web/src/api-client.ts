@@ -215,4 +215,78 @@ export const evaluationsApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Approval roadmap (Phase 4 API): instances, dependency edges, parallel groups.
+// ---------------------------------------------------------------------------
+
+export type ApprovalInstanceStatus = 'blocked' | 'available' | 'in_progress' | 'done';
+
+export type DependencyRelationshipType = 'depends_on' | 'informational' | 'parallel_with' | 'unknown';
+
+export type EvaluationOutcome = 'applicable' | 'not_applicable' | 'needs_information' | 'not_evaluable';
+
+export interface RoadmapNode {
+  id: string;
+  projectId: string;
+  approvalDefinitionId: string;
+  approvalCode: string;
+  approvalName: string;
+  evaluationResultId: string;
+  outcome: EvaluationOutcome;
+  /** Derived at read time from the pinned evaluation (not_evaluable). */
+  attentionRequired: boolean;
+  missingFields: MissingFieldInfo[];
+  requiredDocuments: Array<{ id: string; name: string }>;
+  status: ApprovalInstanceStatus;
+  sourceUrl: string | null;
+  lastVerifiedDate: string | null;
+  unlockedAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface RoadmapEdge {
+  id: string;
+  fromInstanceId: string | null;
+  toInstanceId: string | null;
+  fromApprovalId: string;
+  fromApprovalCode: string;
+  toApprovalId: string;
+  toApprovalCode: string;
+  type: DependencyRelationshipType;
+  /** depends_on only — informational/parallel_with/unknown never gate. */
+  gates: boolean;
+}
+
+export interface RoadmapResponse {
+  projectId: string;
+  nodes: RoadmapNode[];
+  edges: RoadmapEdge[];
+  /** Engine-computed parallel layers over the gating graph (instance ids). */
+  parallelGroups: string[][];
+}
+
+export interface UpdateStatusResponse extends RoadmapNode {
+  /** Present when marking done: instances the server flipped to available. */
+  unlockedDependentIds?: string[];
+}
+
+export const roadmapApi = {
+  /** GET /projects/:projectId/roadmap — full graph, shaped for a graph UI. */
+  get(projectId: string): Promise<RoadmapResponse> {
+    return get(`/projects/${projectId}/roadmap`);
+  },
+  /**
+   * PATCH /projects/:projectId/approval-instances/:instanceId/status — only
+   * available→in_progress and in_progress→done are accepted by the server;
+   * everything else (unblocking included) is derived server-side.
+   */
+  updateStatus(
+    projectId: string,
+    instanceId: string,
+    status: Exclude<ApprovalInstanceStatus, 'blocked' | 'available'>,
+  ): Promise<UpdateStatusResponse> {
+    return patch(`/projects/${projectId}/approval-instances/${instanceId}/status`, { status });
+  },
+};
+
 export type { LoginRequest, LoginResponse, RegisterRequest, RegisteredUser };

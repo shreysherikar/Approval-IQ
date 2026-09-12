@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { EvaluationsModule } from './evaluations/evaluations.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { RoadmapModule } from './roadmap/roadmap.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ProfilesModule } from './profiles/profiles.module';
     EvaluationsModule,
     ProjectsModule,
     ProfilesModule,
+    RoadmapModule,
   ],
 })
 export class AppModule {}

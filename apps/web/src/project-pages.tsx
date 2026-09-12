@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApiError, projectsApi } from './api-client';
 import { EmptyState, ErrorBanner } from './components';
+import { RoadmapPage } from './roadmap';
 import { ProfileIntakeForm } from './profile-form';
 
 /**
@@ -127,7 +128,7 @@ export function ProjectProfilePage(): JSX.Element {
 
 
 export function ProjectRoadmapPage(): JSX.Element {
-  return <p className="text-gray-600">Coming in Phase 4</p>;
+  return <RoadmapPage />;
 }
 
 export function NotFoundPage(): JSX.Element {

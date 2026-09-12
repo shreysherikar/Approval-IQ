@@ -6,7 +6,8 @@ ApprovalIQ web frontend: React + TypeScript + Vite + Tailwind CSS.
 - Dev server: `pnpm --filter @approvaliq/web dev` (or `pnpm --filter web dev`)
 - Routes: `/`, `/login`, `/register`, `/projects`, `/projects/:id/profile`,
   `/projects/:id/approvals?evaluation=<runId>`, `/projects/:id/roadmap`
-  (roadmap renders "Coming in Phase 4" until Phase 4). The approvals page
+  (Phase 4 roadmap graph: confirming a profile builds the ApprovalInstances and
+  redirects here; the approvals page also links to it). The approvals page
   renders the evaluation returned by confirming a profile version.
 - API base URL: `VITE_API_URL` env var (defaults to `http://localhost:3001`);
   see root `.env.example`. All requests go through `src/api-client.ts`,

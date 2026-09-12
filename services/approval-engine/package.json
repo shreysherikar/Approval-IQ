@@ -8,7 +8,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test test/evaluate.test.ts test/spec-compliance.test.ts",
+    "test": "node --test test/evaluate.test.ts test/spec-compliance.test.ts test/graph.test.ts",
     "test:types": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit"

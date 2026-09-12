@@ -292,16 +292,16 @@ export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Ele
       // Persist first so the evaluated profile is exactly what is on screen.
       const saved = await saveDraft();
       if (!saved) return;
-      const res = await profilesApi.confirm(projectId, saved.versionId);
+      await profilesApi.confirm(projectId, saved.versionId);
       try {
         localStorage.removeItem(draftPointerKey(projectId)); // version is locked now
         localStorage.setItem(valuesCacheKey(projectId), JSON.stringify(form));
       } catch {
         // Storage unavailable — confirm still succeeded.
       }
-      navigate(
-        `/projects/${projectId}/approvals?evaluation=${encodeURIComponent(res.evaluation.id)}`,
-      );
+      // Phase 4: land the applicant on their interactive approval roadmap
+      // (confirm already built the ApprovalInstances + evaluation under the hood).
+      navigate(`/projects/${projectId}/roadmap`);
     } catch (err) {
       setConfirmError(err instanceof ApiError ? err.message : 'Could not confirm the profile.');
     } finally {

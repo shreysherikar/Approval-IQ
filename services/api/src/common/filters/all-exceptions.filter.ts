@@ -50,6 +50,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         } else if (typeof payload['message'] === 'string') {
           message = payload['message'];
         }
+        // A service can pin an explicit domain code and structured details on the
+        // exception body (e.g. roadmap_unavailable with the offending cycle). Honor
+        // them instead of falling back to the status-derived code.
+        if (typeof payload['code'] === 'string' && payload['code'].length > 0) {
+          code = payload['code'];
+        }
+        if (payload['details'] !== undefined) {
+          details = payload['details'];
+        }
       }
     }
 

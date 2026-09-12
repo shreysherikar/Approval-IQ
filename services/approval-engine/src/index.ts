@@ -32,3 +32,17 @@ export type {
   StringProfileField,
 } from './types.ts';
 export { evaluate } from './evaluate.ts';
+export type {
+  GatingEdge,
+  GatingLayersResult,
+  GatingOrderResult,
+} from './graph.ts';
+export {
+  findGatingCycle,
+  gatingDependents,
+  gatingEdges,
+  gatingLayers,
+  gatingPrerequisites,
+  topologicalGatingOrder,
+  transitiveGatingDependents,
+} from './graph.ts';

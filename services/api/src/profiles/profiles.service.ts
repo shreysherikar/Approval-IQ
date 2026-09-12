@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Inject, Injectable, NotFoundExc
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EvaluationsService } from '../evaluations/evaluations.service';
+import { RoadmapService } from '../roadmap/roadmap.service';
 
 type VersionRow = {
   id: string;
@@ -21,6 +22,7 @@ export class ProfilesService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EvaluationsService) private readonly evaluations: EvaluationsService,
+    @Inject(RoadmapService) private readonly roadmap: RoadmapService,
   ) {}
 
   private async assertProjectExists(projectId: string): Promise<{ id: string; industry: string }> {
@@ -164,6 +166,16 @@ export class ProfilesService {
       profile: parsed.data,
       industryCode: project.industry,
     } as never);
-    return { profile: this.serialize(row), evaluation };
+    // Phase-4 extension of the confirm-then-evaluate flow: derive the
+    // applicant's approval roadmap (ApprovalInstances) from the pinned
+    // evaluation results of THIS run. applicable / needs_information /
+    // not_evaluable produce instances (not_evaluable is flagged as
+    // attention-required at read time via its linked EvaluationResult);
+    // not_applicable produces none.
+    const roadmapInstances = await this.roadmap.syncInstancesForRun(
+      projectId,
+      evaluation.id as string,
+    );
+    return { profile: this.serialize(row), evaluation, roadmapInstances };
   }
 }

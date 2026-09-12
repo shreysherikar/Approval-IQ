@@ -19,7 +19,9 @@
     "import:regulatory": "tsx scripts/import-regulatory-data.ts",
     "test:unit": "tsx --test test/to-engine-condition.test.ts",
     "test:integration:evaluations": "tsx scripts/evaluations.integration.ts",
-    "test:integration:profiles": "tsx scripts/profiles.integration.ts"
+    "test:integration:profiles": "tsx scripts/profiles.integration.ts",
+    "test:integration:roadmap": "tsx scripts/roadmap.integration.ts",
+    "test:integration:roadmap-cycle": "tsx scripts/roadmap_cycle.integration.ts"
   },
   "dependencies": {
     "@approvaliq/approval-engine": "workspace:*",

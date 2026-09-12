@@ -104,6 +104,7 @@ model ApprovalDefinition {
   outgoingDeps            Dependency[]                  @relation("DepFrom")
   incomingDeps            Dependency[]                  @relation("DepTo")
   evaluationResults       EvaluationResult[]
+  instances               ApprovalInstance[]
 
   @@map("approval_definitions")
 }
@@ -204,8 +205,51 @@ model EvaluationResult {
   approvalDefinition   ApprovalDefinition @relation(fields: [approvalDefinitionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   outcome              String
   missingFields        Json               @map("missing_fields") @db.JsonB
+  instance             ApprovalInstance?
 
   @@map("evaluation_results")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: Approval roadmap. An ApprovalInstance is the applicant-facing
+// "thing to act on" derived from one specific EvaluationResult. The instance
+// NEVER stores its own outcome or attention flag: it always traces back to the
+// pinned evaluation result (attentionRequired is derived at read time from
+// evaluationResult.outcome === 'not_evaluable'), so it cannot drift out of
+// sync with the actual evaluation. `status` is the manual progress state
+// machine (blocked | available | in_progress | done) driven by the
+// dependency graph, not by evaluation outcomes.
+// ---------------------------------------------------------------------------
+
+enum ApprovalInstanceStatus {
+  blocked
+  available
+  in_progress
+  done
+}
+
+model ApprovalInstance {
+  id                   String                 @id @default(uuid())
+  projectId            String                 @map("project_id")
+  project              Project                @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalDefinitionId String                 @map("approval_definition_id")
+  approvalDefinition   ApprovalDefinition     @relation(fields: [approvalDefinitionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  // The specific EvaluationResult that produced this instance. Outcome is never
+  // recomputed or restated here — always read it through this relation.
+  evaluationResultId   String                 @unique @map("evaluation_result_id")
+  evaluationResult     EvaluationResult       @relation(fields: [evaluationResultId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  status               ApprovalInstanceStatus @default(blocked)
+  // Set (once) when the server's dependency re-evaluation first makes this
+  // instance available. Never set by the client.
+  unlockedAt           DateTime?              @map("unlocked_at")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+
+  // One roadmap slot per approval per project; re-evaluations re-point the
+  // same instance at the newer evaluation result.
+  @@unique([projectId, approvalDefinitionId])
+  @@index([projectId])
+  @@map("approval_instances")
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +264,7 @@ model Project {
   industry    String
   businessId  String                   @map("business_id")
   profiles    BusinessProfileVersion[]
+  approvalInstances ApprovalInstance[]
   createdAt   DateTime                 @default(now()) @map("created_at")
   updatedAt   DateTime                 @updatedAt @map("updated_at")
 
