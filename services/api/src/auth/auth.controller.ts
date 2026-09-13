@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Inject, Post } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -7,7 +7,7 @@ import { RegisterDto } from './dto/register.dto';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })

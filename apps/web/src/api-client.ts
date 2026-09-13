@@ -176,13 +176,16 @@ export interface EvaluationResponse {
 }
 
 export const projectsApi = {
-  create(body: { name: string; industry: string; businessId: string }): Promise<{
+  create(
+    body: { name: string; industry: string; businessId: string },
+    token?: string,
+  ): Promise<{
     id: string;
     name: string;
     industry: string;
     businessId: string;
   }> {
-    return post('/projects', body);
+    return post('/projects', body, { token });
   },
 };
 
@@ -286,6 +289,125 @@ export const roadmapApi = {
     status: Exclude<ApprovalInstanceStatus, 'blocked' | 'available'>,
   ): Promise<UpdateStatusResponse> {
     return patch(`/projects/${projectId}/approval-instances/${instanceId}/status`, { status });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Documents (Phase 5+ API): upload, versioning, download.
+// ---------------------------------------------------------------------------
+
+export type DocumentVersionState =
+  | 'uploaded'
+  | 'queued'
+  | 'processing'
+  | 'extracted'
+  | 'needs_verification'
+  | 'verified'
+  | 'rejected'
+  | 'superseded'
+  | 'archived';
+
+export interface DocumentVersion {
+  id: string;
+  versionNumber: number;
+  storageKey: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  fileHash: string;
+  uploadedByUserId: string;
+  uploadedAt: string;
+  state: DocumentVersionState;
+}
+
+export interface Document {
+  id: string;
+  projectId: string;
+  documentDefinitionId: string | null;
+  /** Stable public DocumentDefinition code (additive; null when unclassified). */
+  documentDefinitionCode?: string | null;
+  documentDefinitionManualOverride: boolean;
+  metadata: Record<string, unknown> | null;
+  currentVersion: DocumentVersion | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UploadDocumentResponse = Document;
+
+export type UploadDocumentVersionResponse = Document;
+
+export const documentsApi = {
+  /** GET /projects/:projectId/documents — list all documents in a project. */
+  list(projectId: string, token?: string): Promise<Document[]> {
+    return get(`/projects/${projectId}/documents`, { token });
+  },
+
+  /**
+   * POST /projects/:projectId/documents — upload an original document.
+   * Multipart form with field "file" and optional "documentDefinitionId".
+   */
+  upload(
+    projectId: string,
+    file: File,
+    documentDefinitionId?: string,
+    token?: string,
+  ): Promise<UploadDocumentResponse> {
+    const form = new FormData();
+    form.append('file', file);
+    if (documentDefinitionId) form.append('documentDefinitionId', documentDefinitionId);
+    return request<UploadDocumentResponse>(
+      `/projects/${projectId}/documents`,
+      { method: 'POST', body: form },
+      { token },
+    );
+  },
+
+  /**
+   * PATCH /projects/:projectId/documents/:documentId — update classification/metadata (manual override).
+   */
+  update(
+    projectId: string,
+    documentId: string,
+    body: { documentDefinitionId?: string | null; metadata?: Record<string, unknown> | null },
+    token?: string,
+  ): Promise<Document> {
+    return patch(`/projects/${projectId}/documents/${documentId}`, body, { token });
+  },
+
+  /**
+   * POST /projects/:projectId/documents/:documentId/versions — upload a replacement version.
+   * Multipart form with field "file". Prior version is marked superseded.
+   */
+  addVersion(
+    projectId: string,
+    documentId: string,
+    file: File,
+    token?: string,
+  ): Promise<UploadDocumentVersionResponse> {
+    const form = new FormData();
+    form.append('file', file);
+    return request<UploadDocumentVersionResponse>(
+      `/projects/${projectId}/documents/${documentId}/versions`,
+      { method: 'POST', body: form },
+      { token },
+    );
+  },
+
+  /**
+   * GET /projects/:projectId/documents/:documentId/versions/:versionId/download — download a version.
+   */
+  download(
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    token?: string,
+  ): Promise<Blob> {
+    return request<Blob>(
+      `/projects/${projectId}/documents/${documentId}/versions/${versionId}/download`,
+      { method: 'GET' },
+      { token },
+    );
   },
 };
 

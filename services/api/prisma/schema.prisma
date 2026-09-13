@@ -65,13 +65,13 @@ enum KnowledgeReleaseStatus {
 }
 
 model KnowledgeRelease {
-  id            String                 @id @default(uuid())
-  version       String                 @unique
-  status        KnowledgeReleaseStatus @default(draft)
-  publishedAt   DateTime?              @map("published_at")
-  publishedBy   String?                @map("published_by")
-  changeSummary String?                @map("change_summary") @db.Text
-  approvals     ApprovalDefinition[]
+  id             String                 @id @default(uuid())
+  version        String                 @unique
+  status         KnowledgeReleaseStatus @default(draft)
+  publishedAt    DateTime?              @map("published_at")
+  publishedBy    String?                @map("published_by")
+  changeSummary  String?                @map("change_summary") @db.Text
+  approvals      ApprovalDefinition[]
   evaluationRuns EvaluationRun[]
 
   @@map("knowledge_releases")
@@ -128,6 +128,7 @@ model DocumentDefinition {
   reuseConditions    String                        @map("reuse_conditions") @db.Text
   verificationMethod String                        @map("verification_method") @db.Text
   requirements       ApprovalDocumentRequirement[]
+  documents          Document[]
 
   @@map("document_definitions")
 }
@@ -172,14 +173,17 @@ enum Role {
   officer
   admin
 }
+
 // Minimal user record backing the auth skeleton. Extended in later phases.
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  role         Role     @default(applicant)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id               String            @id @default(uuid())
+  email            String            @unique
+  passwordHash     String            @map("password_hash")
+  role             Role              @default(applicant)
+  memberships      ProjectMember[]
+  uploadedVersions DocumentVersion[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -244,6 +248,7 @@ model ApprovalInstance {
   unlockedAt           DateTime?              @map("unlocked_at")
   createdAt            DateTime               @default(now()) @map("created_at")
   updatedAt            DateTime               @updatedAt @map("updated_at")
+  documents            ApprovalInstanceDocument[]
 
   // One roadmap slot per approval per project; re-evaluations re-point the
   // same instance at the newer evaluation result.
@@ -253,20 +258,40 @@ model ApprovalInstance {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 6: ApprovalInstanceDocument join table.
+// Allows a single Document to be referenced by multiple ApprovalInstances
+// without duplicating the underlying file — "application packet references".
+// ---------------------------------------------------------------------------
+
+model ApprovalInstanceDocument {
+  id                  String           @id @default(uuid())
+  approvalInstanceId  String           @map("approval_instance_id")
+  approvalInstance    ApprovalInstance @relation(fields: [approvalInstanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  documentId          String           @map("document_id")
+  document            Document         @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  @@unique([approvalInstanceId, documentId])
+  @@map("approval_instance_documents")
+}
+
+// ---------------------------------------------------------------------------
 // Phase 3: Projects + BusinessProfileVersioning. Intentionally minimal — full
 // business/premises/membership modeling (Section 4 of the blueprint) is
 // Phase 4+ work. Only what's needed to anchor profile versions is modeled now.
 // ---------------------------------------------------------------------------
 
 model Project {
-  id          String                   @id @default(uuid())
-  name        String
-  industry    String
-  businessId  String                   @map("business_id")
-  profiles    BusinessProfileVersion[]
+  id                String                   @id @default(uuid())
+  name              String
+  industry          String
+  businessId        String                   @map("business_id")
+  profiles          BusinessProfileVersion[]
   approvalInstances ApprovalInstance[]
-  createdAt   DateTime                 @default(now()) @map("created_at")
-  updatedAt   DateTime                 @updatedAt @map("updated_at")
+  members           ProjectMember[]
+  documents         Document[]
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
 
   @@map("projects")
 }
@@ -294,4 +319,97 @@ model BusinessProfileVersion {
   @@unique([projectId, versionNumber])
   @@index([projectId])
   @@map("business_profile_versions")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Document Vault.
+//
+// A Document is a logical object (per project) with an append-only chain of
+// DocumentVersions. There is deliberately NO storage delete: superseding a
+// document only marks the prior version "superseded"; its bytes stay in object
+// storage. `currentVersionId` points at the latest version.
+// ---------------------------------------------------------------------------
+
+/**
+ * The full lifecycle for a document version. Most states are only reachable
+ * after Phase 6 (async extraction); the enum is defined in full now so there is
+ * no later migration, but only `uploaded` and `superseded` are set this phase.
+ */
+enum DocumentVersionState {
+  uploaded
+  queued
+  processing
+  extracted
+  needs_verification
+  verified
+  rejected
+  superseded
+  archived
+}
+
+/**
+ * A user's membership in a project — the object-level authorization boundary.
+ * A user may only read/write a project's documents when a ProjectMember row
+ * links them to that project (never "just a valid JWT").
+ */
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+model Document {
+  id                   String              @id @default(uuid())
+  projectId            String              @map("project_id")
+  project              Project             @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  // Classification may be unset or manual today; auto-classification is Phase 6.
+  documentDefinitionId String?             @map("document_definition_id")
+  documentDefinition   DocumentDefinition? @relation(fields: [documentDefinitionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  // Tracks if documentDefinitionId was manually overridden (Phase 6: manual override always wins)
+  documentDefinitionManualOverride Boolean   @default(false) @map("document_definition_manual_override")
+  // Free-text metadata for manual corrections/annotations
+  metadata             Json?               @db.JsonB
+  currentVersionId     String?             @unique @map("current_version_id")
+  currentVersion       DocumentVersion?    @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  versions             DocumentVersion[]   @relation("Owned")
+  approvalInstances    ApprovalInstanceDocument[]
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id               String               @id @default(uuid())
+  documentId       String               @map("document_id")
+  document         Document             @relation("Owned", fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  // Inverse of Document.currentVersion — lets one side of the self-reference
+  // resolve without ambiguity.
+  currentFor       Document?            @relation("CurrentVersion")
+  versionNumber    Int                  @map("version_number")
+  // Opaque key into StorageProvider. Never exposed as a fetchable URL.
+  storageKey       String               @map("storage_key")
+  originalFilename String               @map("original_filename")
+  mimeType         String               @map("mime_type")
+  sizeBytes        Int                  @map("size_bytes")
+  // sha256 (Phase 7 content dedup).
+  fileHash         String               @map("file_hash")
+  uploadedByUserId String               @map("uploaded_by_user_id")
+  uploadedBy       User                 @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  uploadedAt       DateTime             @default(now()) @map("uploaded_at")
+  state            DocumentVersionState @default(uploaded)
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId])
+  @@map("document_versions")
 }

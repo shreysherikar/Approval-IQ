@@ -59,20 +59,42 @@ async function main(): Promise<void> {
     method: string,
     path: string,
     body?: unknown,
+    token?: string,
   ): Promise<{ status: number; json: Record<string, unknown> }> {
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (token) headers['authorization'] = `Bearer ${token}`;
     const res = await fetch(`${url}${path}`, {
       method,
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: res.status, json: (await res.json()) as Record<string, unknown> };
   }
 
-  const project = await call('POST', '/projects', {
-    name: 'Cycle guard IT project',
-    industry: 'brewery',
-    businessId: 'biz-it-cycle-guard',
+  const roadmapEmail = `roadmap-cycle-it-${Date.now()}@example.com`;
+  const registerRes = await call('POST', '/auth/register', {
+    email: roadmapEmail,
+    password: 'password123',
+    role: 'applicant',
   });
+  assert(registerRes.status === 201, `register -> 201, got ${registerRes.status}`);
+  const loginRes = await call('POST', '/auth/login', {
+    email: roadmapEmail,
+    password: 'password123',
+  });
+  assert(loginRes.status === 200, `login -> 200, got ${loginRes.status}`);
+  const token = loginRes.json.accessToken as string;
+
+  const project = await call(
+    'POST',
+    '/projects',
+    {
+      name: 'Cycle guard IT project',
+      industry: 'brewery',
+      businessId: 'biz-it-cycle-guard',
+    },
+    token,
+  );
   assert(project.status === 201, `POST /projects -> 201, got ${project.status}`);
   const projectId = project.json.id as string;
 
@@ -147,6 +169,11 @@ async function main(): Promise<void> {
   // Cleanup — remove the injected edge and the project.
   await prisma.dependency.delete({ where: { id: injected.id } });
   await prisma.project.delete({ where: { id: projectId } });
+  const roadmapCycleUser = await prisma.user.findUnique({
+    where: { email: roadmapEmail },
+    select: { id: true },
+  });
+  if (roadmapCycleUser) await prisma.user.delete({ where: { id: roadmapCycleUser.id } });
   console.log('INTEGRATION PASS');
   await app.close();
 }

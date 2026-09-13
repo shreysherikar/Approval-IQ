@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -11,9 +11,9 @@ import { RegisterDto } from './dto/register.dto';
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly jwt: JwtService,
-    private readonly config: ConfigService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(ConfigService) private readonly config: ConfigService,
   ) {}
 
   async register(dto: RegisterDto) {

@@ -5,6 +5,7 @@ import { ApiError, projectsApi } from './api-client';
 import { EmptyState, ErrorBanner } from './components';
 import { RoadmapPage } from './roadmap';
 import { ProfileIntakeForm } from './profile-form';
+import { useAuth } from './auth';
 
 /**
  * Projects list + creation (minimal Phase-3 skeleton). Full business /
@@ -13,6 +14,7 @@ import { ProfileIntakeForm } from './profile-form';
  */
 export function ProjectsPage(): JSX.Element {
   const navigate = useNavigate();
+  const { accessToken } = useAuth();
   const [name, setName] = useState('');
   const [businessId, setBusinessId] = useState('');
   const [industry, setIndustry] = useState('brewery');
@@ -24,11 +26,14 @@ export function ProjectsPage(): JSX.Element {
     setIsCreating(true);
     setError(null);
     try {
-      const project = await projectsApi.create({
-        name: name.trim(),
-        industry,
-        businessId: businessId.trim(),
-      });
+      const project = await projectsApi.create(
+        {
+          name: name.trim(),
+          industry,
+          businessId: businessId.trim(),
+        },
+        accessToken ?? undefined,
+      );
       void navigate(`/projects/${project.id}/profile`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create the project.');

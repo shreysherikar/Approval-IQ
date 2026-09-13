@@ -21,6 +21,7 @@
  * deduplicated required-document list.
  */
 import { useCallback, useMemo, useState } from 'react';
+import { useAuth } from './auth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -35,14 +36,21 @@ import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import {
   roadmapApi,
+  documentsApi,
   type ApprovalInstanceStatus,
   type DependencyRelationshipType,
+  type Document as ApiDocument,
   type EvaluationOutcome,
   type MissingFieldInfo,
   type RoadmapNode,
   type RoadmapResponse,
 } from './api-client';
-import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
+import {
+  EmptyState,
+  ErrorBanner,
+  LoadingSpinner,
+  DocumentUploadControl,
+} from './components';
 import { PROFILE_FIELD_LABELS } from './profile-form';
 
 // ---------------------------------------------------------------------------
@@ -256,6 +264,7 @@ function DetailPanel({
   projectId: string;
 }): JSX.Element {
   const queryClient = useQueryClient();
+  const { accessToken } = useAuth();
   const advance = useMutation({
     mutationFn: (next: 'in_progress' | 'done') =>
       roadmapApi.updateStatus(projectId, node.id, next),
@@ -263,6 +272,27 @@ function DetailPanel({
       void queryClient.invalidateQueries({ queryKey: ['roadmap', projectId] });
     },
   });
+
+  // Fetch all project documents to match against required documents
+  const { data: projectDocs } = useQuery({
+    queryKey: ['documents', projectId],
+    queryFn: () => documentsApi.list(projectId, accessToken ?? undefined),
+    enabled: projectId !== undefined && accessToken !== null,
+    staleTime: 30_000,
+  });
+
+  // Build a map of document definition (FK id OR public code) -> Document.
+  // The roadmap emits the stable DocumentDefinition.code as requiredDoc.id,
+  // while the API stores the UUID FK — match on either so a just-uploaded
+  // row links back to its requirement.
+  const docMap = useMemo(() => {
+    const map = new Map<string, ApiDocument>();
+    projectDocs?.forEach((d) => {
+      if (d.documentDefinitionId) map.set(d.documentDefinitionId, d);
+      if (d.documentDefinitionCode) map.set(d.documentDefinitionCode, d);
+    });
+    return map;
+  }, [projectDocs]);
 
   const canAdvance = node.status === 'available' || node.status === 'in_progress';
   const nextStatus = node.status === 'available' ? 'in_progress' : 'done';
@@ -332,11 +362,17 @@ function DetailPanel({
         {node.requiredDocuments.length === 0 ? (
           <p className="mt-1 text-sm text-gray-500">None required for this approval.</p>
         ) : (
-          <ul className="mt-1 list-disc pl-5 text-sm text-gray-700">
-            {node.requiredDocuments.map((d) => (
-              <li key={d.id}>{d.name}</li>
+          <div className="mt-2 space-y-3">
+            {node.requiredDocuments.map((reqDoc) => (
+              <DocumentUploadControl
+                key={reqDoc.id}
+                projectId={projectId}
+                requiredDoc={reqDoc}
+                existingDoc={docMap.get(reqDoc.id) ?? null}
+                token={accessToken ?? ''}
+              />
             ))}
-          </ul>
+          </div>
         )}
       </div>
 
