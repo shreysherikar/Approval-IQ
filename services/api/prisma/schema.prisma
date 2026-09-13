@@ -182,6 +182,8 @@ model User {
   role             Role              @default(applicant)
   memberships      ProjectMember[]
   uploadedVersions DocumentVersion[]
+  corrections      FieldCorrection[]
+  verificationRuns VerificationRecord[]
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
@@ -387,6 +389,34 @@ model Document {
   @@map("documents")
 }
 
+enum JobStatus {
+  pending
+  processing
+  completed
+  failed
+  dead_letter
+}
+
+model Job {
+  id                   String    @id @default(uuid())
+  type                 String
+  payload              Json      @db.JsonB
+  payloadSchemaVersion Int       @default(1) @map("payload_schema_version")
+  attemptCount         Int       @default(0) @map("attempt_count")
+  idempotencyKey       String    @unique @map("idempotency_key")
+  status               JobStatus @default(pending)
+  errorDetails         String?   @map("error_details") @db.Text
+  retryPolicy          Json      @map("retry_policy") @db.JsonB
+  nextAttemptAt        DateTime  @default(now()) @map("next_attempt_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  completedAt          DateTime? @map("completed_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([type, status])
+  @@map("jobs")
+}
+
 model DocumentVersion {
   id               String               @id @default(uuid())
   documentId       String               @map("document_id")
@@ -406,10 +436,62 @@ model DocumentVersion {
   uploadedBy       User                 @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   uploadedAt       DateTime             @default(now()) @map("uploaded_at")
   state            DocumentVersionState @default(uploaded)
+  extractions      ExtractionResult[]
+  corrections      FieldCorrection[]
+  verifications    VerificationRecord[]
   createdAt        DateTime             @default(now()) @map("created_at")
   updatedAt        DateTime             @updatedAt @map("updated_at")
 
   @@unique([documentId, versionNumber])
   @@index([documentId])
   @@map("document_versions")
+}
+
+// Every ExtractionResult row is self-describing about what produced it.
+model ExtractionResult {
+  id                String          @id @default(uuid())
+  documentVersionId String          @map("document_version_id")
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  fields            Json            @db.JsonB
+  modelProvider     String          @map("model_provider")
+  modelVersion      String          @map("model_version")
+  promptVersion     String          @map("prompt_version")
+  extractedAt       DateTime        @default(now()) @map("extracted_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  @@index([documentVersionId])
+  @@map("extraction_results")
+}
+
+// User corrections stored ALONGSIDE (never over) the raw extraction output.
+model FieldCorrection {
+  id                String          @id @default(uuid())
+  documentVersionId String          @map("document_version_id")
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  fieldName         String          @map("field_name")
+  correctedValue    String          @map("corrected_value") @db.Text
+  source            String          @default("user_corrected")
+  correctedByUserId String          @map("corrected_by_user_id")
+  correctedBy       User            @relation(fields: [correctedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  @@index([documentVersionId])
+  @@map("field_corrections")
+}
+
+model VerificationRecord {
+  id                String          @id @default(uuid())
+  documentVersionId String          @map("document_version_id")
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  verifierUserId    String          @map("verifier_user_id")
+  verifier          User            @relation(fields: [verifierUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  verifiedAt        DateTime        @default(now()) @map("verified_at")
+  fieldsVerified    Json            @map("fields_verified") @db.JsonB
+  notes             String?         @db.Text
+  method            String          @default("manual_review")
+  evidenceInspected Boolean         @map("evidence_inspected")
+  verifiedBy        String          @default("applicant") @map("verified_by")
+
+  @@index([documentVersionId])
+  @@map("verification_records")
 }

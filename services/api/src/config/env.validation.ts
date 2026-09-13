@@ -8,6 +8,10 @@ const envSchema = z.object({
   STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./data/storage'),
   LLM_PROVIDER: z.enum(['mock', 'anthropic']).default('mock'),
+  // Phase 6 Decision #6: per-field confidence threshold below which the UI flags
+  // a field as needing extra attention. Provisional default until real
+  // accuracy data exists — config, never a hardcoded number in an `if`.
+  EXTRACTION_REVIEW_THRESHOLD: z.coerce.number().min(0).max(1).default(0.6),
   PORT: z.coerce.number().int().positive().default(3001),
 });
 

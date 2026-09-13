@@ -1,12 +1,13 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from './api-client';
 
 /**
- * SECURITY: tokens live only in React memory. Never persist auth tokens to
- * localStorage/sessionStorage (XSS exfiltration risk). The future-proof
- * alternative is an httpOnly cookie session managed by the API; this
- * in-memory store is the safe placeholder until then.
+ * SECURITY: the ACCESS token lives only in React memory. Never persist auth
+ * tokens to localStorage/sessionStorage (XSS exfiltration risk). To survive a
+ * browser reload, the long-lived REFRESH token is held in an httpOnly cookie
+ * managed by the API (set at login, POST /auth/refresh mints a fresh access
+ * token) — the safe placeholder design documented here since Phase 1.
  */
 
 export interface AuthUser {
@@ -70,6 +71,30 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     setAccessToken(null);
     setUser(null);
     setError(null);
+    // Server clears the httpOnly refresh cookie so the session can't be restored.
+    void authApi.logout().catch(() => undefined);
+  }, []);
+
+  /**
+   * Session restore: after a browser reload the in-memory access token is
+   * gone, which previously made the (authorization-protected) document list
+   * appear empty on the roadmap — the uploaded document "disappeared". The
+   * httpOnly refresh cookie lets us silently mint a fresh access token on
+   * boot; failure just means there is no session to restore.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    authApi
+      .refresh()
+      .then((res) => {
+        if (cancelled) return;
+        setAccessToken(res.accessToken);
+        setUser({ email: decodeEmailFromJwt(res.accessToken) ?? '' });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(

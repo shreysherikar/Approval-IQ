@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, type Document, type DocumentVersionState } from './api-client';
 
@@ -183,6 +184,15 @@ export function DocumentUploadControl({
             <p className="truncate font-mono text-gray-700">{currentVersion.originalFilename}</p>
           </div>
         </div>
+      )}
+
+      {existingDoc && (
+        <Link
+          to={`/projects/${projectId}/documents/${existingDoc.id}`}
+          className="mt-2 inline-block text-sm text-blue-600 hover:underline"
+        >
+          Open document detail (extraction &amp; verification) →
+        </Link>
       )}
 
       {error && (

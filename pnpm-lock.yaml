@@ -143,6 +143,9 @@ importers:
       '@approvaliq/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@approvaliq/document-engine':
+        specifier: workspace:*
+        version: link:../document-engine
       '@approvaliq/domain-types':
         specifier: workspace:*
         version: link:../../packages/domain-types
@@ -239,7 +242,21 @@ importers:
         specifier: ^5.6.2
         version: 5.9.3
 
-  services/document-engine: {}
+  services/document-engine:
+    dependencies:
+      '@approvaliq/domain-types':
+        specifier: workspace:*
+        version: link:../../packages/domain-types
+    devDependencies:
+      '@types/node':
+        specifier: ^22.5.4
+        version: 22.20.2
+      eslint:
+        specifier: ^9.10.0
+        version: 9.39.5(jiti@2.7.0)
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
 
   services/workflow-engine: {}
 

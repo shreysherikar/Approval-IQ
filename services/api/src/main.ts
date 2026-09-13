@@ -14,10 +14,12 @@ async function bootstrap(): Promise<void> {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Local-dev CORS for the Vite web app (default http://localhost:5173).
-  // Tighten origins in later phases; production hardening lands in Phase 15.
+  // credentials: true is required for the httpOnly refresh cookie the web app
+  // uses to restore its session after a reload (see AuthController). Tighten
+  // origins in later phases; production hardening lands in Phase 15.
   app.enableCors({
     origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
-    credentials: false,
+    credentials: true,
   });
 
   const swaggerConfig = new DocumentBuilder()

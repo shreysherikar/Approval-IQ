@@ -9,6 +9,8 @@ import { ProjectsModule } from './projects/projects.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { RoadmapModule } from './roadmap/roadmap.module';
 import { DocumentsModule } from './documents/documents.module';
+import { JobsModule } from './jobs/jobs.module';
+import { IntelligenceModule } from './intelligence/intelligence.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { DocumentsModule } from './documents/documents.module';
     ProfilesModule,
     RoadmapModule,
     DocumentsModule,
+    JobsModule,
+    IntelligenceModule,
   ],
 })
 export class AppModule {}

@@ -80,8 +80,8 @@ async function request<T>(
   const res = await fetch(
     `${API_BASE_URL}${path}`,
     options.signal === undefined
-      ? { ...init, headers }
-      : { ...init, headers, signal: options.signal },
+      ? { ...init, headers, credentials: 'include' }
+      : { ...init, headers, signal: options.signal, credentials: 'include' },
   );
   if (!res.ok) {
     throw await parseError(res);
@@ -112,12 +112,27 @@ export function patch<T>(
   return request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }, options);
 }
 
+export interface RefreshResponse {
+  accessToken: string;
+}
+
 export const authApi = {
   login(body: LoginRequest): Promise<LoginResponse> {
     return post<LoginResponse>('/auth/login', body);
   },
   register(body: RegisterRequest): Promise<RegisteredUser> {
     return post<RegisteredUser>('/auth/register', body);
+  },
+  /**
+   * Restores the session after a browser reload. The long-lived refresh token
+   * lives in an httpOnly cookie set by the API at login — never in web
+   * storage — so this just needs credentials to be sent along.
+   */
+  refresh(): Promise<RefreshResponse> {
+    return post<RefreshResponse>('/auth/refresh', {});
+  },
+  logout(): Promise<void> {
+    return request<void>('/auth/logout', { method: 'POST' }, {});
   },
 };
 
@@ -408,6 +423,94 @@ export const documentsApi = {
       { method: 'GET' },
       { token },
     );
+  },
+};
+
+export interface ExtractedField {
+  name: string;
+  value: string;
+  confidence: number;
+  evidenceLocation: string | null;
+}
+
+export interface FieldCorrectionView {
+  fieldName: string;
+  correctedValue: string;
+  source: string;
+}
+
+export interface ExtractionView {
+  id: string;
+  documentVersionId: string;
+  fields: ExtractedField[];
+  corrections: FieldCorrectionView[];
+  modelProvider: string;
+  modelVersion: string;
+  promptVersion: string;
+  extractedAt: string;
+  reviewThreshold: number;
+}
+
+export interface VerificationView {
+  id: string;
+  documentVersionId?: string;
+  verifierUserId: string;
+  verifiedAt: string;
+  fieldsVerified: string[];
+  notes: string | null;
+  method: string;
+  evidenceInspected: boolean;
+  verifiedBy: string;
+}
+
+export interface ExtractionJob {
+  id: string;
+  type: string;
+  status: string;
+  attemptCount: number;
+  errorDetails: string | null;
+  payload?: unknown;
+  retryPolicy?: unknown;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export const intelligenceApi = {
+  /** POST …/documents/:documentId/extract — enqueue async extraction. */
+  extract(projectId: string, documentId: string, token?: string): Promise<ExtractionJob> {
+    return post(`/projects/${projectId}/documents/${documentId}/extract`, {}, { token });
+  },
+  /** GET extraction result for a version (null when not yet extracted). */
+  extraction(projectId: string, documentId: string, versionId: string, token?: string): Promise<ExtractionView | null> {
+    return get(`/projects/${projectId}/documents/${documentId}/versions/${versionId}/extraction`, { token });
+  },
+  /** PATCH one field correction (stored alongside raw extraction). */
+  correctField(
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    body: { fieldName: string; correctedValue: string },
+    token?: string,
+  ): Promise<ExtractionView> {
+    return patch(`/projects/${projectId}/documents/${documentId}/versions/${versionId}/fields`, body, { token });
+  },
+  /** POST verify — the distinct human action flipping needs_verification → verified. */
+  verify(
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    body: { fieldsVerified?: string[]; notes?: string; evidenceInspected?: boolean },
+    token?: string,
+  ): Promise<VerificationView> {
+    return post(`/projects/${projectId}/documents/${documentId}/versions/${versionId}/verify`, body, { token });
+  },
+  /** GET verification records for a version. */
+  verifications(projectId: string, documentId: string, versionId: string, token?: string): Promise<VerificationView[]> {
+    return get(`/projects/${projectId}/documents/${documentId}/versions/${versionId}/verifications`, { token });
+  },
+  /** GET job status (poll while pending/processing). */
+  job(projectId: string, jobId: string, token?: string): Promise<ExtractionJob> {
+    return get(`/projects/${projectId}/jobs/${jobId}`, { token });
   },
 };
 
