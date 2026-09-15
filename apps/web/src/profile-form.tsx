@@ -488,6 +488,19 @@ export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Ele
             </div>
           </div>
         </div>
+
+        {form.industry === 'solar_manufacturing' && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 space-y-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+              <span>⚡</span> Clean Tech &amp; Heavy Manufacturing Thresholds
+            </h4>
+            <ul className="text-xs text-amber-800 space-y-1 list-disc pl-4">
+              <li><strong>Built-up Area &ge; 10,000 sq ft</strong>: Automatically triggers Maharashtra Fire Services Cleanroom Provisional NOC (<span className="font-mono text-[11px]">FIRE-NOC-002</span>).</li>
+              <li><strong>Project Cost &ge; ₹50 Lakh</strong>: Triggers CEIG HT Electrical Substation &amp; Transformer Clearance (<span className="font-mono text-[11px]">CEIG-SUBSTATION-001</span>).</li>
+              <li><strong>Notified Industrial Districts</strong> (Pune, Thane, Raigad, Nashik, Aurangabad, Nagpur): Gated by Central Ground Water Authority (<span className="font-mono text-[11px]">CGWA-GW-001</span>) NOC.</li>
+            </ul>
+          </div>
+        )}
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-3">
