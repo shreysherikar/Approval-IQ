@@ -134,8 +134,14 @@ export function ProjectProfilePage(): JSX.Element {
 }
 
 
+import { JointInspectionsPage } from './inspections';
+
 export function ProjectRoadmapPage(): JSX.Element {
   return <RoadmapPage />;
+}
+
+export function ProjectInspectionsPage(): JSX.Element {
+  return <JointInspectionsPage />;
 }
 
 export function ProjectDocumentPage(): JSX.Element {

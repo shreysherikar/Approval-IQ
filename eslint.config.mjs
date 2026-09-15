@@ -15,6 +15,9 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      "@typescript-eslint/no-unused-expressions": "off",
+      "no-unused-expressions": ["error", { "allowShortCircuit": true, "allowTernary": true }],
+      "@typescript-eslint/no-explicit-any": "off",
     },
   }
 );

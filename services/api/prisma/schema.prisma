@@ -265,6 +265,7 @@ model ApprovalInstance {
   createdAt            DateTime               @default(now()) @map("created_at")
   updatedAt            DateTime               @updatedAt @map("updated_at")
   documents            ApprovalInstanceDocument[]
+  jointInspections     JointInspectionApproval[]
   // Phase 9: clarifications raised by an authority officer on THIS application.
   clarifications       ClarificationRequest[]
 
@@ -309,6 +310,7 @@ model Project {
   members           ProjectMember[]
   documents         Document[]
   consistencyCheckResults ConsistencyCheckResult[]
+  jointInspections  JointInspection[]
   // Phase 9: applicant-visible clarification inbox for this project.
   clarifications     ClarificationRequest[]
   createdAt         DateTime                 @default(now()) @map("created_at")
@@ -572,6 +574,95 @@ model ConsistencyCheckResult {
 }
 
 // ---------------------------------------------------------------------------
+// Feature #7: Joint Inspection Planning System
+// ---------------------------------------------------------------------------
+
+enum JointInspectionStage {
+  pre_construction
+  plant_readiness
+  pre_commissioning
+  annual_compliance
+}
+
+enum JointInspectionStatus {
+  draft
+  scheduled
+  in_progress
+  completed
+  rescheduled
+  cancelled
+}
+
+enum InspectorSignoffStatus {
+  pending
+  satisfactory
+  needs_rectification
+  rejected
+}
+
+model JointInspection {
+  id                 String                    @id @default(uuid())
+  projectId          String                    @map("project_id")
+  project            Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  title              String
+  stage              JointInspectionStage
+  status             JointInspectionStatus     @default(draft)
+  scheduledDate      DateTime?                 @map("scheduled_date")
+  timeSlot           String?                   @map("time_slot")
+  premisesAddress    String?                   @map("premises_address")
+  leadAuthorityCode  String?                   @map("lead_authority_code")
+  leadAuthorityName  String?                   @map("lead_authority_name")
+  notes              String?                   @db.Text
+  readinessChecklist Json?                     @map("readiness_checklist") @db.JsonB
+  slotNegotiation    Json?                     @map("slot_negotiation") @db.JsonB
+  rectificationPlan  Json?                     @map("rectification_plan") @db.JsonB
+  jointReportSummary String?                   @map("joint_report_summary") @db.Text
+  participatingApprovals JointInspectionApproval[]
+  inspectorChecklists    JointInspectorChecklist[]
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  updatedAt          DateTime                  @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@map("joint_inspections")
+}
+
+model JointInspectionApproval {
+  id                   String           @id @default(uuid())
+  jointInspectionId    String           @map("joint_inspection_id")
+  jointInspection      JointInspection  @relation(fields: [jointInspectionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalInstanceId   String?          @map("approval_instance_id")
+  approvalInstance     ApprovalInstance? @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  approvalCode         String           @map("approval_code")
+  approvalName         String           @map("approval_name")
+  authorityCode        String           @map("authority_code")
+  authorityName        String           @map("authority_name")
+  specificRequirements String?          @map("specific_requirements") @db.Text
+  createdAt            DateTime         @default(now()) @map("created_at")
+
+  @@unique([jointInspectionId, approvalCode])
+  @@map("joint_inspection_approvals")
+}
+
+model JointInspectorChecklist {
+  id                   String                 @id @default(uuid())
+  jointInspectionId    String                 @map("joint_inspection_id")
+  jointInspection      JointInspection        @relation(fields: [jointInspectionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorityCode        String                 @map("authority_code")
+  authorityName        String                 @map("authority_name")
+  inspectorName        String?                @map("inspector_name")
+  inspectorDesignation String?                @map("inspector_designation")
+  status               InspectorSignoffStatus @default(pending)
+  items                Json                   @db.JsonB
+  findingsNotes        String?                @map("findings_notes") @db.Text
+  signedOffAt          DateTime?              @map("signed_off_at")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+
+  @@unique([jointInspectionId, authorityCode])
+  @@map("joint_inspector_checklists")
+}
+
+
 // Phase 9: officer side of the workflow. Two additions, both deliberately
 // narrow:
 //
@@ -679,3 +770,4 @@ model ClarificationResponseDocument {
   @@unique([clarificationResponseId, documentId])
   @@map("clarification_response_documents")
 }
+
