@@ -608,6 +608,11 @@ export function RoadmapPage(): JSX.Element {
           <p className="text-sm text-gray-600">
             Project <span className="font-mono text-xs">{projectId}</span> · solid edges gate progress, dotted edges are informational only.
           </p>
+          <p className="mt-1 text-sm">
+            <Link to={`/projects/${projectId}/clarifications`} className="text-blue-600 hover:underline">
+              View officer questions for this project →
+            </Link>
+          </p>
         </div>
         <Link
           to={`/projects/${projectId}/inspections`}
@@ -615,17 +620,6 @@ export function RoadmapPage(): JSX.Element {
         >
           Joint Inspection Planner →
         </Link>
-
-      <div>
-        <h1 className="text-2xl font-semibold">Approval roadmap</h1>
-        <p className="text-sm text-gray-600">
-          Project <span className="font-mono text-xs">{projectId}</span> · solid edges gate progress, dotted edges are informational only.
-        </p>
-        <p className="mt-1 text-sm">
-          <Link to={`/projects/${projectId}/clarifications`} className="text-blue-600 hover:underline">
-            View officer questions for this project →
-          </Link>
-        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
