@@ -12,6 +12,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { JobsModule } from './jobs/jobs.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { ReuseModule } from './reuse/reuse.module';
+import { BusinessMapModule } from './business-map/business-map.module';
 import { InspectionsModule } from './inspections/inspections.module';
 import { ClarificationsModule } from './clarifications/clarifications.module';
 import { OfficerModule } from './officer/officer.module';
@@ -30,8 +31,8 @@ import { OfficerModule } from './officer/officer.module';
     JobsModule,
     IntelligenceModule,
     ReuseModule,
+    BusinessMapModule,
     InspectionsModule,
-    // Phase 9: applicant clarification inbox + officer queue/review.
     ClarificationsModule,
     OfficerModule,
   ],
