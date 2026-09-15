@@ -36,13 +36,23 @@ export function Layout(): JSX.Element {
               <>
                 <span className="text-gray-600">{user?.email}</span>
                 {isOfficer ? (
-                  <Link to="/officer" className="text-blue-600 hover:underline">
-                    Officer queue
-                  </Link>
+                  <>
+                    <Link to="/officer" className="text-blue-600 hover:underline">
+                      Officer queue
+                    </Link>
+                    <Link to="/regulatory-changes" className="text-blue-600 hover:underline">
+                      Regulatory Changes
+                    </Link>
+                  </>
                 ) : (
-                  <Link to="/projects" className="text-blue-600 hover:underline">
-                    Projects
-                  </Link>
+                  <>
+                    <Link to="/projects" className="text-blue-600 hover:underline">
+                      Projects
+                    </Link>
+                    <Link to="/regulatory-changes" className="text-blue-600 hover:underline">
+                      Regulatory Changes
+                    </Link>
+                  </>
                 )}
                 <button
                   type="button"

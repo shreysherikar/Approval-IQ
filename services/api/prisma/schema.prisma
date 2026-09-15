@@ -113,6 +113,7 @@ model ApprovalDefinition {
   incomingDeps            Dependency[]                  @relation("DepTo")
   evaluationResults       EvaluationResult[]
   instances               ApprovalInstance[]
+  regulatoryChanges       RegulatoryChange[]
 
   @@map("approval_definitions")
 }
@@ -200,6 +201,7 @@ model User {
   clarificationsRequested ClarificationRequest[]      @relation("ClarificationRequester")
   clarificationsResolved  ClarificationRequest[]      @relation("ClarificationResolver")
   clarificationResponses  ClarificationResponse[]     @relation("ClarificationResponseAuthor")
+  auditEvents            AuditEvent[]
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
@@ -270,6 +272,8 @@ model ApprovalInstance {
   jointInspections     JointInspectionApproval[]
   // Phase 9: clarifications raised by an authority officer on THIS application.
   clarifications       ClarificationRequest[]
+  recoveryPlans        RecoveryPlan[]
+  auditEvents          AuditEvent[]
 
   // One roadmap slot per approval per project; re-evaluations re-point the
   // same instance at the newer evaluation result.
@@ -315,6 +319,9 @@ model Project {
   jointInspections  JointInspection[]
   // Phase 9: applicant-visible clarification inbox for this project.
   clarifications     ClarificationRequest[]
+  recoveryPlans      RecoveryPlan[]
+  regulatoryImpacts  RegulatoryChangeImpact[]
+  auditEvents        AuditEvent[]
   createdAt         DateTime                 @default(now()) @map("created_at")
   updatedAt         DateTime                 @updatedAt @map("updated_at")
 
@@ -771,5 +778,162 @@ model ClarificationResponseDocument {
 
   @@unique([clarificationResponseId, documentId])
   @@map("clarification_response_documents")
+}
+
+// ===========================================================================
+// Feature 1: Regulatory Change Impact Engine
+// ===========================================================================
+
+enum RegulatoryChangeStatus {
+  draft
+  analyzing
+  analyzed
+  published
+}
+
+enum ImpactType {
+  newly_affected
+  no_longer_affected
+  requirement_changed
+  no_material_impact
+  needs_review
+}
+
+enum ImpactPriority {
+  critical
+  high
+  medium
+  low
+  no_impact
+}
+
+model RegulatoryChange {
+  id                      String                   @id @default(uuid())
+  title                   String
+  description             String                   @db.Text
+  approvalDefinitionId    String                   @map("approval_definition_id")
+  approvalDefinition      ApprovalDefinition       @relation(fields: [approvalDefinitionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  oldConditions           Json                     @map("old_conditions") @db.JsonB
+  newConditions           Json                     @map("new_conditions") @db.JsonB
+  effectiveDate           DateTime                 @map("effective_date")
+  sourceUrl               String?                  @map("source_url")
+  sourceNotes             String?                  @map("source_notes") @db.Text
+  status                  RegulatoryChangeStatus   @default(draft)
+  createdByUserId         String                   @map("created_by_user_id")
+  impacts                 RegulatoryChangeImpact[]
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+
+  @@index([approvalDefinitionId])
+  @@map("regulatory_changes")
+}
+
+model RegulatoryChangeImpact {
+  id                    String             @id @default(uuid())
+  regulatoryChangeId    String             @map("regulatory_change_id")
+  regulatoryChange      RegulatoryChange    @relation(fields: [regulatoryChangeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  projectId             String             @map("project_id")
+  project               Project            @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  impactType            ImpactType         @map("impact_type")
+  priority              ImpactPriority     @default(no_impact)
+  oldApplicability      String             @map("old_applicability") @db.Text
+  newApplicability      String             @map("new_applicability") @db.Text
+  changedCondition      String?            @map("changed_condition") @db.Text
+  requiredAction        String?            @map("required_action") @db.Text
+  explanation           String             @db.Text
+  confidence            String             @default("high")
+  analyzedAt            DateTime           @default(now()) @map("analyzed_at")
+  createdAt             DateTime           @default(now()) @map("created_at")
+
+  @@unique([regulatoryChangeId, projectId])
+  @@index([projectId])
+  @@map("regulatory_change_impacts")
+}
+
+// ===========================================================================
+// Feature 2: Compliance Recovery Engine
+// ===========================================================================
+
+enum RecoveryPlanStatus {
+  active
+  completed
+  abandoned
+}
+
+enum RecoveryActionStatus {
+  open
+  in_progress
+  resolved
+  needs_review
+}
+
+enum RecoveryActionSeverity {
+  blocking
+  high
+  medium
+  low
+}
+
+model RecoveryPlan {
+  id                    String                @id @default(uuid())
+  projectId             String                @map("project_id")
+  project               Project               @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalInstanceId    String?               @map("approval_instance_id")
+  approvalInstance      ApprovalInstance?     @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  status                RecoveryPlanStatus    @default(active)
+  readinessLevel        String                @default("not_ready") @map("readiness_level")
+  totalBlocking         Int                   @default(0) @map("total_blocking")
+  totalWarnings         Int                   @default(0) @map("total_warnings")
+  totalActions          Int                   @default(0) @map("total_actions")
+  resolvedActions       Int                   @default(0) @map("resolved_actions")
+  actions               RecoveryAction[]
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@map("recovery_plans")
+}
+
+model RecoveryAction {
+  id                    String                @id @default(uuid())
+  recoveryPlanId        String                @map("recovery_plan_id")
+  recoveryPlan          RecoveryPlan          @relation(fields: [recoveryPlanId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  issueId               String?               @map("issue_id")
+  title                 String
+  description           String                @db.Text
+  reason                String                @db.Text
+  severity              RecoveryActionSeverity
+  status                RecoveryActionStatus  @default(open)
+  sequenceOrder         Int                   @map("sequence_order")
+  affectedApproval      String?               @map("affected_approval")
+  affectedDocument      String?               @map("affected_document")
+  dependencyOnActionId  String?               @map("dependency_on_action_id")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  @@map("recovery_actions")
+}
+
+// ===========================================================================
+// Feature 3: Audit Trail
+// ===========================================================================
+
+model AuditEvent {
+  id                    String    @id @default(uuid())
+  userId                String    @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  projectId             String?   @map("project_id")
+  project               Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  approvalInstanceId    String?   @map("approval_instance_id")
+  approvalInstance      ApprovalInstance? @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  action                String
+  actor                 String
+  details               Json?     @db.JsonB
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@index([approvalInstanceId])
+  @@index([userId])
+  @@map("audit_events")
 }
 

@@ -16,6 +16,7 @@ import { AboutPage } from './landing/AboutPage';
 import { ContactPage } from './landing/ContactPage';
 import { BusinessMapPage } from './landing/BusinessMapPage';
 import { OfficerApplicationPage, OfficerQueuePage } from './officer-pages';
+import { RegulatoryChangesListPage, RegulatoryChangeDetailPage, ImpactDashboardPage } from './regulatory-changes';
 
 export const router = createBrowserRouter([
   {
@@ -36,6 +37,9 @@ export const router = createBrowserRouter([
       { path: 'projects/:id/inspections', element: <ProjectInspectionsPage /> },
       { path: 'projects/:id/clarifications', element: <ProjectClarificationsPage /> },
       { path: 'projects/:id/documents/:documentId', element: <ProjectDocumentPage /> },
+      { path: 'regulatory-changes', element: <RegulatoryChangesListPage /> },
+      { path: 'regulatory-changes/:id', element: <RegulatoryChangeDetailPage /> },
+      { path: 'regulatory-changes/:id/impacts', element: <ImpactDashboardPage /> },
       { path: 'officer', element: <OfficerQueuePage /> },
       { path: 'officer/applications/:instanceId', element: <OfficerApplicationPage /> },
       { path: '*', element: <NotFoundPage /> },
