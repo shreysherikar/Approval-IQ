@@ -17,6 +17,10 @@ const envSchema = z.object({
   // accuracy data exists — config, never a hardcoded number in an `if`.
   EXTRACTION_REVIEW_THRESHOLD: z.coerce.number().min(0).max(1).default(0.6),
   PORT: z.coerce.number().int().positive().default(3001),
+  FRONTEND_URL: z.string().default('http://localhost:5173'),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CALLBACK_URL: z.string().default('http://localhost:3001/auth/google/callback'),
 });
 
 export type Env = z.infer<typeof envSchema>;

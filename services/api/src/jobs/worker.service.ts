@@ -25,7 +25,11 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('Worker disabled via WORKER_ENABLED=0');
       return;
     }
-    await this.jobs.resetStuckProcessing();
+    try {
+      await this.jobs.resetStuckProcessing();
+    } catch {
+      this.logger.warn('Could not reset stuck jobs on startup (DB may be offline).');
+    }
     this.timer = setInterval(() => void this.tick(), 1000);
     if (typeof this.timer.unref === 'function') this.timer.unref();
   }
@@ -39,7 +43,13 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      const job = await this.jobs.claimNext(['document_extraction']);
+      let job: Record<string, unknown> | null = null;
+      try {
+        job = await this.jobs.claimNext(['document_extraction']);
+      } catch {
+        // DB unreachable or busy — skip this tick
+        return;
+      }
       if (!job) return;
       try {
         await this.dispatch(job);

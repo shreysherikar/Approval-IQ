@@ -1,14 +1,28 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
 
 export function Layout(): JSX.Element {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isPublicPage =
+    location.pathname === '/' ||
+    location.pathname === '/about' ||
+    location.pathname === '/contact' ||
+    location.pathname === '/business-map' ||
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/projects';
 
   const handleLogout = (): void => {
     logout();
     void navigate('/');
   };
+
+  // Public marketing pages (home, about, contact) have their own dedicated sticky navbar and footer
+  if (isPublicPage) {
+    return <Outlet />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -51,3 +65,4 @@ export function Layout(): JSX.Element {
     </div>
   );
 }
+

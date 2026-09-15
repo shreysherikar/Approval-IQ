@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Inject,
@@ -8,12 +9,15 @@ import {
   Req,
   Res,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 
 /**
  * Session restore (documented in apps/web/src/auth.tsx): the web app keeps the
@@ -27,7 +31,38 @@ const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // matches JWT_REFRES
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+  constructor(
+    @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(ConfigService) private readonly config: ConfigService,
+  ) {}
+
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Initiate Google OAuth2 authentication flow' })
+  googleAuth() {
+    // Handled by Passport Google Strategy redirect
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Google OAuth2 callback URL' })
+  async googleAuthCallback(
+    @Req() req: Request & { user?: { id: string; email: string; role: string } },
+    @Res() res: Response,
+  ) {
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+    try {
+      if (!req.user) {
+        return res.redirect(`${frontendUrl}/login?error=Google%20authentication%20failed`);
+      }
+      const tokens = await this.auth.issueTokensForUser(req.user);
+      this.setRefreshCookie(res, tokens.refreshToken);
+      return res.redirect(`${frontendUrl}/auth/callback?success=true`);
+    } catch (err) {
+      const msg = encodeURIComponent(err instanceof Error ? err.message : 'Failed to complete Google login');
+      return res.redirect(`${frontendUrl}/login?error=${msg}`);
+    }
+  }
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
