@@ -11,6 +11,26 @@ interface ProviderOutput {
   promptVersion: string;
 }
 
+export const REALISTIC_DEMO_TRADE_LICENCE_TEXT = `PUNE MUNICIPAL CORPORATION
+Department of Health & Licences
+
+MUNICIPAL TRADE LICENCE & FACTORY PERMISSION
+Document Number: TL-2024-001
+Issue Date: 2024-04-01
+Expiry Date: 2025-03-31
+Jurisdiction: Maharashtra
+Issuing Authority: Pune Municipal Corporation
+
+Entity Name: Pune Brewing Co.
+Activity / Industry: brewery
+Address: Plot 42, Hadapsar Industrial Estate, Pune, Maharashtra
+Property Identifier: Plot 42, Hadapsar
+Total Authorized Operational Area: 5000 sqft
+Purpose: Commercial Brewery Operations
+Conditions: Subject to annual fire safety audit and effluent compliance.
+APPROVALIQ_DEMO_TRADE_LICENCE
+`;
+
 /**
  * Handler for "document_extraction" jobs. Success path:
  * processing → extracted → needs_verification (never straight to verified).
@@ -89,7 +109,7 @@ export class ExtractionHandler {
         registerFixture(h: string, f: unknown): void;
         extract(b: Buffer, m: string): Promise<ProviderOutput>;
       };
-      AnthropicExtractionProvider: new () => {
+      AnthropicExtractionProvider: new (options?: { apiKey?: string; model?: string }) => {
         extract(b: Buffer, m: string): Promise<ProviderOutput>;
       };
     };
@@ -98,22 +118,62 @@ export class ExtractionHandler {
     // Anthropic adapter, which fails fast with a clear config error when
     // ANTHROPIC_API_KEY is missing (transient → retried, then dead-letter).
     if (name === 'anthropic') {
-      return new engine.AnthropicExtractionProvider().extract(buffer, mimeType);
+      const apiKey = this.config.get<string>('ANTHROPIC_API_KEY') ?? process.env.ANTHROPIC_API_KEY;
+      const model = this.config.get<string>('ANTHROPIC_MODEL') ?? process.env.ANTHROPIC_MODEL;
+      const allowFallback =
+        this.config.get<string>('LLM_FALLBACK_TO_MOCK') === 'true' ||
+        this.config.get<boolean>('LLM_FALLBACK_TO_MOCK') === true;
+      const options: { apiKey?: string; model?: string } = {};
+      if (apiKey) options.apiKey = apiKey;
+      if (model) options.model = model;
+      try {
+        return await new engine.AnthropicExtractionProvider(options).extract(buffer, mimeType);
+      } catch (err) {
+        if (allowFallback) {
+          this.logger.warn(
+            `Anthropic extraction failed (${err instanceof Error ? err.message : String(err)}). Falling back to mock provider as configured.`,
+          );
+          return this.runMockProvider(engine, buffer, mimeType);
+        }
+        throw err;
+      }
     }
     if (name !== 'mock') throw new Error(`Unknown LLM_PROVIDER: "${name}"`);
+    return this.runMockProvider(engine, buffer, mimeType);
+  }
+
+  private runMockProvider(
+    engine: {
+      MockExtractionProvider: new () => {
+        registerFixture(h: string, f: unknown): void;
+        extract(b: Buffer, m: string): Promise<ProviderOutput>;
+      };
+    },
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<ProviderOutput> {
     const q = new engine.MockExtractionProvider();
-    const demoHash = createHash('sha256').update(Buffer.from('APPROVALIQ_DEMO_TRADE_LICENCE')).digest('hex');
-    q.registerFixture(demoHash, {
+    const fixtureData = {
       documentType: { value: 'trade_licence', confidence: 0.95, evidenceLocation: 'page 1, header' },
       entityName: { value: 'Pune Brewing Co.', confidence: 0.9, evidenceLocation: 'page 1, para 1' },
       issuingAuthority: { value: 'Pune Municipal Corporation', confidence: 0.88, evidenceLocation: 'page 1, seal' },
       documentNumber: { value: 'TL-2024-001', confidence: 0.92, evidenceLocation: 'page 1, top-right' },
       issueDate: { value: '2024-04-01', confidence: 0.85, evidenceLocation: 'page 1' },
-      address: { value: 'Pune, Maharashtra', confidence: 0.8, evidenceLocation: 'page 1, para 2' },
+      expiryDate: { value: '2025-03-31', confidence: 0.88, evidenceLocation: 'page 1' },
+      address: { value: 'Plot 42, Hadapsar Industrial Estate, Pune, Maharashtra', confidence: 0.8, evidenceLocation: 'page 1, para 2' },
+      propertyIdentifier: { value: 'Plot 42, Hadapsar', confidence: 0.85, evidenceLocation: 'page 1' },
       jurisdiction: { value: 'Maharashtra', confidence: 0.9, evidenceLocation: 'page 1' },
       activityIndustry: { value: 'brewery', confidence: 0.93, evidenceLocation: 'page 1' },
       area: { value: '5000', confidence: 0.4, evidenceLocation: 'page 2' },
-    });
+      areaUnits: { value: 'sqft', confidence: 0.9, evidenceLocation: 'page 2' },
+      ownerHolder: { value: 'Pune Brewing Co.', confidence: 0.9, evidenceLocation: 'page 1' },
+      purpose: { value: 'Commercial Brewery Operations', confidence: 0.85, evidenceLocation: 'page 1' },
+      conditions: { value: 'Subject to annual fire safety audit and effluent compliance', confidence: 0.8, evidenceLocation: 'page 3' },
+    };
+    const demoHash = createHash('sha256').update(Buffer.from('APPROVALIQ_DEMO_TRADE_LICENCE')).digest('hex');
+    const realisticHash = createHash('sha256').update(Buffer.from(REALISTIC_DEMO_TRADE_LICENCE_TEXT)).digest('hex');
+    q.registerFixture(demoHash, fixtureData);
+    q.registerFixture(realisticHash, fixtureData);
     return q.extract(buffer, mimeType);
   }
 }

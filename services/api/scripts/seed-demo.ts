@@ -434,7 +434,27 @@ async function main(): Promise<void> {
     await mkdir(projectStorageDir, { recursive: true });
 
     // Document 1: Municipal Trade Licence (with Deliberate 5,000 sq ft Area Mismatch)
-    const tradeLicenceBuffer = Buffer.from('APPROVALIQ_DEMO_TRADE_LICENCE');
+    const realisticTradeLicenceText = `PUNE MUNICIPAL CORPORATION
+Department of Health & Licences
+
+MUNICIPAL TRADE LICENCE & FACTORY PERMISSION
+Document Number: TL-2024-001
+Issue Date: 2024-04-01
+Expiry Date: 2025-03-31
+Jurisdiction: Maharashtra
+Issuing Authority: Pune Municipal Corporation
+
+Entity Name: Pune Brewing Co.
+Activity / Industry: brewery
+Address: Plot 42, Hadapsar Industrial Estate, Pune, Maharashtra
+Property Identifier: Plot 42, Hadapsar
+Total Authorized Operational Area: 5000 sqft
+Purpose: Commercial Brewery Operations
+Conditions: Subject to annual fire safety audit and effluent compliance.
+APPROVALIQ_DEMO_TRADE_LICENCE
+`;
+
+    const tradeLicenceBuffer = Buffer.from(realisticTradeLicenceText, 'utf8');
     const tradeLicenceHash = sha256(tradeLicenceBuffer);
     const doc1Id = randomUUID();
     const ver1Id = randomUUID();
@@ -478,7 +498,7 @@ async function main(): Promise<void> {
       data: { currentVersionId: ver1.id },
     });
 
-    const doc1ExtractionFields = [
+    const doc1MockExtractionFields = [
       { name: 'documentType', value: 'trade_licence', confidence: 0.95, evidenceLocation: 'page 1, header' },
       { name: 'entityName', value: 'Pune Brewing Co.', confidence: 0.9, evidenceLocation: 'page 1, para 1' },
       { name: 'issuingAuthority', value: 'Pune Municipal Corporation', confidence: 0.88, evidenceLocation: 'page 1, seal' },
@@ -496,13 +516,62 @@ async function main(): Promise<void> {
       { name: 'conditions', value: 'Subject to annual fire safety audit and effluent compliance', confidence: 0.8, evidenceLocation: 'page 3' },
     ];
 
-    await prisma.extractionResult.create({
-      data: {
-        documentVersionId: ver1.id,
-        fields: doc1ExtractionFields as object,
+    // Check if real extraction is configured via LLM_PROVIDER=anthropic and ANTHROPIC_API_KEY
+    const llmProvider = (process.env.LLM_PROVIDER ?? 'mock').toLowerCase();
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    const isRealExtractionConfigured = llmProvider === 'anthropic' && Boolean(anthropicApiKey);
+
+    let doc1ExtractionOutput: {
+      fields: Array<{ name: string; value: string; confidence: number; evidenceLocation: string | null }>;
+      modelProvider: string;
+      modelVersion: string;
+      promptVersion: string;
+    };
+
+    if (isRealExtractionConfigured) {
+      console.log('  ⚡ LLM_PROVIDER=anthropic detected with API key. Executing real extraction via Anthropic API...');
+      try {
+        const { AnthropicExtractionProvider } = (await import('@approvaliq/document-engine')) as {
+          AnthropicExtractionProvider: new (options?: { apiKey?: string; model?: string }) => {
+            extract(b: Buffer, m: string): Promise<{
+              fields: Array<{ name: string; value: string; confidence: number; evidenceLocation: string | null }>;
+              modelProvider: string;
+              modelVersion: string;
+              promptVersion: string;
+            }>;
+          };
+        };
+        const realProvider = new AnthropicExtractionProvider({
+          apiKey: anthropicApiKey,
+          model: process.env.ANTHROPIC_MODEL,
+        });
+        doc1ExtractionOutput = await realProvider.extract(tradeLicenceBuffer, 'text/plain');
+        console.log(`  ✓ Real Anthropic extraction completed successfully (${doc1ExtractionOutput.modelVersion}).`);
+      } catch (err) {
+        console.warn(`  ⚠️ Real extraction failed (${err instanceof Error ? err.message : String(err)}). Falling back to mock extraction.`);
+        doc1ExtractionOutput = {
+          fields: doc1MockExtractionFields,
+          modelProvider: 'mock',
+          modelVersion: 'mock-1.0.0',
+          promptVersion: 'n/a',
+        };
+      }
+    } else {
+      doc1ExtractionOutput = {
+        fields: doc1MockExtractionFields,
         modelProvider: 'mock',
         modelVersion: 'mock-1.0.0',
         promptVersion: 'n/a',
+      };
+    }
+
+    await prisma.extractionResult.create({
+      data: {
+        documentVersionId: ver1.id,
+        fields: doc1ExtractionOutput.fields as object,
+        modelProvider: doc1ExtractionOutput.modelProvider,
+        modelVersion: doc1ExtractionOutput.modelVersion,
+        promptVersion: doc1ExtractionOutput.promptVersion,
       },
     });
 

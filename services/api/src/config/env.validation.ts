@@ -12,6 +12,7 @@ const envSchema = z.object({
   // LLM_PROVIDER=anthropic; mock stays the default so local/dev never needs a key.
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-5-20250929'),
+  LLM_FALLBACK_TO_MOCK: z.string().optional(),
   // Phase 6 Decision #6: per-field confidence threshold below which the UI flags
   // a field as needing extra attention. Provisional default until real
   // accuracy data exists — config, never a hardcoded number in an `if`.

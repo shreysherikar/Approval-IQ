@@ -3,5 +3,5 @@ dist
 coverage
 *.log
 .env
-data/storage
+**/data/storage
 Astra.txt
