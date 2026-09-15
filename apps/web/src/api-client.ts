@@ -655,4 +655,255 @@ export const intelligenceApi = {
   },
 };
 
+export interface JointInspectionApprovalView {
+  id: string;
+  approvalCode: string;
+  approvalName: string;
+  authorityCode: string;
+  authorityName: string;
+  specificRequirements: string | null;
+}
+
+export interface JointInspectorChecklistItem {
+  item: string;
+  status: 'pending' | 'pass' | 'fail' | 'na';
+  remarks?: string;
+}
+
+export interface JointInspectorChecklistView {
+  id: string;
+  authorityCode: string;
+  authorityName: string;
+  inspectorName: string | null;
+  inspectorDesignation: string | null;
+  status: 'pending' | 'satisfactory' | 'needs_rectification' | 'rejected';
+  items: JointInspectorChecklistItem[];
+  findingsNotes: string | null;
+  signedOffAt: string | null;
+}
+
+export interface ReadinessRequirementItem {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+}
+
+export interface JointInspectionView {
+  id: string;
+  projectId: string;
+  title: string;
+  stage: 'pre_construction' | 'plant_readiness' | 'pre_commissioning' | 'annual_compliance';
+  status: 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'rescheduled' | 'cancelled';
+  scheduledDate: string | null;
+  timeSlot: string | null;
+  premisesAddress: string | null;
+  leadAuthorityCode: string | null;
+  leadAuthorityName: string | null;
+  notes: string | null;
+  readinessChecklist: ReadinessRequirementItem[] | null;
+  slotNegotiation?: {
+    proposedAt: string;
+    applicantNotes?: string;
+    slots: Array<{ slotId: string; date: string; timeWindow: string; label?: string }>;
+    responses: Record<
+      string,
+      {
+        slotId: string;
+        status: 'confirmed' | 'unavailable' | 'alternate_proposed';
+        alternateDate?: string | null;
+        officerNotes?: string | null;
+        respondedAt: string;
+      }
+    >;
+    consensusSlotId: string | null;
+    status: string;
+  } | null;
+  rectificationPlan?: {
+    status: string;
+    lastSubmittedAt?: string;
+    lastReviewedAt?: string;
+    reviewNotes?: string;
+    submissions: Array<{
+      submissionId: string;
+      authorityCode: string;
+      submittedAt: string;
+      itemsResolved: Array<{
+        item: string;
+        actionTaken: string;
+        evidenceDocId?: string;
+        notes?: string;
+      }>;
+      complianceDeclaration: string;
+      status: string;
+    }>;
+  } | null;
+  jointReportSummary: string | null;
+  participatingApprovals: JointInspectionApprovalView[];
+  inspectorChecklists: JointInspectorChecklistView[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InspectionCandidateApproval {
+  approvalCode: string;
+  approvalName: string;
+  authorityCode: string;
+  authorityName: string;
+  inspectionMandate: string;
+  checklistTemplate: JointInspectorChecklistItem[];
+}
+
+export interface InspectionCandidateView {
+  stage: 'pre_construction' | 'plant_readiness' | 'pre_commissioning' | 'annual_compliance';
+  stageTitle: string;
+  stageDescription: string;
+  recommendedTimeframe: string;
+  leadAuthorityCode: string;
+  leadAuthorityName: string;
+  participatingApprovals: InspectionCandidateApproval[];
+  readinessRequirements: ReadinessRequirementItem[];
+  estimatedVisitsSaved: number;
+  estimatedDaysSaved: number;
+}
+
+export interface InspectionCandidatesResponse {
+  candidates: InspectionCandidateView[];
+  summary: {
+    totalSeparateVisits: number;
+    consolidatedJointVisits: number;
+    visitsSaved: number;
+    totalDaysSaved: number;
+  };
+}
+
+export const inspectionsApi = {
+  /** GET auto-detected candidates and savings metrics */
+  candidates(projectId: string, token?: string): Promise<InspectionCandidatesResponse> {
+    return get(`/projects/${projectId}/inspections/candidates`, { token });
+  },
+  /** GET all planned & scheduled inspections for a project */
+  list(projectId: string, token?: string): Promise<JointInspectionView[]> {
+    return get(`/projects/${projectId}/inspections`, { token });
+  },
+  /** GET a single joint inspection */
+  get(projectId: string, inspectionId: string, token?: string): Promise<JointInspectionView> {
+    return get(`/projects/${projectId}/inspections/${inspectionId}`, { token });
+  },
+  /** POST auto-generate joint inspection plan */
+  createPlan(
+    projectId: string,
+    body?: { title?: string; stage?: string; premisesAddress?: string; notes?: string },
+    token?: string,
+  ): Promise<JointInspectionView[]> {
+    return post(`/projects/${projectId}/inspections/plan`, body ?? {}, { token });
+  },
+  /** PATCH schedule date, time, and readiness checklist */
+  schedule(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      scheduledDate: string;
+      timeSlot: string;
+      premisesAddress?: string;
+      leadAuthorityCode?: string;
+      leadAuthorityName?: string;
+      notes?: string;
+      readinessChecklist?: ReadinessRequirementItem[];
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return patch(`/projects/${projectId}/inspections/${inspectionId}/schedule`, body, { token });
+  },
+  /** POST propose multiple slots for multi-department consensus */
+  proposeSlots(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      slots: Array<{ slotId: string; date: string; timeWindow: string; label?: string }>;
+      applicantNotes?: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return post(`/projects/${projectId}/inspections/${inspectionId}/slots/propose`, body, { token });
+  },
+  /** PATCH department officer response to proposed slot */
+  respondSlot(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      authorityCode: string;
+      slotId: string;
+      status: 'confirmed' | 'unavailable' | 'alternate_proposed';
+      alternateDate?: string;
+      officerNotes?: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return patch(`/projects/${projectId}/inspections/${inspectionId}/slots/respond`, body, { token });
+  },
+  /** PATCH submit departmental inspector checklist sign-off */
+  signoffChecklist(
+    projectId: string,
+    inspectionId: string,
+    checklistId: string,
+    body: {
+      inspectorName?: string;
+      inspectorDesignation?: string;
+      status: 'pending' | 'satisfactory' | 'needs_rectification' | 'rejected';
+      items: JointInspectorChecklistItem[];
+      findingsNotes?: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return patch(
+      `/projects/${projectId}/inspections/${inspectionId}/checklists/${checklistId}/signoff`,
+      body,
+      { token },
+    );
+  },
+  /** POST applicant submits rectification compliance actions & evidence */
+  submitRectification(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      authorityCode: string;
+      itemsResolved: Array<{
+        item: string;
+        actionTaken: string;
+        evidenceDocId?: string;
+        notes?: string;
+      }>;
+      complianceDeclaration: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return post(`/projects/${projectId}/inspections/${inspectionId}/rectifications/submit`, body, { token });
+  },
+  /** PATCH department officer reviews rectification proof and resolves */
+  reviewRectification(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      authorityCode: string;
+      status: 'satisfactory' | 'needs_rectification';
+      reInspectionRequired: boolean;
+      reviewNotes: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return patch(`/projects/${projectId}/inspections/${inspectionId}/rectifications/review`, body, { token });
+  },
+  /** POST finalize joint inspection */
+  complete(
+    projectId: string,
+    inspectionId: string,
+    body: { jointReportSummary: string },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return post(`/projects/${projectId}/inspections/${inspectionId}/complete`, body, { token });
+  },
+};
+
 export type { LoginRequest, LoginResponse, RegisterRequest, RegisteredUser };
+
