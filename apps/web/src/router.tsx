@@ -5,11 +5,14 @@ import {
   NotFoundPage,
   ProjectDocumentPage,
   ProjectInspectionsPage,
+  ProjectClarificationsPage,
   ProjectProfilePage,
   ProjectRoadmapPage,
   ProjectsPage,
 } from './project-pages';
 import { EvaluationResultsPage } from './evaluation-results';
+import { ProjectDocumentPage } from './project-pages';
+import { OfficerApplicationPage, OfficerQueuePage } from './officer-pages';
 
 export const router = createBrowserRouter([
   {
@@ -24,7 +27,10 @@ export const router = createBrowserRouter([
       { path: 'projects/:id/approvals', element: <EvaluationResultsPage /> },
       { path: 'projects/:id/roadmap', element: <ProjectRoadmapPage /> },
       { path: 'projects/:id/inspections', element: <ProjectInspectionsPage /> },
+      { path: 'projects/:id/clarifications', element: <ProjectClarificationsPage /> },
       { path: 'projects/:id/documents/:documentId', element: <ProjectDocumentPage /> },
+      { path: 'officer', element: <OfficerQueuePage /> },
+      { path: 'officer/applications/:instanceId', element: <OfficerApplicationPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

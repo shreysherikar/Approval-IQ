@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { DocumentDetailPage } from './document-detail';
+import { ApplicantClarificationsPage } from './clarifications';
 import { ApiError, projectsApi } from './api-client';
 import { EmptyState, ErrorBanner } from './components';
 import { RoadmapPage } from './roadmap';
@@ -149,6 +150,23 @@ export function ProjectDocumentPage(): JSX.Element {
     return <EmptyState title="Document not found" description="Missing project or document id in the URL." />;
   }
   return <DocumentDetailPage projectId={id} documentId={documentId} />;
+}
+
+export function ProjectClarificationsPage(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <EmptyState title="Project not found" description="No project id in the URL." />;
+  }
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600">
+        <Link to={`/projects/${id}/roadmap`} className="text-blue-600 hover:underline">
+          ← Back to roadmap
+        </Link>
+      </p>
+      <ApplicantClarificationsPage projectId={id} />
+    </div>
+  );
 }
 
 export function NotFoundPage(): JSX.Element {

@@ -13,6 +13,8 @@ import { JobsModule } from './jobs/jobs.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { ReuseModule } from './reuse/reuse.module';
 import { InspectionsModule } from './inspections/inspections.module';
+import { ClarificationsModule } from './clarifications/clarifications.module';
+import { OfficerModule } from './officer/officer.module';
 
 @Module({
   imports: [
@@ -29,6 +31,9 @@ import { InspectionsModule } from './inspections/inspections.module';
     IntelligenceModule,
     ReuseModule,
     InspectionsModule,
+    // Phase 9: applicant clarification inbox + officer queue/review.
+    ClarificationsModule,
+    OfficerModule,
   ],
 })
 export class AppModule {}
