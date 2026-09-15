@@ -37,11 +37,13 @@ import dagre from '@dagrejs/dagre';
 import {
   roadmapApi,
   documentsApi,
+  reuseApi,
   type ApprovalInstanceStatus,
   type DependencyRelationshipType,
   type Document as ApiDocument,
   type EvaluationOutcome,
   type MissingFieldInfo,
+  type ReuseRequiredDocument,
   type RoadmapNode,
   type RoadmapResponse,
 } from './api-client';
@@ -254,6 +256,70 @@ function MissingFieldItem({ missing }: { missing: MissingFieldInfo }): JSX.Eleme
   );
 }
 
+/**
+ * Phase 7 reuse candidates for ONE required document on the roadmap detail
+ * panel. Eligible candidates surface an explicit "Use existing document" action
+ * with the reason they qualify; ineligible candidates are shown greyed out with
+ * their SPECIFIC rejection reason — they are never hidden.
+ */
+function ReuseCandidates({
+  group,
+  projectId,
+}: {
+  group: ReuseRequiredDocument | undefined;
+  projectId: string;
+}): JSX.Element | null {
+  if (!group || group.candidates.length === 0) return null;
+  const eligible = group.candidates.filter((c) => c.eligible);
+  const ineligible = group.candidates.filter((c) => !c.eligible);
+
+  return (
+    <div className="mt-2 space-y-2">
+      {eligible.length > 0 && (
+        <p className="text-xs font-semibold text-green-800">
+          Reusable — existing document(s) that satisfy this requirement:
+        </p>
+      )}
+      {eligible.map((c) => (
+        <div key={c.documentId} className="rounded border border-green-300 bg-green-50 p-2">
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              to={`/projects/${projectId}/documents/${c.documentId}`}
+              className="rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700"
+            >
+              Use existing document
+            </Link>
+            {c.currentVersion && (
+              <span className="text-xs text-green-800">
+                v{c.currentVersion.versionNumber} · {c.currentVersion.state}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-green-900">{c.reason}</p>
+        </div>
+      ))}
+
+      {ineligible.length > 0 && (
+        <>
+          <p className="pt-1 text-xs font-semibold text-gray-500">
+            Existing candidates that cannot be reused:
+          </p>
+          {ineligible.map((c) => (
+            <div
+              key={c.documentId}
+              className="rounded border border-gray-200 bg-gray-50 p-2 opacity-70"
+              aria-disabled="true"
+            >
+              <p className="text-xs font-medium text-gray-500 line-through">Use existing document</p>
+              <p className="mt-0.5 text-xs text-gray-500">{c.reason}</p>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 function DetailPanel({
   node,
   onClose,
@@ -267,7 +333,7 @@ function DetailPanel({
   const { accessToken } = useAuth();
   const advance = useMutation({
     mutationFn: (next: 'in_progress' | 'done') =>
-      roadmapApi.updateStatus(projectId, node.id, next),
+      roadmapApi.updateStatus(projectId, node.id, next, accessToken ?? undefined),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['roadmap', projectId] });
     },
@@ -293,6 +359,23 @@ function DetailPanel({
     });
     return map;
   }, [projectDocs]);
+
+  // Phase 7 reuse candidates for this approval instance — eligible AND
+  // ineligible, each with its specific reason. Ineligible are never hidden.
+  const { data: reuse } = useQuery({
+    queryKey: ['reuse-candidates', projectId, node.id],
+    queryFn: () => reuseApi.candidates(projectId, node.id, accessToken ?? undefined),
+    enabled: projectId !== undefined && accessToken !== null,
+    staleTime: 30_000,
+  });
+
+  // requiredDocs emitted by the roadmap are keyed by their DocumentDefinition
+  // code (requiredDoc.id); the reuse response groups by the same code.
+  const reuseByCode = useMemo(() => {
+    const map = new Map<string, ReuseRequiredDocument>();
+    reuse?.requiredDocuments.forEach((g) => map.set(g.code, g));
+    return map;
+  }, [reuse]);
 
   const canAdvance = node.status === 'available' || node.status === 'in_progress';
   const nextStatus = node.status === 'available' ? 'in_progress' : 'done';
@@ -364,13 +447,15 @@ function DetailPanel({
         ) : (
           <div className="mt-2 space-y-3">
             {node.requiredDocuments.map((reqDoc) => (
-              <DocumentUploadControl
-                key={reqDoc.id}
-                projectId={projectId}
-                requiredDoc={reqDoc}
-                existingDoc={docMap.get(reqDoc.id) ?? null}
-                token={accessToken ?? ''}
-              />
+              <div key={reqDoc.id}>
+                <DocumentUploadControl
+                  projectId={projectId}
+                  requiredDoc={reqDoc}
+                  existingDoc={docMap.get(reqDoc.id) ?? null}
+                  token={accessToken ?? ''}
+                />
+                <ReuseCandidates group={reuseByCode.get(reqDoc.id)} projectId={projectId} />
+              </div>
             ))}
           </div>
         )}
@@ -413,12 +498,17 @@ function DetailPanel({
 export function RoadmapPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const projectId = id as string;
+  // The roadmap route is authenticated (JwtAuthGuard) AND membership-scoped
+  // (ProjectMemberGuard), so the in-memory access token must be sent. Waiting
+  // for it avoids a guaranteed 401 on the first fetch after a page reload,
+  // when AuthProvider is still silently refreshing from the httpOnly cookie.
+  const { accessToken, isRestoring } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ['roadmap', projectId],
-    queryFn: () => roadmapApi.get(projectId),
-    enabled: projectId !== undefined,
+    queryFn: () => roadmapApi.get(projectId, accessToken ?? undefined),
+    enabled: projectId !== undefined && accessToken !== null,
     staleTime: 15_000,
     retry: 1,
   });
@@ -462,11 +552,17 @@ export function RoadmapPage(): JSX.Element {
   const onNodeClick = useCallback((_: unknown, node: Node) => setSelectedId(String(node.id)), []);
   const onPaneClick = useCallback(() => setSelectedId(null), []);
 
-  if (query.isLoading) {
+  if (query.isLoading || isRestoring) {
     return (
       <div className="space-y-4">
         <LoadingSpinner label="Loading the approval roadmap…" />
       </div>
+    );
+  }
+
+  if (accessToken === null) {
+    return (
+      <ErrorBanner message="Your session has ended — please log in again to view the approval roadmap." />
     );
   }
 

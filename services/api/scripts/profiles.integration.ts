@@ -60,30 +60,62 @@ async function main(): Promise<void> {
     method: string,
     path: string,
     body?: unknown,
+    token?: string,
   ): Promise<{ status: number; json: Record<string, unknown> }> {
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (token) headers['authorization'] = `Bearer ${token}`;
     const res = await fetch(`${address}${path}`, {
       method,
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: res.status, json: (await res.json()) as Record<string, unknown> };
   }
 
-  // 1. Create a project.
-  const project = await call('POST', '/projects', {
-    name: 'Profiles IT project',
-    industry: 'brewery',
-    businessId: 'biz-it-1',
+  // Auth setup (blueprint §§18-19: authorization enforced server-side).
+  const email = `profiles-it-${Date.now()}@example.com`;
+  const registerRes = await call('POST', '/auth/register', {
+    email,
+    password: 'password123',
+    role: 'applicant',
   });
+  assert(registerRes.status === 201, `register -> 201, got ${registerRes.status}`);
+  const loginRes = await call('POST', '/auth/login', { email, password: 'password123' });
+  assert(loginRes.status === 200, `login -> 200, got ${loginRes.status}`);
+  const token = loginRes.json.accessToken as string;
+  assert(typeof token === 'string' && token.length > 0, 'access token returned');
+
+  // 1. Create a project.
+  const project = await call(
+    'POST',
+    '/projects',
+    {
+      name: 'Profiles IT project',
+      industry: 'brewery',
+      businessId: 'biz-it-1',
+    },
+    token,
+  );
   assert(project.status === 201, `POST /projects -> 201, got ${project.status}`);
   const projectId = project.json.id as string;
   assert(typeof projectId === 'string', 'project id returned');
   console.log('PROJECT ok:', projectId);
 
-  // 2. Partial draft (any subset accepted).
-  const draft = await call('POST', `/projects/${projectId}/profiles`, {
-    values: { industry: known('brewery'), state: known('Maharashtra') },
+  // Regression: anonymous profile creation is rejected.
+  const anonDraft = await call('POST', `/projects/${projectId}/profiles`, {
+    values: { industry: known('brewery') },
   });
+  assert(anonDraft.status === 401, `anonymous POST profiles -> 401, got ${anonDraft.status}`);
+
+  // 2. Partial draft (any subset accepted).
+  const draft = await call(
+    'POST',
+    `/projects/${projectId}/profiles`,
+    {
+      values: { industry: known('brewery'), state: known('Maharashtra') },
+    },
+    token,
+  );
   assert(
     draft.status === 201,
     `POST draft -> 201, got ${draft.status}: ${JSON.stringify(draft.json)}`,
@@ -94,18 +126,28 @@ async function main(): Promise<void> {
   console.log('DRAFT ok: v1', draftId);
 
   // 3. Draft validation: bad types/units rejected.
-  const bad = await call('PATCH', `/projects/${projectId}/profiles/${draftId}`, {
-    values: { areaSqft: known(-5) },
-  });
+  const bad = await call(
+    'PATCH',
+    `/projects/${projectId}/profiles/${draftId}`,
+    {
+      values: { areaSqft: known(-5) },
+    },
+    token,
+  );
   assert(bad.status === 400, `invalid draft values -> 400, got ${bad.status}`);
-  const badType = await call('PATCH', `/projects/${projectId}/profiles/${draftId}`, {
-    values: { areaSqft: known('huge') },
-  });
+  const badType = await call(
+    'PATCH',
+    `/projects/${projectId}/profiles/${draftId}`,
+    {
+      values: { areaSqft: known('huge') },
+    },
+    token,
+  );
   assert(badType.status === 400, `wrong-typed draft values -> 400, got ${badType.status}`);
   console.log('VALIDATION ok: negative + wrong-typed values rejected with 400');
 
   // 4. Confirm an incomplete draft -> 400 with missing-field details.
-  const incomplete = await call('POST', `/projects/${projectId}/profiles/${draftId}/confirm`);
+  const incomplete = await call('POST', `/projects/${projectId}/profiles/${draftId}/confirm`, undefined, token);
   assert(incomplete.status === 400, `incomplete confirm -> 400, got ${incomplete.status}`);
   assert(
     JSON.stringify(incomplete.json).includes('district'),
@@ -114,11 +156,16 @@ async function main(): Promise<void> {
   console.log('INCOMPLETE ok: confirm blocked with 400');
 
   // 5. Complete the draft, then confirm -> evaluation auto-runs.
-  const updated = await call('PATCH', `/projects/${projectId}/profiles/${draftId}`, {
-    values: fullBreweryValues(),
-  });
+  const updated = await call(
+    'PATCH',
+    `/projects/${projectId}/profiles/${draftId}`,
+    {
+      values: fullBreweryValues(),
+    },
+    token,
+  );
   assert(updated.status === 200, `PATCH draft -> 200, got ${updated.status}`);
-  const confirmed = await call('POST', `/projects/${projectId}/profiles/${draftId}/confirm`);
+  const confirmed = await call('POST', `/projects/${projectId}/profiles/${draftId}/confirm`, undefined, token);
   assert(
     confirmed.status === 200,
     `confirm -> 200, got ${confirmed.status}: ${JSON.stringify(confirmed.json)}`,
@@ -150,11 +197,16 @@ async function main(): Promise<void> {
   );
 
   // 6. Confirmed versions are immutable: PATCH -> 409, re-confirm -> 409.
-  const patchConfirmed = await call('PATCH', `/projects/${projectId}/profiles/${draftId}`, {
-    values: { areaSqft: known(1) },
-  });
+  const patchConfirmed = await call(
+    'PATCH',
+    `/projects/${projectId}/profiles/${draftId}`,
+    {
+      values: { areaSqft: known(1) },
+    },
+    token,
+  );
   assert(patchConfirmed.status === 409, `PATCH confirmed -> 409, got ${patchConfirmed.status}`);
-  const reconfirm = await call('POST', `/projects/${projectId}/profiles/${draftId}/confirm`);
+  const reconfirm = await call('POST', `/projects/${projectId}/profiles/${draftId}/confirm`, undefined, token);
   assert(reconfirm.status === 409, `re-confirm -> 409, got ${reconfirm.status}`);
   const afterPatch = await prisma.businessProfileVersion.findUnique({ where: { id: draftId } });
   assert(
@@ -164,14 +216,33 @@ async function main(): Promise<void> {
   console.log('IMMUTABILITY ok: PATCH + re-confirm on confirmed version -> 409, values unchanged');
 
   // 7. New draft auto-increments versionNumber per project.
-  const draft2 = await call('POST', `/projects/${projectId}/profiles`, { values: {} });
+  const draft2 = await call('POST', `/projects/${projectId}/profiles`, { values: {} }, token);
   assert(draft2.status === 201, `second draft -> 201, got ${draft2.status}`);
   assert(draft2.json.versionNumber === 2, 'second version is number 2');
   console.log('VERSIONING ok: v2 created');
 
-  // 8. Unknown project -> 404.
-  const missing = await call('POST', '/projects/nope/profiles', { values: {} });
-  assert(missing.status === 404, `unknown project -> 404, got ${missing.status}`);
+  // 8. Unknown project -> 404; cross-project non-member -> 403.
+  const missing = await call('POST', '/projects/nope/profiles', { values: {} }, token);
+  assert(missing.status === 403 || missing.status === 404, `unknown project -> 403/404, got ${missing.status}`);
+  const outsiderEmail = `profiles-outsider-${Date.now()}@example.com`;
+  const outsiderReg = await call('POST', '/auth/register', {
+    email: outsiderEmail,
+    password: 'password123',
+    role: 'applicant',
+  });
+  assert(outsiderReg.status === 201, `outsider register -> 201, got ${outsiderReg.status}`);
+  const outsiderLogin = await call('POST', '/auth/login', { email: outsiderEmail, password: 'password123' });
+  const outsiderToken = outsiderLogin.json.accessToken as string;
+  const forbidden = await call('POST', `/projects/${projectId}/profiles`, { values: {} }, outsiderToken);
+  assert(forbidden.status === 403, `non-member POST profiles -> 403, got ${forbidden.status}`);
+  console.log('AUTHZ ok: non-member rejected with 403');
+
+  // Cleanup: projects + throwaway users.
+  await prisma.project.delete({ where: { id: projectId } });
+  for (const u of [email, outsiderEmail]) {
+    const row = await prisma.user.findUnique({ where: { email: u }, select: { id: true } });
+    if (row) await prisma.user.delete({ where: { id: row.id } });
+  }
 
   console.log('INTEGRATION PASS');
   await app.close();

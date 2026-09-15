@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { businessProfileDraftSchema } from '@approvaliq/contracts';
+import { useAuth } from './auth';
 import { ApiError, profilesApi } from './api-client';
 import type { KnownFieldValue, ProfileVersion } from './api-client';
 import { ErrorBanner, LoadingSpinner } from './components';
@@ -212,6 +213,11 @@ function loadCachedValues(projectId: string): ProfileFormState | null {
 
 export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Element {
   const navigate = useNavigate();
+  // Authorization is enforced server-side on every profiles route (JwtAuthGuard
+  // + ProjectMemberGuard), so the in-memory access token must travel with each
+  // save/confirm call — otherwise the API answers 401 and the draft is never
+  // persisted. The token lives only in React state (never web storage).
+  const { accessToken, isRestoring } = useAuth();
   const [form, setForm] = useState<ProfileFormState>(EMPTY_FORM);
   const [draft, setDraft] = useState<StoredDraftPointer | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -246,23 +252,39 @@ export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Ele
     setFormErrors(validation.formErrors);
     if (!validation.ok) return null;
 
+    if (accessToken === null) {
+      // No access token in memory (e.g. a reload whose silent refresh failed).
+      // Say that plainly instead of surfacing a bare "Unauthorized".
+      setSaveError(
+        isRestoring
+          ? 'Still restoring your session — please try again in a moment.'
+          : 'Your session has ended — please log in again to save your profile.',
+      );
+      return null;
+    }
+
     setSaving(true);
     setSaveError(null);
     try {
       let version: ProfileVersion;
       if (draft) {
         try {
-          version = await profilesApi.updateDraft(projectId, draft.versionId, validation.values);
+          version = await profilesApi.updateDraft(
+            projectId,
+            draft.versionId,
+            validation.values,
+            accessToken,
+          );
         } catch (err) {
           if (err instanceof ApiError && (err.status === 409 || err.status === 404)) {
             // 409: the draft was confirmed since (immutable) — start a new version.
-            version = await profilesApi.createDraft(projectId, validation.values);
+            version = await profilesApi.createDraft(projectId, validation.values, accessToken);
           } else {
             throw err;
           }
         }
       } else {
-        version = await profilesApi.createDraft(projectId, validation.values);
+        version = await profilesApi.createDraft(projectId, validation.values, accessToken);
       }
       const pointer: StoredDraftPointer = {
         versionId: version.id,
@@ -292,7 +314,7 @@ export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Ele
       // Persist first so the evaluated profile is exactly what is on screen.
       const saved = await saveDraft();
       if (!saved) return;
-      await profilesApi.confirm(projectId, saved.versionId);
+      await profilesApi.confirm(projectId, saved.versionId, accessToken ?? undefined);
       try {
         localStorage.removeItem(draftPointerKey(projectId)); // version is locked now
         localStorage.setItem(valuesCacheKey(projectId), JSON.stringify(form));

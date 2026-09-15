@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './auth';
-import { intelligenceApi, documentsApi, type Document, type ExtractedField } from './api-client';
+import { intelligenceApi, documentsApi, type ConsistencyCheckResult, type Document, type ExtractedField } from './api-client';
 import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
+import { PROFILE_FIELD_LABELS } from './profile-form';
 
 export function FieldRow(props: {
   field: ExtractedField;
@@ -44,9 +45,68 @@ export function FieldRow(props: {
     </div>
   );
 }
+const CONSISTENCY_ATTENTION_OUTCOMES = new Set(['mismatch', 'unknown', 'missing']);
+
+function fieldLabel(key: string | null): string {
+  if (!key) return 'document';
+  return PROFILE_FIELD_LABELS[key] ?? key;
+}
+
+/**
+ * Visible, NON-BLOCKING consistency warning banner for a document version.
+ * It sits in the normal flow of the page — it is a pure, plain banner and never
+ * disables, intercepts, or prevents any other action on the document detail view.
+ */
+function ConsistencyBanner({ checks }: { checks: ConsistencyCheckResult[] }): JSX.Element | null {
+  if (!checks || checks.length === 0) return null;
+  const attention = checks.filter((c) => CONSISTENCY_ATTENTION_OUTCOMES.has(c.outcome));
+  const mismatches = checks.filter((c) => c.outcome === 'mismatch');
+  const summary =
+    attention.length > 0
+      ? `${attention.length} of ${checks.length} checks need attention`
+      : `all ${checks.length} checks consistent`;
+  return (
+    <div
+      role="status"
+      className={`rounded-md border p-3 ${attention.length > 0 ? 'border-amber-400 bg-amber-50' : 'border-green-200 bg-green-50'}`}
+    >
+      <p className={`text-sm font-semibold ${attention.length > 0 ? 'text-amber-900' : 'text-green-900'}`}>
+        Consistency check — {summary}
+      </p>
+      {attention.length > 0 && (
+        <ul className="mt-1 space-y-0.5 pl-5 text-sm text-amber-900">
+          {mismatches.map((c) => (
+            <li key={c.id}>
+              <span className="font-medium">{fieldLabel(c.profileField)}</span>: mismatch —{' '}
+              {c.detail ?? `${c.sideAValue ?? '?'} vs ${c.sideBValue ?? '?'}`}
+            </li>
+          ))}
+          {attention
+            .filter((c) => c.outcome !== 'mismatch')
+            .map((c) => (
+              <li key={c.id}>
+                <span className="font-medium">{fieldLabel(c.profileField ?? c.documentField)}</span>:{' '}
+                {c.outcome.replace('_', ' ')}
+                {c.detail ? ` — ${c.detail}` : ''}
+              </li>
+            ))}
+        </ul>
+      )}
+      {attention.length === 0 && (
+        <p className="mt-1 text-xs text-green-900">
+          All persisted checks match the confirmed profile or peer document.
+        </p>
+      )}
+      <p className="mt-1 text-xs text-gray-600">
+        Consistency results are warnings only — they do not block or change any action on this page.
+      </p>
+    </div>
+  );
+}
+
 export function DocumentDetailPage(props: { projectId: string; documentId: string }): JSX.Element {
   const { projectId, documentId } = props;
-  const { accessToken } = useAuth();
+  const { accessToken, isRestoring } = useAuth();
   const token = accessToken ?? undefined;
   const qc = useQueryClient();
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -54,7 +114,14 @@ export function DocumentDetailPage(props: { projectId: string; documentId: strin
   const [notes, setNotes] = useState('');
   const [evidenceInspected, setEvidenceInspected] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
-  const docsQuery = useQuery({ queryKey: ['documents', projectId], queryFn: () => documentsApi.list(projectId, token) });
+  const docsQuery = useQuery({
+    queryKey: ['documents', projectId],
+    queryFn: () => documentsApi.list(projectId, token),
+    // Documents routes are authenticated + membership-scoped. Hold the first
+    // fetch until the in-memory token exists (AuthProvider restores it from the
+    // httpOnly cookie), otherwise the very first request can only be a 401.
+    enabled: token !== undefined,
+  });
   const doc: Document | undefined = (docsQuery.data ?? []).find((d) => d.id === documentId);
   const version = doc?.currentVersion ?? null;
   const extractionQuery = useQuery({
@@ -66,6 +133,29 @@ export function DocumentDetailPage(props: { projectId: string; documentId: strin
     queryKey: ['job', projectId, jobId],
     queryFn: () => (jobId ? intelligenceApi.job(projectId, jobId, token) : Promise.resolve(null)),
     enabled: jobId !== null, refetchInterval: 1500,
+  });
+  // Phase 6: when the async extraction job completes, the backend flips the
+  // version to 'needs_verification'. docsQuery is a plain list query with no
+  // polling, so without this its version.state would stay at the pre-extraction
+  // value ('uploaded'/'queued'/'processing') and the Verify button would remain
+  // disabled even though extractionQuery has the completed result. Invalidate
+  // the documents query once per completed job so needs_verification is
+  // reflected in the UI.
+  const invalidatedDocsForJobRef = useRef<string | null>(null);
+  useEffect(() => {
+    const status = jobQuery.data?.status;
+    if (jobId && status === 'completed' && invalidatedDocsForJobRef.current !== jobId) {
+      invalidatedDocsForJobRef.current = jobId;
+      void qc.invalidateQueries({ queryKey: ['documents', projectId] });
+    }
+  }, [jobId, jobQuery.data?.status, projectId, qc]);
+  // Phase 7 consistency checks for this version — persisted warning-layer rows.
+  // Rendered as a visible, NON-blocking banner (it never gates any action here).
+  const consistencyQuery = useQuery({
+    queryKey: ['consistency-checks', projectId, documentId, version?.id],
+    queryFn: () => (version ? intelligenceApi.consistencyChecks(projectId, documentId, version.id, token) : Promise.resolve([])),
+    enabled: version !== null && version.id !== undefined,
+    staleTime: 10_000,
   });
   const extractMutation = useMutation({
     mutationFn: () => intelligenceApi.extract(projectId, documentId, token),
@@ -82,7 +172,10 @@ export function DocumentDetailPage(props: { projectId: string; documentId: strin
     onSuccess: () => { setStatusMsg('Verified — state is now verified.'); void qc.invalidateQueries({ queryKey: ['documents'] }); void qc.invalidateQueries({ queryKey: ['extraction'] }); },
     onError: (e) => setStatusMsg(e instanceof Error ? e.message : 'Verify failed'),
   });
-  if (docsQuery.isLoading) return <LoadingSpinner label="Loading document…" />;
+  if (docsQuery.isLoading || isRestoring) return <LoadingSpinner label="Loading document…" />;
+  if (accessToken === null) {
+    return <ErrorBanner message="Your session has ended — please log in again to view this document." />;
+  }
   if (docsQuery.isError) return <ErrorBanner message="Could not load the document." onRetry={() => void docsQuery.refetch()} />;
   if (!doc || !version) return <EmptyState title="Document not found" />;
   const job = jobQuery.data;
@@ -93,6 +186,7 @@ export function DocumentDetailPage(props: { projectId: string; documentId: strin
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Document detail</h1>
       <p className="text-sm text-gray-600">{version.originalFilename} · v{version.versionNumber} · state <span className="font-mono">{version.state}</span></p>
+      <ConsistencyBanner checks={consistencyQuery.data ?? []} />
       {statusMsg && <p className="rounded border border-blue-200 bg-blue-50 p-2 text-sm text-blue-800">{statusMsg}</p>}
       {job && <p className="text-sm text-gray-600">Job {job.id}: <span className="font-mono">{job.status}</span> (attempts {job.attemptCount}){job.errorDetails ? ` — ${job.errorDetails}` : ''}</p>}
       <button type="button" onClick={() => extractMutation.mutate()} disabled={extractMutation.isPending} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">

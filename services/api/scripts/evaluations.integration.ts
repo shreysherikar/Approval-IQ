@@ -65,20 +65,53 @@ async function main(): Promise<void> {
     assert(!!release, 'expected a draft KnowledgeRelease (run import:regulatory first)');
     console.log(`draft release: ${release!.version}`);
 
-    async function call(method: string, path: string, body?: unknown): Promise<{ status: number; json: unknown }> {
+    async function call(
+      method: string,
+      path: string,
+      body?: unknown,
+      token?: string,
+    ): Promise<{ status: number; json: unknown }> {
+      const headers: Record<string, string> = { 'content-type': 'application/json' };
+      if (token) headers['authorization'] = `Bearer ${token}`;
       const res = await fetch(`${address}${path}`, {
         method,
-        headers: { 'content-type': 'application/json' },
+        headers,
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       const json = (await res.json()) as unknown;
       return { status: res.status, json };
     }
 
-    const post = await call('POST', '/evaluations', {
-      profile: breweryProfile(),
-      industryCode: 'brewery',
+    // Auth setup (blueprint §§18-19: authorization enforced server-side).
+    const email = `eval-it-${Date.now()}@example.com`;
+    const registerRes = await call('POST', '/auth/register', {
+      email,
+      password: 'password123',
+      role: 'applicant',
     });
+    assert(registerRes.status === 201, `register -> 201, got ${registerRes.status}`);
+    const loginRes = await call('POST', '/auth/login', { email, password: 'password123' });
+    assert(loginRes.status === 200, `login -> 200, got ${loginRes.status}`);
+    const token = (loginRes.json as Record<string, string>).accessToken as string;
+    assert(typeof token === 'string' && token.length > 0, 'access token returned');
+
+    // Regression: anonymous evaluation requests are rejected.
+    const anon = await call(
+      'POST',
+      '/evaluations',
+      { profile: breweryProfile(), industryCode: 'brewery' },
+    );
+    assert(anon.status === 401, `anonymous POST /evaluations -> 401, got ${anon.status}`);
+
+    const post = await call(
+      'POST',
+      '/evaluations',
+      {
+        profile: breweryProfile(),
+        industryCode: 'brewery',
+      },
+      token,
+    );
     assert(post.status === 201, `POST /evaluations -> 201, got ${post.status}: ${JSON.stringify(post.json)}`);
     const created = post.json as Record<string, unknown>;
     assert(typeof created.id === 'string', 'response has run id');
@@ -122,8 +155,10 @@ async function main(): Promise<void> {
     );
     console.log('PROSE ok: DISH/FSSAI/LM not_evaluable; EXCISE-LABEL-001 excluded from roadmap');
 
-    const get = await call('GET', `/evaluations/${created.id as string}`);
+    const get = await call('GET', `/evaluations/${created.id as string}`, undefined, token);
     assert(get.status === 200, `GET /evaluations/:id -> 200, got ${get.status}`);
+    const anonGet = await call('GET', `/evaluations/${created.id as string}`);
+    assert(anonGet.status === 401, `anonymous GET /evaluations/:id -> 401, got ${anonGet.status}`);
     const replayed = get.json as Record<string, unknown>;
     assert(replayed.id === created.id, 'replayed id matches (replayable)');
     const replayedApprovals = replayed.approvals as ApprovalResult[];
@@ -151,10 +186,15 @@ async function main(): Promise<void> {
     // one condition-required field (state) deliberately unknown must succeed
     // and report needs_information naming "state", without crashing siblings.
     const unknownState = { ...breweryProfile(), state: unknown() };
-    const partial = await call('POST', '/evaluations', {
-      profile: unknownState,
-      industryCode: 'brewery',
-    });
+    const partial = await call(
+      'POST',
+      '/evaluations',
+      {
+        profile: unknownState,
+        industryCode: 'brewery',
+      },
+      token,
+    );
     assert(
       partial.status === 201,
       `POST /evaluations (unknown state) -> 201, got ${partial.status}: ${JSON.stringify(partial.json)}`,
@@ -192,10 +232,15 @@ async function main(): Promise<void> {
     // brewery profile mismatches `state=Maharashtra` and must be a clean,
     // deterministic not_applicable, never not_evaluable.
     const gujaratProfile = { ...breweryProfile(), state: known('Gujarat') };
-    const gujarat = await call('POST', '/evaluations', {
-      profile: gujaratProfile,
-      industryCode: 'brewery',
-    });
+    const gujarat = await call(
+      'POST',
+      '/evaluations',
+      {
+        profile: gujaratProfile,
+        industryCode: 'brewery',
+      },
+      token,
+    );
     assert(
       gujarat.status === 201,
       `POST /evaluations (Gujarat brewery) -> 201, got ${gujarat.status}: ${JSON.stringify(gujarat.json)}`,
@@ -220,6 +265,10 @@ async function main(): Promise<void> {
       );
     }
     console.log('MISMATCH ok: BRL-001 Gujarat brewery is not_applicable (not not_evaluable)');
+
+    // Cleanup: remove the throwaway auth user created for this run.
+    const evalUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (evalUser) await prisma.user.delete({ where: { id: evalUser.id } });
 
     console.log('INTEGRATION PASS');
   } finally {

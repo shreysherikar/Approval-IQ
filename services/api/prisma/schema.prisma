@@ -7,12 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// NOTE (Phase 1): partial immutability is enforced in the service layer, not via
-// DB triggers. Once a KnowledgeRelease.status = 'published', the API layer must
-// reject edits to any ApprovalDefinition / DocumentDefinition / Dependency row
-// tied to that release. A proper append-only versioned model (with a formal
-// draft/review/publish state machine and claim/evidence-per-fact granularity)
-// arrives in Phase 13.
+// NOTE (Phase 1, enforced): historical releases are immutable at the
+// persistence boundary (PostgreSQL triggers — see migration
+// `20260914000000_release_immutability`), not only in the importer. Once a
+// KnowledgeRelease.status = 'published', the database rejects UPDATE/DELETE of
+// that release row and of any ApprovalDefinition / Dependency /
+// ApprovalDocumentRequirement row tied (directly or transitively) to it.
+// Draft releases remain editable so the import pipeline can load/iterate.
+// The formal draft/review/publish state machine and per-claim evidence
+// granularity (claim/evidence-per-fact) arrive in Phase 13 per blueprint §15;
+// Phase 1 stores provenance per Source + per ApprovalDefinition (url, notes,
+// verificationStatus, lastVerifiedDate, sourceLastReviewed, stalenessFlag).
 
 model Industry {
   id        String               @id @default(uuid())
@@ -292,6 +297,7 @@ model Project {
   approvalInstances ApprovalInstance[]
   members           ProjectMember[]
   documents         Document[]
+  consistencyCheckResults ConsistencyCheckResult[]
   createdAt         DateTime                 @default(now()) @map("created_at")
   updatedAt         DateTime                 @updatedAt @map("updated_at")
 
@@ -315,6 +321,9 @@ model BusinessProfileVersion {
   values        Json          @db.JsonB
   status        ProfileStatus @default(draft)
   confirmedAt   DateTime?     @map("confirmed_at")
+  // Phase 7: profile-vs-document consistency checks pinned to the exact
+  // profile version whose values were compared.
+  consistencyChecks ConsistencyCheckResult[]
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
@@ -382,6 +391,7 @@ model Document {
   currentVersion       DocumentVersion?    @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   versions             DocumentVersion[]   @relation("Owned")
   approvalInstances    ApprovalInstanceDocument[]
+  consistencyCheckResults ConsistencyCheckResult[]
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
 
@@ -439,6 +449,11 @@ model DocumentVersion {
   extractions      ExtractionResult[]
   corrections      FieldCorrection[]
   verifications    VerificationRecord[]
+  // Phase 7 consistency checks where this version is the SUBJECT (checked
+  // against the profile or another document). Consistency is a WARNING layer:
+  // these rows never gate this version's state or its attachability.
+  consistencyChecksAsSubject ConsistencyCheckResult[] @relation("ConsistencySubjectVersion")
+  consistencyChecksAsOther   ConsistencyCheckResult[] @relation("ConsistencyOtherVersion")
   createdAt        DateTime             @default(now()) @map("created_at")
   updatedAt        DateTime             @updatedAt @map("updated_at")
 
@@ -494,4 +509,49 @@ model VerificationRecord {
 
   @@index([documentVersionId])
   @@map("verification_records")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7: Consistency checks (blueprint Section 8). A WARNING layer only:
+// this module has NO permission to change a DocumentVersion's state or block
+// confirmation of anything. Every row records the exact sides compared and
+// one of the six blueprint outcomes (match | mismatch | missing | unknown |
+// not_applicable | not_verified) — outcomes are never collapsed.
+// ---------------------------------------------------------------------------
+enum ConsistencyCheckType {
+  profile_vs_document
+  document_vs_document
+}
+
+model ConsistencyCheckResult {
+  id                    String               @id @default(uuid())
+  projectId             String               @map("project_id")
+  project               Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  documentId            String               @map("document_id")
+  document              Document             @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  // The subject version that was checked.
+  documentVersionId     String               @map("document_version_id")
+  documentVersion       DocumentVersion      @relation("ConsistencySubjectVersion", fields: [documentVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  // The profile version whose confirmed values were compared (profile_vs_document).
+  profileVersionId      String?              @map("profile_version_id")
+  profileVersion        BusinessProfileVersion? @relation(fields: [profileVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  // The other document version (document_vs_document).
+  otherDocumentVersionId String?             @map("other_document_version_id")
+  otherDocumentVersion  DocumentVersion?     @relation("ConsistencyOtherVersion", fields: [otherDocumentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  checkType             ConsistencyCheckType @map("check_type")
+  checkId               String               @map("check_id")
+  profileField          String?              @map("profile_field")
+  documentField         String               @map("document_field")
+  // Resolved side values at check time (for reviewer display).
+  sideAValue            String?              @map("side_a_value")
+  sideBValue            String?              @map("side_b_value")
+  // One of: match | mismatch | missing | unknown | not_applicable | not_verified
+  outcome               String
+  tolerancePct          Float?               @map("tolerance_pct")
+  detail                String?
+  createdAt             DateTime             @default(now()) @map("created_at")
+
+  @@index([documentVersionId])
+  @@index([projectId])
+  @@map("consistency_check_results")
 }

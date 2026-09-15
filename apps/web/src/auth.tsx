@@ -19,6 +19,13 @@ interface AuthContextValue {
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /**
+   * True only while the on-boot silent session restore (httpOnly refresh
+   * cookie → fresh access token) is in flight. Authenticated pages use it to
+   * tell "the token is on its way" apart from "there is no session", so they
+   * neither fire a request that can only 401 nor flash an empty state.
+   */
+  isRestoring: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -48,6 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Starts true: on first paint the in-memory token is always gone and the
+  // restore effect below is already running. Cleared in its finally.
+  const [isRestoring, setIsRestoring] = useState(true);
 
   const login = useCallback(async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
@@ -91,7 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
         setAccessToken(res.accessToken);
         setUser({ email: decodeEmailFromJwt(res.accessToken) ?? '' });
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        // Either way the restore attempt is over — consumers may now treat a
+        // still-null accessToken as "no session" rather than "not yet".
+        if (!cancelled) setIsRestoring(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -103,11 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       accessToken,
       isAuthenticated: accessToken !== null,
       isLoading,
+      isRestoring,
       error,
       login,
       logout,
     }),
-    [user, accessToken, isLoading, error, login, logout],
+    [user, accessToken, isLoading, isRestoring, error, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

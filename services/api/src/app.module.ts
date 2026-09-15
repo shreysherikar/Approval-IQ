@@ -11,6 +11,7 @@ import { RoadmapModule } from './roadmap/roadmap.module';
 import { DocumentsModule } from './documents/documents.module';
 import { JobsModule } from './jobs/jobs.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
+import { ReuseModule } from './reuse/reuse.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { IntelligenceModule } from './intelligence/intelligence.module';
     DocumentsModule,
     JobsModule,
     IntelligenceModule,
+    ReuseModule,
   ],
 })
 export class AppModule {}

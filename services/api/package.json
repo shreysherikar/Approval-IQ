@@ -23,7 +23,9 @@
     "test:integration:roadmap": "tsx scripts/roadmap.integration.ts",
     "test:integration:roadmap-cycle": "tsx scripts/roadmap_cycle.integration.ts",
     "test:integration:documents": "tsx test/documents.integration.test.ts",
-    "test:integration:intelligence": "tsx test/intelligence.integration.test.ts"
+    "test:integration:intelligence": "tsx test/intelligence.integration.test.ts",
+    "test:integration:consistency": "tsx test/consistency.integration.test.ts",
+    "test:integration:reuse": "tsx test/reuse.integration.test.ts"
   },
   "dependencies": {
     "@approvaliq/approval-engine": "workspace:*",
@@ -40,6 +42,7 @@
     "@nestjs/swagger": "^8.1.1",
     "@prisma/client": "^6.19.3",
     "argon2": "^0.45.1",
+    "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
     "passport": "^0.7.0",
@@ -50,6 +53,7 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.2",
+    "@types/bcryptjs": "^3.0.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.5.4",
     "@types/passport-jwt": "^4.0.1",

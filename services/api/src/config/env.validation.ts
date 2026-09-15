@@ -8,6 +8,10 @@ const envSchema = z.object({
   STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./data/storage'),
   LLM_PROVIDER: z.enum(['mock', 'anthropic']).default('mock'),
+  // Anthropic adapter config (blueprint §17.3-17.4). Only required when
+  // LLM_PROVIDER=anthropic; mock stays the default so local/dev never needs a key.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-5-20250929'),
   // Phase 6 Decision #6: per-field confidence threshold below which the UI flags
   // a field as needing extra attention. Provisional default until real
   // accuracy data exists — config, never a hardcoded number in an `if`.

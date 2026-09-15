@@ -4,12 +4,16 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ProjectMemberGuard } from '../common/guards/project-member.guard';
 import { IntelligenceService } from './intelligence.service';
+import { ConsistencyService } from './consistency.service';
 
 @ApiTags('intelligence')
 @Controller('projects/:projectId/documents/:documentId')
 @UseGuards(JwtAuthGuard, ProjectMemberGuard)
 export class IntelligenceController {
-  constructor(@Inject(IntelligenceService) private readonly intel: IntelligenceService) {}
+  constructor(
+    @Inject(IntelligenceService) private readonly intel: IntelligenceService,
+    @Inject(ConsistencyService) private readonly consistency: ConsistencyService,
+  ) {}
 
   @Post('extract')
   @HttpCode(HttpStatus.ACCEPTED)
@@ -55,5 +59,27 @@ export class IntelligenceController {
   @ApiOperation({ summary: 'List verification records for a version' })
   verifications(@Param('projectId') projectId: string, @Param('documentId') documentId: string, @Param('versionId') versionId: string) {
     return this.intel.verifications(projectId, documentId, versionId);
+  }
+
+  // --- Phase 7: consistency (warning layer — never gates anything) ---
+
+  @Post('consistency-check')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Run consistency checks against the confirmed profile (or another document)',
+    description: 'Persists ConsistencyCheckResult rows. WARNING layer only: never changes document state.',
+  })
+  consistencyCheck(
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Body() body: { checkType?: string; profileVersionId?: string; otherDocumentId?: string } | undefined,
+  ) {
+    return this.consistency.runChecks(projectId, documentId, body ?? {});
+  }
+
+  @Get('versions/:versionId/consistency-checks')
+  @ApiOperation({ summary: 'Persisted consistency check results for a version' })
+  consistencyChecks(@Param('projectId') projectId: string, @Param('documentId') documentId: string, @Param('versionId') versionId: string) {
+    return this.consistency.listChecks(projectId, documentId, versionId);
   }
 }

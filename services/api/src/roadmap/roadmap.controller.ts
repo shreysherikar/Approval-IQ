@@ -1,9 +1,17 @@
-import { Body, Controller, Get, Inject, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ProjectMemberGuard } from '../common/guards/project-member.guard';
 import { RoadmapService } from './roadmap.service';
 
+/**
+ * Phase 4 roadmap workspace (blueprint Sections 14, 18-19). Status
+ * transitions are applicant-scoped workflow actions: JwtAuthGuard + object-level
+ * ProjectMemberGuard, same as the Document Vault.
+ */
 @ApiTags('roadmap')
 @Controller('projects/:projectId')
+@UseGuards(JwtAuthGuard, ProjectMemberGuard)
 export class RoadmapController {
   constructor(@Inject(RoadmapService) private readonly service: RoadmapService) {}
 

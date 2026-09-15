@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { STORAGE_PROVIDER } from '../storage/storage.token';
 import type { StorageProviderLike } from '../storage/storage.token';
 import { PrismaService } from '../prisma/prisma.service';
@@ -54,6 +56,17 @@ const ALLOWED_MIME_TYPES: ReadonlySet<string> = new Set([
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MiB
 
+/**
+ * The four blueprint choices surfaced when an upload's fileHash matches an
+ * existing DocumentVersion in the project. Never silently duplicate.
+ */
+export const DEDUP_CHOICES = [
+  'link_to_existing',
+  'create_new_version',
+  'keep_separate',
+  'reject_duplicate',
+] as const;
+
 @Injectable()
 export class DocumentsService {
   constructor(
@@ -88,6 +101,7 @@ export class DocumentsService {
     file: UploadedFile,
     documentDefinitionId: string | undefined,
     userId: string,
+    dedupChoice?: string,
   ): Promise<Record<string, unknown>> {
     await this.assertProject(projectId);
     this.validateFile(file);
@@ -99,6 +113,73 @@ export class DocumentsService {
     const versionId = randomUUID();
     const fileHash = this.sha256(file.buffer);
 
+    // Phase 7 file-hash dedup: a byte-identical file already in this project
+    // must NOT silently become a duplicate. Surface the blueprint's four
+    // choices and record the one the user picks.
+    const duplicate = await this.prisma.documentVersion.findFirst({
+      where: { fileHash, document: { projectId } },
+      include: {
+        document: { include: { currentVersion: true, documentDefinition: { select: { code: true } } } },
+      },
+      orderBy: { uploadedAt: 'asc' },
+    });
+
+    if (duplicate) {
+      if (!dedupChoice) {
+        // Prompt instead of duplicating: 200 with the existing document and the
+        // four choices, so the client can re-submit with `dedupChoice`.
+        return {
+          duplicateDetected: true,
+          matchedFileHash: fileHash,
+          dedupChoices: DEDUP_CHOICES,
+          existingDocument: this.serializeDocument(duplicate.document, duplicate.document.currentVersion),
+        };
+      }
+      switch (dedupChoice) {
+        case 'link_to_existing':
+          await this.recordDedupChoice(duplicate.document.id, duplicate.document.metadata, {
+            action: 'link_to_existing',
+            matchedFileHash: fileHash,
+            matchedDocumentVersionId: duplicate.id,
+            decidedByUserId: userId,
+          });
+          return this.listOne(duplicate.document.id);
+        case 'create_new_version':
+          await this.addVersion(projectId, duplicate.document.id, file, userId);
+          await this.recordDedupChoice(duplicate.document.id, duplicate.document.metadata, {
+            action: 'create_new_version',
+            matchedFileHash: fileHash,
+            matchedDocumentVersionId: duplicate.id,
+            decidedByUserId: userId,
+          });
+          return this.listOne(duplicate.document.id);
+        case 'reject_duplicate':
+          throw new ConflictException(
+            `Upload rejected as duplicate: a file with hash '${fileHash}' already exists in this project ` +
+              `(document '${duplicate.document.id}', version '${duplicate.id}'). ` +
+              `Choices: ${DEDUP_CHOICES.join(', ')}.`,
+          );
+        case 'keep_separate':
+          break; // fall through to normal creation below, recording the choice.
+        default:
+          throw new BadRequestException(
+            `Unknown dedupChoice '${dedupChoice}'. Valid choices: ${DEDUP_CHOICES.join(', ')}.`,
+          );
+      }
+    }
+    const dedupMetadata: Record<string, unknown> | undefined = duplicate
+      ? {
+          dedup: {
+            action: 'keep_separate',
+            matchedFileHash: fileHash,
+            matchedDocumentVersionId: duplicate.id,
+            decidedByUserId: userId,
+            decidedAt: new Date().toISOString(),
+          },
+        }
+      : undefined;
+    const dedupMetadataJson = dedupMetadata as unknown as Prisma.InputJsonValue | undefined;
+
     // Store bytes first so the storageKey exists before we persist the row.
     const { storageKey } = await this.storage.put(projectId, versionId, file.buffer);
 
@@ -109,6 +190,7 @@ export class DocumentsService {
           projectId,
           documentDefinitionId: canonicalDefinitionId ?? null,
           // currentVersionId set after the version row exists to satisfy the FK.
+          ...(dedupMetadataJson ? { metadata: dedupMetadataJson } : {}),
         },
       });
       await tx.documentVersion.create({
@@ -378,5 +460,29 @@ export class DocumentsService {
 
   private sha256(buffer: Buffer): string {
     return createHash('sha256').update(buffer).digest('hex');
+  }
+
+  /**
+   * Records which dedup choice the user picked in the document's metadata
+   * (merged, never replacing other metadata), so the decision is auditable.
+   */
+  private async recordDedupChoice(
+    documentId: string,
+    existingMetadata: unknown,
+    record: {
+      action: string;
+      matchedFileHash: string;
+      matchedDocumentVersionId: string;
+      decidedByUserId: string;
+    },
+  ): Promise<void> {
+    const meta = (typeof existingMetadata === 'object' && existingMetadata !== null && !Array.isArray(existingMetadata)
+      ? { ...(existingMetadata as Record<string, unknown>) }
+      : {}) as Record<string, unknown>;
+    meta.dedup = { ...record, decidedAt: new Date().toISOString() };
+    await this.prisma.document.update({
+      where: { id: documentId },
+      data: { metadata: meta as unknown as Prisma.InputJsonValue },
+    });
   }
 }

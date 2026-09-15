@@ -100,19 +100,26 @@ async function main(): Promise<void> {
 
   // Confirm a brewery profile so the roadmap has real instances (the normal,
   // non-cyclic path — the same flow the roadmap.integration test runs).
-  const draft = await call('POST', `/projects/${projectId}/profiles`, {
-    values: fullBreweryValues(),
-  });
+  const draft = await call(
+    'POST',
+    `/projects/${projectId}/profiles`,
+    {
+      values: fullBreweryValues(),
+    },
+    token,
+  );
   assert(draft.status === 201, `draft -> 201, got ${draft.status}`);
   const confirmed = await call(
     'POST',
     `/projects/${projectId}/profiles/${draft.json.id as string}/confirm`,
+    undefined,
+    token,
   );
   assert(confirmed.status === 200, `confirm -> 200, got ${confirmed.status}`);
 
   // Baseline: the untouched (acyclic) roadmap serves 200 with both approvals we
   // intend to wire into a cycle present.
-  const baseline = await call('GET', `/projects/${projectId}/roadmap`);
+  const baseline = await call('GET', `/projects/${projectId}/roadmap`, undefined, token);
   assert(baseline.status === 200, `baseline roadmap -> 200, got ${baseline.status}`);
   const baselineCodes = (baseline.json.nodes as Array<{ approvalCode: string }>).map(
     (n) => n.approvalCode,
@@ -142,7 +149,7 @@ async function main(): Promise<void> {
 
   // The endpoint must REFUSE to serve the graph — an explicit roadmap_unavailable
   // error describing the offending cycle, never a 200 with a broken graph.
-  const res = await call('GET', `/projects/${projectId}/roadmap`);
+  const res = await call('GET', `/projects/${projectId}/roadmap`, undefined, token);
   assert(res.status === 500, `cyclic roadmap -> 500, got ${res.status}`);
   const envelope = res.json as ErrorEnvelope;
   assert(!!envelope.error, 'error envelope present');

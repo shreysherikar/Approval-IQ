@@ -93,7 +93,8 @@ async function main(): Promise<void> {
     const vlist = await call(address, 'GET', `/projects/${projectId}/documents/${docId}/versions/${versionId}/verifications`, token);
     assert(vlist.status === 200 && Array.isArray(vlist.json) && (vlist.json as unknown[]).length === 1, 'record queryable');
     console.log('PASS correct+verify');
-    const up2 = await uploadFile(address, `/projects/${projectId}/documents`, token, Buffer.from('APPROVALIQ_DEMO_TRADE_LICENCE'), 'lic2.pdf');
+    const up2 = await uploadFile(address, `/projects/${projectId}/documents`, token, Buffer.from('APPROVALIQ_DEMO_TRADE_LICENCE-RESUME'), 'lic2.pdf');
+    assert(up2.status === 201, `upload2 ${up2.status}`);
     const doc2 = up2.json.id as string;
     const ver2id = (up2.json.currentVersion as Record<string, string>).id;
     const ex2 = await call(address, 'POST', `/projects/${projectId}/documents/${doc2}/extract`, token, {});

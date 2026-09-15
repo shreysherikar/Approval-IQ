@@ -47,15 +47,23 @@ export class DocumentsController {
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Upload an original document (multipart field "file")' })
+  @ApiOperation({
+    summary: 'Upload an original document (multipart field "file")',
+    description:
+      'If a file with the same sha256 hash already exists in this project, the response is a dedup prompt ' +
+      '({ duplicateDetected: true, dedupChoices }) instead of a silent duplicate. Re-submit with ' +
+      'dedupChoice = link_to_existing | create_new_version | keep_separate | reject_duplicate; the pick is ' +
+      'recorded in the document\'s metadata.',
+  })
   async upload(
     @Param('projectId') projectId: string,
     @UploadedFile() file: unknown,
     @Body('documentDefinitionId') documentDefinitionId: string | undefined,
+    @Body('dedupChoice') dedupChoice: string | undefined,
     @Req() req: Request,
   ) {
     const { userId } = req.user as { userId: string };
-    return this.documents.create(projectId, this.toUpload(file), documentDefinitionId, userId);
+    return this.documents.create(projectId, this.toUpload(file), documentDefinitionId, userId, dedupChoice);
   }
 
   @Patch(':documentId')

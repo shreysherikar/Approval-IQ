@@ -4,3 +4,4 @@ coverage
 *.log
 .env
 data/storage
+Astra.txt

@@ -262,8 +262,9 @@ async function main(): Promise<void> {
     assert(invalidUpload.status === 400, `Unsupported MIME type: expected 400, got ${invalidUpload.status}`);
     console.log('   ✓ Unsupported MIME type rejected (400)\n');
 
-    // 10. Test file hash for deduplication (Phase 7 prep)
-    console.log('10. Testing file hash computation (Phase 7 prep)...');
+    // 10. Test file hash + dedup (Phase 7): an identical second upload must NOT
+    //     silently duplicate — it surfaces the four dedup choices instead.
+    console.log('10. Testing file hash + dedup (Phase 7)...');
     const content = Buffer.from('identical content');
     const doc1 = await uploadFile(
       address,
@@ -273,6 +274,10 @@ async function main(): Promise<void> {
       'file1.pdf',
       'application/pdf',
     );
+    assert(doc1.status === 201, `First upload: expected 201, got ${doc1.status}`);
+    const hash1 = (doc1.json.currentVersion as Record<string, unknown>).fileHash as string;
+    assert(hash1.length === 64, 'Hash is sha256 (64 hex chars)');
+
     const doc2 = await uploadFile(
       address,
       `/projects/${projectAId}/documents`,
@@ -281,11 +286,33 @@ async function main(): Promise<void> {
       'file2.pdf',
       'application/pdf',
     );
-    const hash1 = (doc1.json.currentVersion as Record<string, unknown>).fileHash as string;
-    const hash2 = (doc2.json.currentVersion as Record<string, unknown>).fileHash as string;
-    assert(hash1 === hash2, 'Identical content produces identical hash');
-    assert(hash1.length === 64, 'Hash is sha256 (64 hex chars)');
-    console.log(`   ✓ Identical content hash: ${hash1}\n`);
+    assert(doc2.json.duplicateDetected === true, 'Identical upload surfaces a dedup prompt, not a silent duplicate');
+    const choices = doc2.json.dedupChoices as string[];
+    assert(
+      choices.length === 4 &&
+        ['link_to_existing', 'create_new_version', 'keep_separate', 'reject_duplicate'].every((c) => choices.includes(c)),
+      `Four dedup choices returned, got ${JSON.stringify(choices)}`,
+    );
+    const existing = doc2.json.existingDocument as { currentVersion: { fileHash: string } } | Record<string, unknown>;
+    const existingHash = ((existing as Record<string, unknown>).currentVersion as Record<string, unknown>).fileHash as string;
+    assert(existingHash === hash1, 'Prompt points at the prior identical-version hash');
+    console.log(`   ✓ Identical content hash: ${hash1} (dedup prompt returned, not a duplicate)`);
+
+    // Choosing keep_separate creates a distinct document and records the pick.
+    const kept = await uploadFile(
+      address,
+      `/projects/${projectAId}/documents`,
+      userAToken,
+      content,
+      'file3.pdf',
+      'application/pdf',
+      { dedupChoice: 'keep_separate' },
+    );
+    assert(kept.status === 201, `keep_separate upload: expected 201, got ${kept.status}`);
+    assert(kept.json.id !== doc1.json.id, 'keep_separate produces a distinct document');
+    const keptMeta = kept.json.metadata as { dedup?: { action?: string } };
+    assert(keptMeta?.dedup?.action === 'keep_separate', 'keep_separate pick recorded in metadata');
+    console.log('   ✓ keep_separate created a distinct document and recorded the pick\n');
 
     // 11. List documents in project
     console.log('11. Listing documents...');

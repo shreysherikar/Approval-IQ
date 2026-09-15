@@ -1,8 +1,8 @@
 import { ConflictException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
+import { hashPassword, verifyPassword } from './password.util';
 import type { Role } from '@prisma/client';
 import { UserRole } from '../common/decorators/roles.decorator';
 import { LoginDto } from './dto/login.dto';
@@ -21,7 +21,7 @@ export class AuthService {
     if (existing) {
       throw new ConflictException('Email is already registered');
     }
-    const passwordHash = await argon2.hash(dto.password);
+    const passwordHash = await hashPassword(dto.password);
     return this.prisma.user.create({
       data: { email: dto.email, passwordHash, role: dto.role as Role },
       select: { id: true, email: true, role: true, createdAt: true },
@@ -33,7 +33,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    const valid = await argon2.verify(user.passwordHash, dto.password);
+    const valid = await verifyPassword(user.passwordHash, dto.password);
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
     }

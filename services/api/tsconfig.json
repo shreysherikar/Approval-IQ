@@ -8,6 +8,7 @@
     "emitDecoratorMetadata": true,
     "rootDir": "src",
     "outDir": "dist",
-    "sourceMap": true
+    "sourceMap": true,
+    "types": ["node"]
   }
 }

@@ -7,12 +7,22 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ProjectMemberGuard } from '../common/guards/project-member.guard';
 import { ProfilesService } from './profiles.service';
 
+/**
+ * Phase 3 profile intake (blueprint Sections 18-19: authorization enforced
+ * server-side). Every route requires JwtAuthGuard (who are you?) then
+ * ProjectMemberGuard (are you a member of :projectId?) — same shape as the
+ * Document Vault — so one applicant cannot touch another's profiles.
+ */
 @ApiTags('profiles')
 @Controller('projects/:projectId/profiles')
+@UseGuards(JwtAuthGuard, ProjectMemberGuard)
 export class ProfilesController {
   constructor(@Inject(ProfilesService) private readonly service: ProfilesService) {}
 

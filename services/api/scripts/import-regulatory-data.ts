@@ -296,8 +296,23 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient();
   try {
     await prisma.$transaction(async (tx) => {
-      const release = await tx.knowledgeRelease.findUnique({ where: { version: opts.release } });
-      if (!release) throw new Error(`KnowledgeRelease "${opts.release}" not found`);
+      // Phase 1 exit criterion: "at least one verified industry slice is
+      // loaded". A clean checkout has no knowledge_releases row yet, so the
+      // importer creates the draft release on demand — `pnpm import:regulatory`
+      // works one-command from a fresh `prisma migrate deploy`. A published
+      // release is never created or mutated here (the DB triggers in migration
+      // 20260914000000_release_immutability additionally reject such writes).
+      let release = await tx.knowledgeRelease.findUnique({ where: { version: opts.release } });
+      if (!release) {
+        release = await tx.knowledgeRelease.create({
+          data: {
+            version: opts.release,
+            status: 'draft',
+            changeSummary: `Draft release bootstrapped by import-regulatory-data for industry '${opts.industry}'`,
+          },
+        });
+        console.log(`Created draft KnowledgeRelease "${release.version}" (${release.id}).`);
+      }
       if (release.status === 'published') throw new Error(`Release "${opts.release}" is published; use a draft`);
       const industry = await tx.industry.upsert({ where: { code: opts.industry }, update: { name: opts.industry }, create: { code: opts.industry, name: opts.industry } });
       const authIds = new Map<string, string>();

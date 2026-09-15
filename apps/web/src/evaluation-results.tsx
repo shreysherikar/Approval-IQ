@@ -1,5 +1,6 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from './auth';
 import { evaluationsApi } from './api-client';
 import type { ApprovalEvaluationInfo, EvaluationResponse, MissingFieldInfo } from './api-client';
 import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
@@ -168,11 +169,16 @@ export function EvaluationResultsPage(): JSX.Element {
   const { id: projectId } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const evaluationId = searchParams.get('evaluation');
+  // GET /evaluations/:id is authenticated (JwtAuthGuard) — the run contains the
+  // applicant's business data. The token lives in memory only, so we must wait
+  // for AuthProvider's silent refresh (httpOnly cookie) before fetching rather
+  // than sending an unauthenticated request that can only ever be a 401.
+  const { accessToken, isRestoring } = useAuth();
 
   const query = useQuery({
     queryKey: ['evaluation', evaluationId],
-    queryFn: () => evaluationsApi.get(evaluationId as string),
-    enabled: evaluationId !== null,
+    queryFn: () => evaluationsApi.get(evaluationId as string, accessToken ?? undefined),
+    enabled: evaluationId !== null && accessToken !== null,
     staleTime: Number.POSITIVE_INFINITY, // runs are persisted snapshots — replayable reads
     retry: 1,
   });
@@ -194,8 +200,14 @@ export function EvaluationResultsPage(): JSX.Element {
     );
   }
 
-  if (query.isLoading) {
+  if (query.isLoading || isRestoring) {
     return <LoadingSpinner label="Loading your approvals…" />;
+  }
+
+  if (accessToken === null) {
+    return (
+      <ErrorBanner message="Your session has ended — please log in again to view these results." />
+    );
   }
 
   if (query.isError) {

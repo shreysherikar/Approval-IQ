@@ -204,32 +204,47 @@ export const projectsApi = {
   },
 };
 
+/**
+ * Profile intake. REQUIRES the caller's access token: the API enforces
+ * JwtAuthGuard (who are you?) AND ProjectMemberGuard (are you a member of
+ * :projectId?) on every route here, so an anonymous call is a 401 and a
+ * non-member is a 403. The token is an explicit argument — same convention as
+ * projectsApi/documentsApi — so the caller can never forget it silently.
+ */
 export const profilesApi = {
   /** POST /projects/:projectId/profiles — create a new draft version. */
-  createDraft(projectId: string, values: Record<string, KnownFieldValue>): Promise<ProfileVersion> {
-    return post(`/projects/${projectId}/profiles`, { values });
+  createDraft(
+    projectId: string,
+    values: Record<string, KnownFieldValue>,
+    token?: string,
+  ): Promise<ProfileVersion> {
+    return post(`/projects/${projectId}/profiles`, { values }, { token });
   },
   /** PATCH /projects/:projectId/profiles/:versionId — update a DRAFT version. */
   updateDraft(
     projectId: string,
     versionId: string,
     values: Record<string, KnownFieldValue>,
+    token?: string,
   ): Promise<ProfileVersion> {
-    return patch(`/projects/${projectId}/profiles/${versionId}`, { values });
+    return patch(`/projects/${projectId}/profiles/${versionId}`, { values }, { token });
   },
   /**
    * POST /projects/:projectId/profiles/:versionId/confirm — locks the version
    * and automatically runs the approval evaluation; returns both.
    */
-  confirm(projectId: string, versionId: string): Promise<ConfirmProfileResponse> {
-    return post(`/projects/${projectId}/profiles/${versionId}/confirm`, {});
+  confirm(projectId: string, versionId: string, token?: string): Promise<ConfirmProfileResponse> {
+    return post(`/projects/${projectId}/profiles/${versionId}/confirm`, {}, { token });
   },
 };
 
 export const evaluationsApi = {
-  /** GET /evaluations/:id — replayable read of a persisted evaluation run. */
-  get(id: string): Promise<EvaluationResponse> {
-    return get(`/evaluations/${id}`);
+  /**
+   * GET /evaluations/:id — replayable read of a persisted evaluation run.
+   * Authenticated (JwtAuthGuard): a run contains the applicant's business data.
+   */
+  get(id: string, token?: string): Promise<EvaluationResponse> {
+    return get(`/evaluations/${id}`, { token });
   },
 };
 
@@ -288,10 +303,14 @@ export interface UpdateStatusResponse extends RoadmapNode {
   unlockedDependentIds?: string[];
 }
 
+/**
+ * Roadmap reads/writes. Authenticated (JwtAuthGuard) AND object-scoped
+ * (ProjectMemberGuard on :projectId) — pass the caller's access token.
+ */
 export const roadmapApi = {
   /** GET /projects/:projectId/roadmap — full graph, shaped for a graph UI. */
-  get(projectId: string): Promise<RoadmapResponse> {
-    return get(`/projects/${projectId}/roadmap`);
+  get(projectId: string, token?: string): Promise<RoadmapResponse> {
+    return get(`/projects/${projectId}/roadmap`, { token });
   },
   /**
    * PATCH /projects/:projectId/approval-instances/:instanceId/status — only
@@ -302,8 +321,13 @@ export const roadmapApi = {
     projectId: string,
     instanceId: string,
     status: Exclude<ApprovalInstanceStatus, 'blocked' | 'available'>,
+    token?: string,
   ): Promise<UpdateStatusResponse> {
-    return patch(`/projects/${projectId}/approval-instances/${instanceId}/status`, { status });
+    return patch(
+      `/projects/${projectId}/approval-instances/${instanceId}/status`,
+      { status },
+      { token },
+    );
   },
 };
 
@@ -348,7 +372,15 @@ export interface Document {
   updatedAt: string;
 }
 
-export type UploadDocumentResponse = Document;
+export type UploadDocumentResponse = Document | DedupPromptResponse;
+
+export interface DedupPromptResponse {
+  duplicateDetected: true;
+  matchedFileHash: string;
+  /** The blueprint's four choices (Prompt 5.2) — re-submit with the selected `dedupChoice`. */
+  dedupChoices: ['link_to_existing', 'create_new_version', 'keep_separate', 'reject_duplicate'];
+  existingDocument: Document;
+}
 
 export type UploadDocumentVersionResponse = Document;
 
@@ -361,16 +393,24 @@ export const documentsApi = {
   /**
    * POST /projects/:projectId/documents — upload an original document.
    * Multipart form with field "file" and optional "documentDefinitionId".
+   *
+   * When a byte-identical file already exists in the project the response is a
+   * DEDUP PROMPT ({ duplicateDetected: true, dedupChoices, existingDocument })
+   * rather than a silent duplicate. Re-submit the same file with `dedupChoice`
+   * set to one of link_to_existing | create_new_version | keep_separate |
+   * reject_duplicate; the picked choice is recorded in the document metadata.
    */
   upload(
     projectId: string,
     file: File,
     documentDefinitionId?: string,
+    dedupChoice?: string,
     token?: string,
   ): Promise<UploadDocumentResponse> {
     const form = new FormData();
     form.append('file', file);
     if (documentDefinitionId) form.append('documentDefinitionId', documentDefinitionId);
+    if (dedupChoice) form.append('dedupChoice', dedupChoice);
     return request<UploadDocumentResponse>(
       `/projects/${projectId}/documents`,
       { method: 'POST', body: form },
@@ -426,6 +466,68 @@ export const documentsApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Document reuse (Phase 7 API): same-project reuse candidates, each marked
+// eligible/ineligible with its SPECIFIC reason. Ineligible candidates are
+// returned too — never hidden.
+// ---------------------------------------------------------------------------
+
+export interface ReuseCandidateVersion {
+  id: string;
+  versionNumber: number;
+  state: string;
+  fileHash: string;
+}
+
+export interface ReuseCandidate {
+  documentId: string;
+  documentDefinitionCode: string | null;
+  currentVersion: ReuseCandidateVersion | null;
+  eligible: boolean;
+  /** e.g. 'eligible' | 'eligible_for_conditional_reuse' | 'ineligible' */
+  status: string;
+  /** A SPECIFIC reason string — never a bare boolean. */
+  reason: string;
+  /** Emitted for eligible conditional candidates: which conditions passed. */
+  passedConditions?: string[];
+}
+
+export interface ReuseRequiredDocument {
+  documentDefinitionId: string;
+  /** Stable DocumentDefinition code — matches RoadmapNode.requiredDocuments[].id. */
+  code: string;
+  name: string;
+  documentType: string;
+  reusability: string;
+  reuseConditions: string[];
+  candidates: ReuseCandidate[];
+}
+
+export interface ReuseCandidatesResponse {
+  approvalInstanceId: string;
+  approvalDefinition: { id: string; code: string; name: string };
+  /** Same-project reuse only this sprint (Decision #7). */
+  reuseScope: string;
+  requiredDocuments: ReuseRequiredDocument[];
+}
+
+export const reuseApi = {
+  /**
+   * GET /projects/:projectId/documents/reuse-candidates?approvalInstanceId=X
+   * Every candidate — eligible or not — is returned with its specific reason;
+   * ineligible candidates are never hidden.
+   */
+  candidates(
+    projectId: string,
+    approvalInstanceId: string,
+    token?: string,
+  ): Promise<ReuseCandidatesResponse> {
+    return get(
+      `/projects/${projectId}/documents/reuse-candidates?approvalInstanceId=${encodeURIComponent(approvalInstanceId)}`,
+      { token },
+    );
+  },
+};
 export interface ExtractedField {
   name: string;
   value: string;
@@ -475,6 +577,30 @@ export interface ExtractionJob {
   completedAt: string | null;
 }
 
+export type ConsistencyOutcome =
+  | 'match'
+  | 'mismatch'
+  | 'missing'
+  | 'unknown'
+  | 'not_applicable'
+  | 'not_verified';
+
+export interface ConsistencyCheckResult {
+  id: string;
+  checkType: 'profile_vs_document' | 'document_vs_document';
+  checkId: string;
+  profileField: string | null;
+  documentField: string;
+  sideAValue: string | null;
+  sideBValue: string | null;
+  outcome: ConsistencyOutcome;
+  tolerancePct: number | null;
+  detail: string | null;
+  profileVersionId: string | null;
+  otherDocumentVersionId: string | null;
+  createdAt: string;
+}
+
 export const intelligenceApi = {
   /** POST …/documents/:documentId/extract — enqueue async extraction. */
   extract(projectId: string, documentId: string, token?: string): Promise<ExtractionJob> {
@@ -511,6 +637,21 @@ export const intelligenceApi = {
   /** GET job status (poll while pending/processing). */
   job(projectId: string, jobId: string, token?: string): Promise<ExtractionJob> {
     return get(`/projects/${projectId}/jobs/${jobId}`, { token });
+  },
+  /**
+   * GET persisted consistency check results for a version. WARNING layer only —
+   * results are surfaced to the user, never used to gate anything.
+   */
+  consistencyChecks(
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    token?: string,
+  ): Promise<ConsistencyCheckResult[]> {
+    return get(
+      `/projects/${projectId}/documents/${documentId}/versions/${versionId}/consistency-checks`,
+      { token },
+    );
   },
 };
 

@@ -30,9 +30,10 @@ export class ExtractionHandler {
     const versionId = payload.documentVersionId;
     if (!versionId) throw new Error('document_extraction job missing documentVersionId');
     const providerName = this.config.get<string>('LLM_PROVIDER') ?? 'mock';
+    const anthropicModel = this.config.get<string>('ANTHROPIC_MODEL') ?? 'claude-sonnet-4-5-20250929';
     const triple =
       providerName === 'anthropic'
-        ? { modelProvider: 'anthropic', modelVersion: 'stub', promptVersion: 'stub' }
+        ? { modelProvider: 'anthropic', modelVersion: anthropicModel, promptVersion: 'anthropic-json-v1' }
         : { modelProvider: 'mock', modelVersion: 'mock-1.0.0', promptVersion: 'n/a' };
 
     const version = await this.prisma.documentVersion.findUnique({
@@ -88,11 +89,16 @@ export class ExtractionHandler {
         registerFixture(h: string, f: unknown): void;
         extract(b: Buffer, m: string): Promise<ProviderOutput>;
       };
-      AnthropicExtractionProvider: new () => { extract(): Promise<never> };
+      AnthropicExtractionProvider: new () => {
+        extract(b: Buffer, m: string): Promise<ProviderOutput>;
+      };
     };
+    // Genuinely required adapter path (blueprint §17.3-17.4): the mock stays
+    // the default (LLM_PROVIDER=mock); LLM_PROVIDER=anthropic selects the real
+    // Anthropic adapter, which fails fast with a clear config error when
+    // ANTHROPIC_API_KEY is missing (transient → retried, then dead-letter).
     if (name === 'anthropic') {
-      await new engine.AnthropicExtractionProvider().extract();
-      throw new Error('unreachable');
+      return new engine.AnthropicExtractionProvider().extract(buffer, mimeType);
     }
     if (name !== 'mock') throw new Error(`Unknown LLM_PROVIDER: "${name}"`);
     const q = new engine.MockExtractionProvider();

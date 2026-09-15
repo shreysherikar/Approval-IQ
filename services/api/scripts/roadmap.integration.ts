@@ -44,6 +44,11 @@ async function main(): Promise<void> {
   const url = (await app.getUrl()).replace('[::1]', '127.0.0.1');
   const prisma = app.get(PrismaService);
 
+  // Auth token is captured here so every project-scoped helper call below is
+  // authenticated even when the call site omits the explicit token argument
+  // (blueprint §§18-19: authorization enforced server-side).
+  let authToken = '';
+
   async function call(
     method: string,
     path: string,
@@ -51,7 +56,8 @@ async function main(): Promise<void> {
     token?: string,
   ): Promise<{ status: number; json: Record<string, unknown> }> {
     const headers: Record<string, string> = { 'content-type': 'application/json' };
-    if (token) headers['authorization'] = `Bearer ${token}`;
+    const bearer = token ?? authToken;
+    if (bearer) headers['authorization'] = `Bearer ${bearer}`;
     const res = await fetch(`${url}${path}`, {
       method,
       headers,
@@ -72,6 +78,10 @@ async function main(): Promise<void> {
   });
   assert(loginRes.status === 200, `login -> 200, got ${loginRes.status}`);
   const token = loginRes.json.accessToken as string;
+  authToken = token;
+
+  // Regression: anonymous roadmap reads are rejected (401) even with a valid
+  // project id — authn first, then object-level membership (403 for outsiders).
 
   const project = await call(
     'POST',
@@ -85,6 +95,30 @@ async function main(): Promise<void> {
   );
   assert(project.status === 201, `POST /projects -> 201, got ${project.status}`);
   const projectId = project.json.id as string;
+
+  const anonRoadmap = await call('GET', `/projects/${projectId}/roadmap`, undefined, '');
+  assert(anonRoadmap.status === 401, `anonymous GET roadmap -> 401, got ${anonRoadmap.status}`);
+  const outsiderReg = await call('POST', '/auth/register', {
+    email: `roadmap-outsider-${Date.now()}@example.com`,
+    password: 'password123',
+    role: 'applicant',
+  });
+  assert(outsiderReg.status === 201, `outsider register -> 201`);
+  const outsiderLogin = await call('POST', '/auth/login', {
+    email: outsiderReg.json.email as string,
+    password: 'password123',
+  });
+  const outsiderToken = outsiderLogin.json.accessToken as string;
+  const forbiddenRoadmap = await call('GET', `/projects/${projectId}/roadmap`, undefined, outsiderToken);
+  assert(forbiddenRoadmap.status === 403, `non-member GET roadmap -> 403, got ${forbiddenRoadmap.status}`);
+  const forbiddenPatch = await call(
+    'POST',
+    `/projects/${projectId}/profiles`,
+    { values: {} },
+    outsiderToken,
+  );
+  assert(forbiddenPatch.status === 403, `non-member POST profiles -> 403, got ${forbiddenPatch.status}`);
+  console.log('AUTHZ ok: anonymous 401, non-member 403');
 
   const draft = await call('POST', `/projects/${projectId}/profiles`, {
     values: fullBreweryValues(),
@@ -290,6 +324,11 @@ async function main(): Promise<void> {
     select: { id: true },
   });
   if (roadmapUser) await prisma.user.delete({ where: { id: roadmapUser.id } });
+  const outsiderUser = await prisma.user.findUnique({
+    where: { email: outsiderReg.json.email as string },
+    select: { id: true },
+  });
+  if (outsiderUser) await prisma.user.delete({ where: { id: outsiderUser.id } });
   console.log('INTEGRATION PASS');
   await app.close();
 }

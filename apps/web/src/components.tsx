@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { documentsApi, type Document, type DocumentVersionState } from './api-client';
+import { documentsApi, type DedupPromptResponse, type Document, type DocumentVersionState } from './api-client';
 
 export function LoadingSpinner({ label = 'Loading…' }: { label?: string }): JSX.Element {
   return (
@@ -117,13 +117,31 @@ export function DocumentUploadControl({
 }: DocumentUploadControlProps): JSX.Element {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  // Phase 7 dedup: the upload returned a duplicate prompt (Prompt 5.2) with the
+  // four choices. We keep the pending file so the user's chosen `dedupChoice`
+  // can be re-submitted to the same endpoint and recorded.
+  const [dedupPrompt, setDedupPrompt] = useState<DedupPromptResponse | null>(null);
+  const pendingFileRef = useRef<File | null>(null);
+
+  const onUploaded = () => {
+    setError(null);
+    setDedupPrompt(null);
+    pendingFileRef.current = null;
+    void queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
+    onChange?.();
+  };
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => documentsApi.upload(projectId, file, requiredDoc.id, token),
-    onSuccess: () => {
+    mutationFn: (file: File) => documentsApi.upload(projectId, file, requiredDoc.id, undefined, token),
+    onSuccess: (result) => {
       setError(null);
-      void queryClient.invalidateQueries({ queryKey: ['documents', projectId] });
-      onChange?.();
+      if (result && typeof result === 'object' && 'duplicateDetected' in result && result.duplicateDetected) {
+        // A byte-identical file already exists in this project. Surface the four
+        // choices instead of treating this as a successful fresh upload.
+        setDedupPrompt(result as DedupPromptResponse);
+        return;
+      }
+      onUploaded();
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -142,9 +160,25 @@ export function DocumentUploadControl({
     },
   });
 
+  // Re-submits the same (pending) file with the user's chosen dedupChoice, so the
+  // pick is recorded by the existing backend behavior. reject_duplicate is a 409
+  // → it surfaces as an error banner via onError.
+  const dedupChoiceMutation = useMutation({
+    mutationFn: (choice: string) => {
+      const file = pendingFileRef.current;
+      if (!file) return Promise.reject(new Error('No pending file to submit.'));
+      return documentsApi.upload(projectId, file, requiredDoc.id, choice, token);
+    },
+    onSuccess: () => onUploaded(),
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Dedup choice failed');
+    },
+  });
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    pendingFileRef.current = file;
     if (existingDoc) {
       replaceMutation.mutate(file);
     } else {
@@ -154,7 +188,7 @@ export function DocumentUploadControl({
     e.target.value = '';
   };
 
-  const isUploading = uploadMutation.isPending || replaceMutation.isPending;
+  const isUploading = uploadMutation.isPending || replaceMutation.isPending || dedupChoiceMutation.isPending;
   const currentVersion = existingDoc?.currentVersion;
 
   return (
@@ -199,7 +233,19 @@ export function DocumentUploadControl({
         <ErrorBanner message={error} onRetry={() => setError(null)} />
       )}
 
-      <div className="mt-3">
+      {dedupPrompt ? (
+        <DedupPromptPanel
+          prompt={dedupPrompt}
+          projectId={projectId}
+          pending={dedupChoiceMutation.isPending}
+          onChoose={(choice) => dedupChoiceMutation.mutate(choice)}
+          onDismiss={() => {
+            setDedupPrompt(null);
+            pendingFileRef.current = null;
+          }}
+        />
+      ) : (
+        <div className="mt-3">
         <label className="block">
           <input
             type="file"
@@ -231,14 +277,107 @@ export function DocumentUploadControl({
           Allowed: PDF, DOC, DOCX, PNG, JPG (max 20 MB).{' '}
           {existingDoc ? 'Replaces current version (prior version kept).' : 'Creates first version.'}
         </p>
-      </div>
+        </div>
+      )}
 
-      {!existingDoc && !isUploading && (
+      {!existingDoc && !isUploading && !dedupPrompt && (
         <EmptyState
           title="No document uploaded yet"
           description="Upload the first version of this required document."
         />
       )}
+    </div>
+  );
+}
+/**
+ * The blueprint's four dedup choices (Prompt 5.2), surfaced when the upload is a
+ * byte-identical duplicate of an existing project document. Choosing one
+ * re-submits the pending file with the selected `dedupChoice` so the backend
+ * records the decision (link / new version / keep separate / reject).
+ */
+function DedupPromptPanel({
+  prompt,
+  projectId,
+  pending,
+  onChoose,
+  onDismiss,
+}: {
+  prompt: DedupPromptResponse;
+  projectId: string;
+  pending: boolean;
+  onChoose: (choice: string) => void;
+  onDismiss: () => void;
+}): JSX.Element {
+  const existing = prompt.existingDocument;
+  const existingVersion = existing.currentVersion;
+  const choices: Array<{ value: string; label: string; description: string }> = [
+    {
+      value: 'link_to_existing',
+      label: 'Link to existing',
+      description: 'Use the existing document for this requirement (no new document is created).',
+    },
+    {
+      value: 'create_new_version',
+      label: 'Create new version',
+      description: 'Add this file as a new version of the existing document.',
+    },
+    {
+      value: 'keep_separate',
+      label: 'Keep as separate document',
+      description: 'Store this file as its own separate document.',
+    },
+    {
+      value: 'reject_duplicate',
+      label: 'Reject as duplicate',
+      description: 'Do not upload — discard this file (nothing is created).',
+    },
+  ];
+
+  return (
+    <div className="mt-3 space-y-3 rounded border border-amber-300 bg-amber-50 p-3" role="alert">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-amber-900">
+            This file is a duplicate already in this project.
+          </p>
+          <p className="mt-0.5 text-xs text-amber-800">
+            A byte-identical file was uploaded before — choose how to handle it (never silently duplicate).
+          </p>
+        </div>
+        <Link
+          to={`/projects/${projectId}/documents/${existing.id}`}
+          className="shrink-0 rounded border border-amber-300 bg-white px-2 py-0.5 text-xs text-amber-900 hover:bg-amber-100"
+        >
+          Existing v{existingVersion ? existingVersion.versionNumber : '—'}{existingVersion ? ` · ${existingVersion.state}` : ''}
+        </Link>
+      </div>
+      <div className="grid gap-2">
+        {choices.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            disabled={pending}
+            onClick={() => onChoose(c.value)}
+            className="rounded border border-gray-300 bg-white px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            <span className="font-medium text-gray-900">{c.label}</span>
+            <span className="mt-0.5 block text-xs text-gray-600">{c.description}</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={onDismiss}
+          className="rounded border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        >
+          Cancel upload
+        </button>
+        <span className="text-xs text-amber-800">
+          {pending ? 'Submitting choice…' : 'Your choice is recorded in the document metadata.'}
+        </span>
+      </div>
     </div>
   );
 }
