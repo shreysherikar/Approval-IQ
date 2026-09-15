@@ -6,7 +6,29 @@ import { ApiError, officerApi, type ApplicationPacket, type QueueItem } from './
 import { useAuth } from './auth';
 import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
 
+function RiskBadge({ level, score }: { level: string; score: number }): JSX.Element {
+  const defaultStyle = { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300' };
+  const styles: Record<string, { bg: string; text: string; border: string }> = {
+    critical: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' },
+    high: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300' },
+    medium: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300' },
+    low: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300' },
+    unknown: defaultStyle,
+  };
+  const s = styles[level] ?? defaultStyle;
+  return (
+    <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${s.bg} ${s.text} ${s.border}`}>
+      Risk: {score} ({level})
+    </span>
+  );
+}
+
 function QueueCard({ item }: { item: QueueItem }): JSX.Element {
+  const risk = (item as unknown as { risk?: Record<string, unknown> })?.risk;
+  const submissionRisk = risk?.['submissionRisk'] as Record<string, unknown> | undefined;
+  const complexity = risk?.['regulatoryComplexity'] as Record<string, unknown> | undefined;
+  const recommendation = typeof risk?.['recommendation'] === 'string' ? risk['recommendation'] : null;
+
   return (
     <article className="rounded-md border border-gray-200 bg-white p-4">
       <div className="flex items-start justify-between gap-2">
@@ -20,9 +42,14 @@ function QueueCard({ item }: { item: QueueItem }): JSX.Element {
             </span>
           </p>
         </div>
-        <span className="shrink-0 rounded border border-gray-300 bg-white px-2 py-0.5 text-xs font-semibold text-gray-700">
-          {item.instanceStatus}
-        </span>
+        <div className="flex shrink-0 gap-2">
+          {submissionRisk && (
+            <RiskBadge level={String(submissionRisk.level ?? 'unknown')} score={Number(submissionRisk.score ?? 0)} />
+          )}
+          <span className="rounded border border-gray-300 bg-white px-2 py-0.5 text-xs font-semibold text-gray-700">
+            {item.instanceStatus}
+          </span>
+        </div>
       </div>
 
       <div className="mt-2 flex flex-wrap gap-2 text-xs">
@@ -42,6 +69,20 @@ function QueueCard({ item }: { item: QueueItem }): JSX.Element {
         {item.requiredDocuments.missing > 0 && (
           <span className="rounded border border-amber-200 bg-white px-2 py-0.5 text-amber-800">
             {item.requiredDocuments.missing} required document{item.requiredDocuments.missing === 1 ? '' : 's'} missing
+          </span>
+        )}
+        {complexity && (
+          <span className="rounded border border-purple-200 bg-purple-50 px-2 py-0.5 text-purple-800">
+            Complexity: {String(complexity.level ?? 'unknown')}
+          </span>
+        )}
+        {recommendation && (
+          <span className={`rounded border px-2 py-0.5 font-semibold ${
+            recommendation === 'Priority Review' ? 'border-red-300 bg-red-50 text-red-800' :
+            recommendation === 'Needs Clarification' ? 'border-amber-300 bg-amber-50 text-amber-800' :
+            'border-green-300 bg-green-50 text-green-800'
+          }`}>
+            {recommendation}
           </span>
         )}
         <span className="rounded border border-gray-200 bg-gray-50 px-2 py-0.5 text-gray-600">
@@ -598,6 +639,19 @@ export function OfficerApplicationPage(): JSX.Element {
         </section>
       )}
 
+      {/* Feature 3: Risk Scores */}
+      {packet.riskScores && (
+        <RiskScoresPanel riskScores={packet.riskScores as unknown as Record<string, unknown>} />
+      )}
+
+      {/* Feature 3: Audit Trail */}
+      {packet.auditTrail && Array.isArray(packet.auditTrail) && packet.auditTrail.length > 0 && (
+        <AuditTrailPanel auditTrail={packet.auditTrail as unknown as Array<Record<string, unknown>>} />
+      )}
+
+      {/* Officer Actions */}
+      <OfficerActionsPanel instanceId={packet.instance.id} />
+
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">
           Clarifications ({packet.clarificationSummary.total}, {packet.clarificationSummary.open} open)
@@ -628,5 +682,220 @@ function VersionList({ versions }: { versions: Array<Record<string, unknown>> })
         );
       })}
     </ul>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Feature 3: Risk Scores Panel
+// ---------------------------------------------------------------------------
+
+function RiskScoresPanel({ riskScores }: { riskScores: Record<string, unknown> }): JSX.Element {
+  const submissionRisk = riskScores['submissionRisk'] as Record<string, unknown> | undefined;
+  const complexity = riskScores['regulatoryComplexity'] as Record<string, unknown> | undefined;
+  const recommendation = typeof riskScores['recommendation'] === 'string' ? riskScores['recommendation'] : 'Unknown';
+  const missingReqs = Array.isArray(riskScores['missingRequirements']) ? riskScores['missingRequirements'] as Array<Record<string, unknown>> : [];
+  const validationProblems = Array.isArray(riskScores['validationProblems']) ? riskScores['validationProblems'] as Array<Record<string, unknown>> : [];
+
+  const levelColor = (level: string): string => {
+    switch (level) {
+      case 'critical': return 'bg-red-100 text-red-800 border-red-300';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'low': return 'bg-green-100 text-green-800 border-green-300';
+      default: return 'bg-gray-100 text-gray-600 border-gray-300';
+    }
+  };
+
+  return (
+    <section className="rounded-md border border-gray-200 bg-white p-4">
+      <h2 className="text-lg font-semibold">Risk Assessment</h2>
+      <p className="text-xs text-gray-500 mb-3">Prototype scoring — not government-approved weights</p>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Submission Risk */}
+        <div className="rounded border border-gray-200 bg-gray-50 p-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800">Submission Risk</h3>
+            {submissionRisk && (
+              <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-bold ${levelColor(String(submissionRisk.level))}`}>
+                {String(submissionRisk.score)} · {String(submissionRisk.level)}
+              </span>
+            )}
+          </div>
+          {submissionRisk && Array.isArray(submissionRisk.reasons) && (
+            <ul className="mt-2 space-y-1 text-xs text-gray-700">
+              {(submissionRisk.reasons as string[]).map((r, i) => (
+                <li key={i} className="flex items-start gap-1">
+                  <span className="shrink-0 text-gray-400">•</span>
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Regulatory Complexity */}
+        <div className="rounded border border-gray-200 bg-gray-50 p-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-800">Regulatory Complexity</h3>
+            {complexity && (
+              <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-bold ${levelColor(String(complexity.level))}`}>
+                {String(complexity.score)} · {String(complexity.level)}
+              </span>
+            )}
+          </div>
+          {complexity && Array.isArray(complexity.reasons) && (
+            <ul className="mt-2 space-y-1 text-xs text-gray-700">
+              {(complexity.reasons as string[]).map((r, i) => (
+                <li key={i} className="flex items-start gap-1">
+                  <span className="shrink-0 text-gray-400">•</span>
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Recommendation */}
+      <div className="mt-3 rounded border border-blue-200 bg-blue-50 p-3">
+        <p className="text-sm">
+          <span className="font-semibold text-blue-800">Recommendation:</span>{' '}
+          <span className="text-blue-700">ApprovalIQ recommends <strong>{recommendation}</strong></span>
+        </p>
+      </div>
+
+      {/* Missing Requirements */}
+      {missingReqs.length > 0 && (
+        <div className="mt-3">
+          <h3 className="text-sm font-semibold text-gray-800">Missing Requirements</h3>
+          <ul className="mt-1 space-y-1 text-xs">
+            {missingReqs.map((r, i) => (
+              <li key={i} className="rounded bg-red-50 border border-red-200 px-2 py-1 text-red-800">
+                {String(r.field)} — {String(r.reason)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Validation Problems */}
+      {validationProblems.length > 0 && (
+        <div className="mt-3">
+          <h3 className="text-sm font-semibold text-gray-800">Validation Problems</h3>
+          <ul className="mt-1 space-y-1 text-xs">
+            {validationProblems.map((p, i) => (
+              <li key={i} className="rounded bg-amber-50 border border-amber-200 px-2 py-1 text-amber-800">
+                {String(p.detail)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Feature 3: Audit Trail Panel
+// ---------------------------------------------------------------------------
+
+function AuditTrailPanel({ auditTrail }: { auditTrail: Array<Record<string, unknown>> }): JSX.Element {
+  return (
+    <section className="rounded-md border border-gray-200 bg-white p-4">
+      <h2 className="text-lg font-semibold">Audit Trail</h2>
+      <ul className="mt-2 space-y-2">
+        {auditTrail.map((event) => {
+          const user = event['user'] as Record<string, unknown> | null;
+          return (
+            <li key={String(event['id'])} className="flex items-start gap-3 rounded border border-gray-100 bg-gray-50 p-2 text-xs">
+              <span className="shrink-0 font-mono text-gray-400">
+                {event['createdAt'] ? new Date(String(event['createdAt'])).toLocaleString() : ''}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-gray-800">
+                  <span className="font-semibold">{String(event['action'])}</span>
+                  {user ? <span className="text-gray-500"> by {String(user['email'])} ({String(user['role'])})</span> : null}
+                </p>
+                {Boolean(event['details']) && typeof event['details'] === 'object' && (
+                  <pre className="mt-1 text-[10px] text-gray-500 overflow-x-auto">{String(JSON.stringify(event['details'] as object, null, 2))}</pre>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Feature 3: Officer Actions Panel
+// ---------------------------------------------------------------------------
+
+function OfficerActionsPanel({ instanceId }: { instanceId: string }): JSX.Element {
+  const { accessToken } = useAuth();
+  const queryClient = useQueryClient();
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const recordAction = useMutation({
+    mutationFn: (action: string) =>
+      fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/officer/applications/${instanceId}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ action, note: note.trim() || undefined }),
+      }).then((r) => {
+        if (!r.ok) throw new Error(`Failed: ${r.status}`);
+        return r.json() as Promise<Record<string, unknown>>;
+      }),
+    onSuccess: () => {
+      setNote('');
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ['officer-application', instanceId] });
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'Action failed'),
+  });
+
+  const actions = [
+    { action: 'review_application', label: 'Review Application', color: 'bg-blue-600 hover:bg-blue-700' },
+    { action: 'recommend_approval', label: 'Recommend Approval', color: 'bg-green-600 hover:bg-green-700' },
+    { action: 'recommend_rejection', label: 'Recommend Rejection', color: 'bg-red-600 hover:bg-red-700' },
+    { action: 'return_for_correction', label: 'Return for Correction', color: 'bg-amber-600 hover:bg-amber-700' },
+    { action: 'mark_document_reviewed', label: 'Mark Document Reviewed', color: 'bg-purple-600 hover:bg-purple-700' },
+    { action: 'request_clarification', label: 'Request Clarification', color: 'bg-indigo-600 hover:bg-indigo-700' },
+  ];
+
+  return (
+    <section className="rounded-md border border-gray-200 bg-white p-4">
+      <h2 className="text-lg font-semibold">Officer Actions</h2>
+      <p className="text-xs text-gray-500 mb-2">All actions are recorded in the audit trail. No automatic approval/rejection occurs.</p>
+      {error && <div className="mb-2"><ErrorBanner message={error} /></div>}
+      <label className="block text-sm mb-2">
+        <span className="text-gray-700">Note (optional)</span>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          placeholder="Add a note about this action"
+        />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {actions.map((a) => (
+          <button
+            key={a.action}
+            type="button"
+            disabled={recordAction.isPending}
+            onClick={() => recordAction.mutate(a.action)}
+            className={`rounded px-3 py-1.5 text-sm text-white disabled:opacity-50 ${a.color}`}
+          >
+            {recordAction.isPending ? 'Recording…' : a.label}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
