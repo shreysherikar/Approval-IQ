@@ -16,7 +16,11 @@
     "ci:check": "pnpm install --frozen-lockfile && pnpm --filter api prisma generate && pnpm -r --if-present run lint && pnpm -r --if-present run typecheck && pnpm --filter api prisma migrate deploy && pnpm -r --if-present run test && pnpm --filter web build && pnpm --filter api build",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\"",
     "seed:demo": "pnpm --filter api seed:demo",
-    "seed:demo:reset": "pnpm --filter api seed:demo:reset"
+    "seed:demo:reset": "pnpm --filter api seed:demo:reset",
+    "desktop:build": "pnpm --filter @approvaliq/desktop-shell build",
+    "desktop:dev": "pnpm --filter @approvaliq/desktop-shell dev",
+    "mobile:sync": "pnpm --filter @approvaliq/mobile-shell cap:sync",
+    "mobile:build": "pnpm --filter @approvaliq/mobile-shell build:apk"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",

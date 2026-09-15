@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, createHashRouter } from 'react-router-dom';
 import { Layout } from './Layout';
 import { HomePage, LoginPage, RegisterPage } from './pages';
 import {
@@ -18,7 +18,17 @@ import { BusinessMapPage } from './landing/BusinessMapPage';
 import { OfficerApplicationPage, OfficerQueuePage } from './officer-pages';
 import { RegulatoryChangesListPage, RegulatoryChangeDetailPage, ImpactDashboardPage } from './regulatory-changes';
 
-export const router = createBrowserRouter([
+const isEmbedded =
+  typeof window !== 'undefined' &&
+  ('__TAURI_INTERNALS__' in window ||
+    'Capacitor' in window ||
+    import.meta.env.VITE_DESKTOP === 'true' ||
+    import.meta.env.VITE_MOBILE === 'true' ||
+    import.meta.env.VITE_ROUTER_MODE === 'hash');
+
+const createRouter = isEmbedded ? createHashRouter : createBrowserRouter;
+
+export const router = createRouter([
   {
     path: '/',
     element: <Layout />,

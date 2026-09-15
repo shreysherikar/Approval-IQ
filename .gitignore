@@ -4,4 +4,8 @@ coverage
 *.log
 .env
 **/data/storage
+target
+.gradle
+**/build
+*.apk
 Astra.txt
