@@ -1,10 +1,10 @@
-﻿import { readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 type CsvRow = Record<string, string>;
 function parseArgs(a: string[]): { industry: string; dataDir: string; release: string; validateOnly: boolean } {
-  const o = { industry: 'brewery', dataDir: resolve(process.cwd(), '..', '..', 'data'), release: '2026.09.11-brewery-v1', validateOnly: false };
+  const o = { industry: 'all', dataDir: resolve(process.cwd(), '..', '..', 'data'), release: '2026.09.11-regulatory-v1', validateOnly: false };
   for (const r of a) {
     const s = r.replace(/^--/, '');
     const e = s.indexOf('=');
@@ -206,8 +206,6 @@ async function main(): Promise<void> {
   for (let i = 0; i < apprCsv.rows.length; i++) {
     const row = apprCsv.rows[i] as CsvRow;
     const line = i + 2;
-    const ind = cell(row, 'industry').trim().toLowerCase();
-    if (ind && filter && ind !== filter) continue;
     const code = cell(row, 'approval_id', 'code', 'id');
     if (!code) { errors.push(`approvals.csv:${line}: missing approval_id`); continue; }
     if (apprs.has(code)) errors.push(`approvals.csv:${line}: duplicate approval "${code}"`);
@@ -282,7 +280,7 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  const scopedA = [...apprs.values()].filter((a) => !a.industry || a.industry.trim().toLowerCase() === filter);
+  const scopedA = [...apprs.values()].filter((a) => filter === 'all' || !filter || !a.industry || a.industry.trim().toLowerCase() === filter);
   const need = new Set<string>();
   for (const a of scopedA) for (const d of a.docs) need.add(d);
   const scopedD = [...docs.values()].filter((d) => need.has(d.code));
@@ -314,7 +312,23 @@ async function main(): Promise<void> {
         console.log(`Created draft KnowledgeRelease "${release.version}" (${release.id}).`);
       }
       if (release.status === 'published') throw new Error(`Release "${opts.release}" is published; use a draft`);
-      const industry = await tx.industry.upsert({ where: { code: opts.industry }, update: { name: opts.industry }, create: { code: opts.industry, name: opts.industry } });
+      
+      const industryMap = new Map<string, string>();
+      const distinctIndustries = [...new Set(scopedA.map((a) => a.industry.trim().toLowerCase()))];
+      for (const indCode of distinctIndustries) {
+        const indName = indCode === 'solar_manufacturing'
+          ? 'Solar PV & Clean Tech Equipment Manufacturing'
+          : indCode === 'brewery'
+            ? 'Brewery & Fermentation'
+            : indCode;
+        const indRec = await tx.industry.upsert({
+          where: { code: indCode },
+          update: { name: indName },
+          create: { code: indCode, name: indName },
+        });
+        industryMap.set(indCode, indRec.id);
+      }
+
       const authIds = new Map<string, string>();
       for (const a of auths.values()) {
         const r = await tx.authority.upsert({ where: { code: a.code }, update: { name: a.name, department: a.dept, jurisdiction: a.jur, officialUrl: a.url }, create: { code: a.code, name: a.name, department: a.dept, jurisdiction: a.jur, officialUrl: a.url } });
@@ -339,8 +353,10 @@ async function main(): Promise<void> {
         const aid = authIds.get(a.auth);
         const sid = srcIds.get(a.src);
         if (!aid || !sid) throw new Error(`missing FK for "${a.code}"`);
+        const indId = industryMap.get(a.industry.trim().toLowerCase());
+        if (!indId) throw new Error(`missing industry for "${a.code}"`);
         const conds = toConditionJson(a.cond);
-        const r = await tx.approvalDefinition.upsert({ where: { code: a.code }, update: { name: a.name, industryId: industry.id, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, ambiguityNotes: a.notes, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id }, create: { code: a.code, name: a.name, industryId: industry.id, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, ambiguityNotes: a.notes, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id } });
+        const r = await tx.approvalDefinition.upsert({ where: { code: a.code }, update: { name: a.name, industryId: indId, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, ambiguityNotes: a.notes, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id }, create: { code: a.code, name: a.name, industryId: indId, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, ambiguityNotes: a.notes, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id } });
         apprIds.set(a.code, r.id);
         await tx.approvalDocumentRequirement.deleteMany({ where: { approvalDefinitionId: r.id } });
         for (const dc of a.docs) {

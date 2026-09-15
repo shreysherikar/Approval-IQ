@@ -20,7 +20,6 @@ export type EngineRelationship = 'depends_on' | 'informational' | 'parallel_with
 type KnownField = { status: 'known'; value: string };
 type ProfileLike = { industry: { status: string; value?: string } };
 
-type StoredClause = { field?: unknown; op?: unknown; value?: unknown };
 type DbApproval = {
   id: string;
   code: string;
@@ -46,31 +45,148 @@ const NOT_MACHINE_EVALUABLE: EngineCondition = {
 } as unknown as EngineCondition;
 
 /**
- * Translate the Phase-1 CSV condition shape
- * `{ all: [{ field, op: 'equals', value }] }` into the engine's typed
- * Condition tree. Free-text prose rows (and structured rows with no
- * supported clauses) are not machine-evaluable: they map to
- * NOT_MACHINE_EVALUABLE so the engine reports not_evaluable (check manually)
- * instead of a fabricated not_applicable.
+ * Helper to parse a single condition clause or sub-tree from either native
+ * engine JSON or legacy CSV clause representation.
+ */
+function parseSingleCondition(item: unknown): EngineCondition | undefined {
+  if (typeof item !== 'object' || item === null) return undefined;
+  const obj = item as Record<string, unknown>;
+
+  // Direct native engine kind
+  if (typeof obj.kind === 'string') {
+    switch (obj.kind) {
+      case 'all':
+      case 'any': {
+        if (!Array.isArray(obj.conditions)) return NOT_MACHINE_EVALUABLE;
+        const parsed = obj.conditions.map(parseSingleCondition).filter((c): c is EngineCondition => c !== undefined && c !== NOT_MACHINE_EVALUABLE);
+        if (parsed.length === 0) return NOT_MACHINE_EVALUABLE;
+        return { kind: obj.kind, conditions: parsed };
+      }
+      case 'not': {
+        const child = parseSingleCondition(obj.condition);
+        if (!child || child === NOT_MACHINE_EVALUABLE) return NOT_MACHINE_EVALUABLE;
+        return { kind: 'not', condition: child };
+      }
+      case 'eq': {
+        if (typeof obj.field === 'string' && typeof obj.value === 'string') {
+          return { kind: 'eq', field: obj.field, value: obj.value };
+        }
+        return NOT_MACHINE_EVALUABLE;
+      }
+      case 'in': {
+        if (typeof obj.field === 'string' && Array.isArray(obj.values)) {
+          return { kind: 'in', field: obj.field, values: obj.values.map(String) };
+        }
+        return NOT_MACHINE_EVALUABLE;
+      }
+      case 'range': {
+        if (typeof obj.field === 'string') {
+          const rangeObj: Record<string, unknown> = { kind: 'range', field: obj.field };
+          if (typeof obj.min === 'number') rangeObj.min = obj.min;
+          if (typeof obj.max === 'number') rangeObj.max = obj.max;
+          if (typeof obj.minInclusive === 'boolean') rangeObj.minInclusive = obj.minInclusive;
+          if (typeof obj.maxInclusive === 'boolean') rangeObj.maxInclusive = obj.maxInclusive;
+          if (obj.field === 'areaSqft') {
+            rangeObj.expectedAreaType = (obj.expectedAreaType as string) ?? 'built_up';
+          }
+          if (obj.field === 'investmentAmountInr') {
+            rangeObj.expectedInvestmentDefinition = (obj.expectedInvestmentDefinition as string) ?? 'total_project_cost';
+          }
+          return rangeObj as unknown as EngineCondition;
+        }
+        return NOT_MACHINE_EVALUABLE;
+      }
+      default:
+        return NOT_MACHINE_EVALUABLE;
+    }
+  }
+
+  // Operator-based clause: { field, op, value, ... }
+  if (typeof obj.field === 'string') {
+    const op = typeof obj.op === 'string' ? obj.op.toLowerCase() : 'equals';
+    if (op === 'equals' || op === 'eq') {
+      if (typeof obj.value === 'string') {
+        return { kind: 'eq', field: obj.field, value: obj.value };
+      }
+      return NOT_MACHINE_EVALUABLE;
+    }
+    if (op === 'in') {
+      const vals = Array.isArray(obj.values) ? obj.values : Array.isArray(obj.value) ? obj.value : null;
+      if (vals) {
+        return { kind: 'in', field: obj.field, values: vals.map(String) };
+      }
+      return NOT_MACHINE_EVALUABLE;
+    }
+    if (op === 'range' || op === 'gte' || op === 'gt' || op === 'lte' || op === 'lt') {
+      const rangeObj: Record<string, unknown> = { kind: 'range', field: obj.field };
+      if (typeof obj.min === 'number') rangeObj.min = obj.min;
+      if (typeof obj.max === 'number') rangeObj.max = obj.max;
+      if (op === 'gte') { rangeObj.min = Number(obj.value); rangeObj.minInclusive = true; }
+      if (op === 'gt') { rangeObj.min = Number(obj.value); rangeObj.minInclusive = false; }
+      if (op === 'lte') { rangeObj.max = Number(obj.value); rangeObj.maxInclusive = true; }
+      if (op === 'lt') { rangeObj.max = Number(obj.value); rangeObj.maxInclusive = false; }
+      if (typeof obj.minInclusive === 'boolean') rangeObj.minInclusive = obj.minInclusive;
+      if (typeof obj.maxInclusive === 'boolean') rangeObj.maxInclusive = obj.maxInclusive;
+      if (obj.field === 'areaSqft') {
+        rangeObj.expectedAreaType = (obj.expectedAreaType as string) ?? 'built_up';
+      }
+      if (obj.field === 'investmentAmountInr') {
+        rangeObj.expectedInvestmentDefinition = (obj.expectedInvestmentDefinition as string) ?? 'total_project_cost';
+      }
+      return rangeObj as unknown as EngineCondition;
+    }
+  }
+
+  // Compound legacy all/any/not
+  if (Array.isArray(obj.all)) {
+    const conditions = obj.all.map(parseSingleCondition).filter((c): c is EngineCondition => c !== undefined && c !== NOT_MACHINE_EVALUABLE);
+    return conditions.length > 0 ? { kind: 'all', conditions } : NOT_MACHINE_EVALUABLE;
+  }
+  if (Array.isArray(obj.any)) {
+    const conditions = obj.any.map(parseSingleCondition).filter((c): c is EngineCondition => c !== undefined && c !== NOT_MACHINE_EVALUABLE);
+    return conditions.length > 0 ? { kind: 'any', conditions } : NOT_MACHINE_EVALUABLE;
+  }
+  if (obj.not && typeof obj.not === 'object') {
+    const child = parseSingleCondition(obj.not);
+    return child && child !== NOT_MACHINE_EVALUABLE ? { kind: 'not', condition: child } : NOT_MACHINE_EVALUABLE;
+  }
+
+  return NOT_MACHINE_EVALUABLE;
+}
+
+/**
+ * Translate applicability conditions (JSON strings, structured objects, or prose)
+ * into the engine's typed Condition tree.
  */
 export function toEngineCondition(raw: unknown): EngineCondition | undefined {
   if (raw === null || raw === undefined) return undefined;
   if (typeof raw === 'string') {
-    return raw.trim() === '' ? undefined : NOT_MACHINE_EVALUABLE;
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return toEngineCondition(JSON.parse(trimmed));
+      } catch {
+        return NOT_MACHINE_EVALUABLE;
+      }
+    }
+    return NOT_MACHINE_EVALUABLE;
   }
   if (typeof raw !== 'object') return undefined;
-  const all = (raw as { all?: unknown }).all;
-  if (!Array.isArray(all)) return undefined;
-  const conditions: EngineCondition[] = [];
-  for (const c of all as StoredClause[]) {
-    if (typeof c !== 'object' || c === null) continue;
-    if (c.op !== 'equals' || typeof c.field !== 'string' || typeof c.value !== 'string') continue;
-    if (c.field === 'industry' || c.field === 'state' || c.field === 'district') {
-      conditions.push({ kind: 'eq', field: c.field, value: c.value });
-    }
+
+  const obj = raw as Record<string, unknown>;
+  if (Array.isArray(obj.all)) {
+    const conditions = obj.all.map(parseSingleCondition).filter((c): c is EngineCondition => c !== undefined && c !== NOT_MACHINE_EVALUABLE);
+    if (conditions.length === 0) return NOT_MACHINE_EVALUABLE;
+    return { kind: 'all', conditions };
   }
-  if (conditions.length === 0) return NOT_MACHINE_EVALUABLE;
-  return { kind: 'all', conditions };
+  if (Array.isArray(obj.any)) {
+    const conditions = obj.any.map(parseSingleCondition).filter((c): c is EngineCondition => c !== undefined && c !== NOT_MACHINE_EVALUABLE);
+    if (conditions.length === 0) return NOT_MACHINE_EVALUABLE;
+    return { kind: 'any', conditions };
+  }
+
+  return parseSingleCondition(raw);
 }
 
 
