@@ -347,7 +347,7 @@ export class RoadmapService {
    * first unlock. Uses the approval-engine's graph utilities — no ad-hoc
    * topological logic here.
    */
-  private async unlockDependents(
+  async unlockDependents(
     projectId: string,
     approvalDefinitionId: string,
   ): Promise<string[]> {

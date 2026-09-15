@@ -623,6 +623,7 @@ function DetailDrawer({
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* What is this approval? */}
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
@@ -698,6 +699,33 @@ function DetailDrawer({
                 </div>
               ))}
             </div>
+=======
+      <div className="mt-3">
+        <p className="flex items-center justify-between text-sm font-semibold text-gray-800">
+          <span>Required documents</span>
+          <Link
+            to={`/projects/${projectId}/clarifications`}
+            className="text-xs font-normal text-blue-600 hover:underline"
+          >
+            Officer questions →
+          </Link>
+        </p>
+        {node.requiredDocuments.length === 0 ? (
+          <p className="mt-1 text-sm text-gray-500">None required for this approval.</p>
+        ) : (
+          <div className="mt-2 space-y-3">
+            {node.requiredDocuments.map((reqDoc) => (
+              <div key={reqDoc.id}>
+                <DocumentUploadControl
+                  projectId={projectId}
+                  requiredDoc={reqDoc}
+                  existingDoc={docMap.get(reqDoc.id) ?? null}
+                  token={accessToken ?? ''}
+                />
+                <ReuseCandidates group={reuseByCode.get(reqDoc.id)} projectId={projectId} />
+              </div>
+            ))}
+>>>>>>> origin/main
           </div>
         )}
 
@@ -1014,14 +1042,28 @@ export function RoadmapPage(): JSX.Element {
         </div>
 
         {/* Action controls */}
-        <div className="flex items-center gap-2 self-start sm:self-center">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+          <Link
+            to={`/projects/${projectId}/clarifications`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-xs font-semibold text-blue-700 transition-colors"
+          >
+            <span>Officer Questions</span>
+          </Link>
+
+          <Link
+            to={`/projects/${projectId}/inspections`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors"
+          >
+            <span>Joint Inspections →</span>
+          </Link>
+
           <button
             type="button"
             onClick={() => setIsHelpOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs cursor-pointer"
           >
             <HelpCircle className="w-4 h-4 text-slate-700" />
-            <span>How This Roadmap Works</span>
+            <span>How It Works</span>
           </button>
 
           <Link

@@ -2,7 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
 
 export function Layout(): JSX.Element {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isOfficer, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isPublicPage =
@@ -35,9 +35,15 @@ export function Layout(): JSX.Element {
             {isAuthenticated ? (
               <>
                 <span className="text-gray-600">{user?.email}</span>
-                <Link to="/projects" className="text-blue-600 hover:underline">
-                  Projects
-                </Link>
+                {isOfficer ? (
+                  <Link to="/officer" className="text-blue-600 hover:underline">
+                    Officer queue
+                  </Link>
+                ) : (
+                  <Link to="/projects" className="text-blue-600 hover:underline">
+                    Projects
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={handleLogout}

@@ -8,5 +8,9 @@ import { StorageModule } from '../storage/storage.module';
   imports: [StorageModule],
   controllers: [DocumentsController],
   providers: [DocumentsService, ProjectMemberGuard],
+  // Phase 9: the officer review packet lists and serves the SAME project
+  // documents through the same authorized code path — no second file-serving
+  // implementation, and no storageKey exposure.
+  exports: [DocumentsService],
 })
 export class DocumentsModule {}

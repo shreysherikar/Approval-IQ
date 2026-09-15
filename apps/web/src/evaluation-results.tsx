@@ -227,12 +227,20 @@ export function EvaluationResultsPage(): JSX.Element {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Your approvals</h1>
-        <Link
-          to={`/projects/${projectId ?? ''}/roadmap`}
-          className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-        >
-          View approval roadmap
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/projects/${projectId ?? ''}/roadmap`}
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+          >
+            View approval roadmap
+          </Link>
+          <Link
+            to={`/projects/${projectId ?? ''}/inspections`}
+            className="rounded bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-700"
+          >
+            Joint Inspections
+          </Link>
+        </div>
       </div>
       <p className="text-sm text-gray-600">
         Based on your confirmed business profile.{' '}

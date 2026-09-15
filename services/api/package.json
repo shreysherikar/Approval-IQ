@@ -16,17 +16,18 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "import:regulatory": "tsx scripts/import-regulatory-data.ts",
-    "test:unit": "tsx --test test/to-engine-condition.test.ts",
+    "test:unit": "tsx --test test/to-engine-condition.test.ts test/clarification-state.test.ts",
     "test:unit:auth": "tsx --test test/auth.google.test.ts",
-    "test:integration:evaluations": "tsx scripts/evaluations.integration.ts",
+    "test:unit:inspections": "tsx --test test/inspections.unit.test.ts",
     "test:integration:profiles": "tsx scripts/profiles.integration.ts",
     "test:integration:roadmap": "tsx scripts/roadmap.integration.ts",
     "test:integration:roadmap-cycle": "tsx scripts/roadmap_cycle.integration.ts",
     "test:integration:documents": "tsx test/documents.integration.test.ts",
     "test:integration:intelligence": "tsx test/intelligence.integration.test.ts",
     "test:integration:consistency": "tsx test/consistency.integration.test.ts",
-    "test:integration:reuse": "tsx test/reuse.integration.test.ts"
+    "test:integration:reuse": "tsx test/reuse.integration.test.ts",
+    "test:integration:clarifications": "tsx test/clarifications.integration.test.ts",
+    "officer:assign": "tsx scripts/assign-officer.ts"
   },
   "dependencies": {
     "@approvaliq/approval-engine": "workspace:*",

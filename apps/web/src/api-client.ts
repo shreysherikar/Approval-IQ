@@ -332,6 +332,328 @@ export const roadmapApi = {
 };
 
 // ---------------------------------------------------------------------------
+// Clarifications (Phase 9 API): applicant inbox + threaded responses.
+// ---------------------------------------------------------------------------
+
+export type ClarificationStatus = 'requested' | 'responded' | 'resolved' | 'cancelled';
+
+export type ClarificationAwaitingParty = 'applicant' | 'officer' | null;
+
+export interface ClarificationRequestedField {
+  field: string;
+  reason?: string;
+  label?: string;
+}
+
+export interface ClarificationResponseDocumentView {
+  id: string;
+  documentId: string;
+  documentDefinitionId: string | null;
+  currentVersion: {
+    id: string;
+    versionNumber: number;
+    state: string;
+    originalFilename: string;
+    mimeType: string;
+    sizeBytes: number;
+    fileHash: string;
+  } | null;
+}
+
+export interface ClarificationResponseView {
+  id: string;
+  authorUserId: string;
+  author: { id: string; email: string; role: string } | null;
+  authorRole: string;
+  message: string;
+  documents: ClarificationResponseDocumentView[];
+  createdAt: string;
+}
+
+export interface ClarificationView {
+  id: string;
+  projectId: string;
+  approvalInstanceId: string;
+  approvalInstanceStatus: string | null;
+  approval: { id: string; code: string; name: string } | null;
+  authorityId: string;
+  authority: { id: string; code: string; name: string; department: string | null } | null;
+  subject: string;
+  message: string;
+  requestedFields: ClarificationRequestedField[];
+  status: ClarificationStatus;
+  awaitingParty: ClarificationAwaitingParty;
+  isOpen: boolean;
+  isTerminal: boolean;
+  allowedActions: string[];
+  dueAt: string | null;
+  respondedAt: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  requestedBy: { id: string; email: string; role: string } | null;
+  resolvedBy: { id: string; email: string; role: string } | null;
+  responses: ClarificationResponseView[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClarificationsInbox {
+  projectId: string;
+  total: number;
+  openCount: number;
+  awaitingApplicantCount: number;
+  countsByStatus: Record<ClarificationStatus, number>;
+  clarifications: ClarificationView[];
+}
+
+/**
+ * Applicant clarification inbox. Project-scoped (ProjectMemberGuard) — pass the
+ * caller's access token.
+ */
+export const clarificationsApi = {
+  /** GET /projects/:projectId/clarifications — inbox, open items first. */
+  list(projectId: string, token?: string, query?: string): Promise<ClarificationsInbox> {
+    const qs = query ? `?${query}` : '';
+    return get(`/projects/${projectId}/clarifications${qs}`, { token });
+  },
+  /** GET /projects/:projectId/clarifications/:clarificationId — full thread. */
+  get(projectId: string, clarificationId: string, token?: string): Promise<ClarificationView> {
+    return get(`/projects/${projectId}/clarifications/${clarificationId}`, { token });
+  },
+  /**
+   * POST /projects/:projectId/clarifications/:clarificationId/responses —
+   * answer, optionally attaching documents ALREADY in the project's vault.
+   */
+  respond(
+    projectId: string,
+    clarificationId: string,
+    body: { message: string; documentIds?: string[] },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/projects/${projectId}/clarifications/${clarificationId}/responses`, body, {
+      token,
+    });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Officer (Phase 9 API): authority-scoped queue, review packet, lifecycle.
+// ---------------------------------------------------------------------------
+
+export interface OfficerAuthorityView {
+  id: string;
+  code: string;
+  name: string;
+  department: string | null;
+  jurisdiction: string | null;
+  openApplications: number;
+  clarificationsAwaitingOfficer: number;
+}
+
+export interface RequiredDocumentState {
+  code: string;
+  name: string;
+  status: 'verified' | 'provided_unverified' | 'missing';
+  documentId: string | null;
+  versionState: string | null;
+}
+
+export interface QueueItem {
+  instanceId: string;
+  projectId: string;
+  project: {
+    id: string;
+    name: string;
+    industry: string;
+    businessId: string;
+    applicantEmails: string[];
+  } | null;
+  approval: { id: string; code: string; name: string } | null;
+  authority: { id: string; code: string; name: string; department: string | null } | null;
+  instanceStatus: string;
+  outcome: string | null;
+  attentionRequired: boolean;
+  missingFields: Array<{ field: string; reason: string; detail?: string }>;
+  slaDays: number | null;
+  inspectionRequired: boolean;
+  renewalRequired: boolean;
+  requiredDocuments: {
+    total: number;
+    verified: number;
+    providedUnverified: number;
+    missing: number;
+    items: RequiredDocumentState[];
+  };
+  openClarifications: number;
+  clarificationsAwaitingOfficer: number;
+  clarificationsAwaitingApplicant: number;
+  lastClarification: {
+    id: string;
+    status: string;
+    subject: string;
+    dueAt: string | null;
+    updatedAt: string;
+  } | null;
+  unlockedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfficerQueue {
+  status: string;
+  authorityIds: string[] | null;
+  unrestricted: boolean;
+  returned: number;
+  total: number;
+  truncated: boolean;
+  summary: { awaitingOfficer: number; awaitingApplicant: number; withMissingDocuments: number };
+  items: QueueItem[];
+}
+
+export interface ApplicationPacket {
+  instance: {
+    id: string;
+    projectId: string;
+    status: string;
+    unlockedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    outcome: string | null;
+    attentionRequired: boolean;
+    missingFields: Array<{ field: string; reason: string; detail?: string }>;
+  };
+  project: {
+    id: string;
+    name: string;
+    industry: string;
+    businessId: string;
+    createdAt: string;
+    contacts: Array<{ id: string; email: string; role: string }>;
+  } | null;
+  evaluation: {
+    runId: string;
+    engineVersion: string;
+    releaseId: string | null;
+    releaseVersion: string | null;
+    releaseStatus: string | null;
+    evaluatedAt: string;
+    profileSnapshot: Record<string, unknown>;
+  } | null;
+  approval: {
+    id: string;
+    code: string;
+    name: string;
+    whyRequired: string;
+    officialApplicationUrl: string | null;
+    ambiguityNotes: string | null;
+    lastVerifiedDate: string;
+    slaDays: number | null;
+    inspectionRequired: boolean;
+    renewalRequired: boolean;
+    authority: { id: string; code: string; name: string; department: string | null } | null;
+    source: {
+      id: string;
+      url: string;
+      title: string;
+      department: string | null;
+      lastVerifiedDate: string;
+      verificationStatus: string;
+      sourceLastReviewed: string | null;
+      stalenessFlag: boolean;
+    } | null;
+  } | null;
+  requiredDocuments: {
+    total: number;
+    verified: number;
+    providedUnverified: number;
+    missing: number;
+    items: Array<
+      RequiredDocumentState & {
+        documentType: string | null;
+        reusability: string | null;
+        reuseConditions: string | null;
+        condition: string | null;
+        matchingDocumentIds: string[];
+      }
+    >;
+  };
+  documents: Array<Document & { versions: Array<Record<string, unknown>> }>;
+  documentSummary: { totalVersions: number; stateCounts: Record<string, number> };
+  consistencyFindings: ConsistencyCheckResult[];
+  clarifications: ClarificationView[];
+  clarificationSummary: {
+    total: number;
+    open: number;
+    awaitingOfficer: number;
+    awaitingApplicant: number;
+  };
+}
+
+/** Officer surface. Officer-role + authority-assignment scoped — pass the access token. */
+export const officerApi = {
+  /** GET /officer/authorities — the signed-in officer's assigned authorities. */
+  authorities(token?: string): Promise<{ unrestricted: boolean; authorities: OfficerAuthorityView[] }> {
+    return get('/officer/authorities', { token });
+  },
+  /** GET /officer/queue — authority-scoped application queue. */
+  queue(token?: string, query?: string): Promise<OfficerQueue> {
+    return get(`/officer/queue${query ? `?${query}` : ''}`, { token });
+  },
+  /** GET /officer/applications/:instanceId — full review packet. */
+  application(instanceId: string, token?: string): Promise<ApplicationPacket> {
+    return get(`/officer/applications/${instanceId}`, { token });
+  },
+  /** GET /officer/applications/:instanceId/clarifications — threads for one application. */
+  clarifications(instanceId: string, token?: string): Promise<ClarificationView[]> {
+    return get(`/officer/applications/${instanceId}/clarifications`, { token });
+  },
+  /**
+   * POST /officer/applications/:instanceId/clarifications — request a clarification.
+   * requestedFields defaults server-side to the pinned evaluation's missing fields.
+   */
+  requestClarification(
+    instanceId: string,
+    body: {
+      subject?: string;
+      message: string;
+      requestedFields?: ClarificationRequestedField[];
+      dueAt?: string;
+    },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/officer/applications/${instanceId}/clarifications`, body, { token });
+  },
+  /** GET /officer/clarifications/:clarificationId — one thread. */
+  clarification(clarificationId: string, token?: string): Promise<ClarificationView> {
+    return get(`/officer/clarifications/${clarificationId}`, { token });
+  },
+  /** POST /officer/clarifications/:clarificationId/follow-up — ask another question. */
+  followUp(
+    clarificationId: string,
+    body: { message: string; requestedFields?: ClarificationRequestedField[]; dueAt?: string },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/officer/clarifications/${clarificationId}/follow-up`, body, { token });
+  },
+  /** POST /officer/clarifications/:clarificationId/resolve — close as resolved. */
+  resolve(
+    clarificationId: string,
+    body: { note?: string },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/officer/clarifications/${clarificationId}/resolve`, body, { token });
+  },
+  /** POST /officer/clarifications/:clarificationId/cancel — withdraw the request. */
+  cancel(
+    clarificationId: string,
+    body: { note?: string },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/officer/clarifications/${clarificationId}/cancel`, body, { token });
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Documents (Phase 5+ API): upload, versioning, download.
 // ---------------------------------------------------------------------------
 
@@ -655,4 +977,255 @@ export const intelligenceApi = {
   },
 };
 
+export interface JointInspectionApprovalView {
+  id: string;
+  approvalCode: string;
+  approvalName: string;
+  authorityCode: string;
+  authorityName: string;
+  specificRequirements: string | null;
+}
+
+export interface JointInspectorChecklistItem {
+  item: string;
+  status: 'pending' | 'pass' | 'fail' | 'na';
+  remarks?: string;
+}
+
+export interface JointInspectorChecklistView {
+  id: string;
+  authorityCode: string;
+  authorityName: string;
+  inspectorName: string | null;
+  inspectorDesignation: string | null;
+  status: 'pending' | 'satisfactory' | 'needs_rectification' | 'rejected';
+  items: JointInspectorChecklistItem[];
+  findingsNotes: string | null;
+  signedOffAt: string | null;
+}
+
+export interface ReadinessRequirementItem {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+}
+
+export interface JointInspectionView {
+  id: string;
+  projectId: string;
+  title: string;
+  stage: 'pre_construction' | 'plant_readiness' | 'pre_commissioning' | 'annual_compliance';
+  status: 'draft' | 'scheduled' | 'in_progress' | 'completed' | 'rescheduled' | 'cancelled';
+  scheduledDate: string | null;
+  timeSlot: string | null;
+  premisesAddress: string | null;
+  leadAuthorityCode: string | null;
+  leadAuthorityName: string | null;
+  notes: string | null;
+  readinessChecklist: ReadinessRequirementItem[] | null;
+  slotNegotiation?: {
+    proposedAt: string;
+    applicantNotes?: string;
+    slots: Array<{ slotId: string; date: string; timeWindow: string; label?: string }>;
+    responses: Record<
+      string,
+      {
+        slotId: string;
+        status: 'confirmed' | 'unavailable' | 'alternate_proposed';
+        alternateDate?: string | null;
+        officerNotes?: string | null;
+        respondedAt: string;
+      }
+    >;
+    consensusSlotId: string | null;
+    status: string;
+  } | null;
+  rectificationPlan?: {
+    status: string;
+    lastSubmittedAt?: string;
+    lastReviewedAt?: string;
+    reviewNotes?: string;
+    submissions: Array<{
+      submissionId: string;
+      authorityCode: string;
+      submittedAt: string;
+      itemsResolved: Array<{
+        item: string;
+        actionTaken: string;
+        evidenceDocId?: string;
+        notes?: string;
+      }>;
+      complianceDeclaration: string;
+      status: string;
+    }>;
+  } | null;
+  jointReportSummary: string | null;
+  participatingApprovals: JointInspectionApprovalView[];
+  inspectorChecklists: JointInspectorChecklistView[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InspectionCandidateApproval {
+  approvalCode: string;
+  approvalName: string;
+  authorityCode: string;
+  authorityName: string;
+  inspectionMandate: string;
+  checklistTemplate: JointInspectorChecklistItem[];
+}
+
+export interface InspectionCandidateView {
+  stage: 'pre_construction' | 'plant_readiness' | 'pre_commissioning' | 'annual_compliance';
+  stageTitle: string;
+  stageDescription: string;
+  recommendedTimeframe: string;
+  leadAuthorityCode: string;
+  leadAuthorityName: string;
+  participatingApprovals: InspectionCandidateApproval[];
+  readinessRequirements: ReadinessRequirementItem[];
+  estimatedVisitsSaved: number;
+  estimatedDaysSaved: number;
+}
+
+export interface InspectionCandidatesResponse {
+  candidates: InspectionCandidateView[];
+  summary: {
+    totalSeparateVisits: number;
+    consolidatedJointVisits: number;
+    visitsSaved: number;
+    totalDaysSaved: number;
+  };
+}
+
+export const inspectionsApi = {
+  /** GET auto-detected candidates and savings metrics */
+  candidates(projectId: string, token?: string): Promise<InspectionCandidatesResponse> {
+    return get(`/projects/${projectId}/inspections/candidates`, { token });
+  },
+  /** GET all planned & scheduled inspections for a project */
+  list(projectId: string, token?: string): Promise<JointInspectionView[]> {
+    return get(`/projects/${projectId}/inspections`, { token });
+  },
+  /** GET a single joint inspection */
+  get(projectId: string, inspectionId: string, token?: string): Promise<JointInspectionView> {
+    return get(`/projects/${projectId}/inspections/${inspectionId}`, { token });
+  },
+  /** POST auto-generate joint inspection plan */
+  createPlan(
+    projectId: string,
+    body?: { title?: string; stage?: string; premisesAddress?: string; notes?: string },
+    token?: string,
+  ): Promise<JointInspectionView[]> {
+    return post(`/projects/${projectId}/inspections/plan`, body ?? {}, { token });
+  },
+  /** PATCH schedule date, time, and readiness checklist */
+  schedule(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      scheduledDate: string;
+      timeSlot: string;
+      premisesAddress?: string;
+      leadAuthorityCode?: string;
+      leadAuthorityName?: string;
+      notes?: string;
+      readinessChecklist?: ReadinessRequirementItem[];
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return patch(`/projects/${projectId}/inspections/${inspectionId}/schedule`, body, { token });
+  },
+  /** POST propose multiple slots for multi-department consensus */
+  proposeSlots(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      slots: Array<{ slotId: string; date: string; timeWindow: string; label?: string }>;
+      applicantNotes?: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return post(`/projects/${projectId}/inspections/${inspectionId}/slots/propose`, body, { token });
+  },
+  /** PATCH department officer response to proposed slot */
+  respondSlot(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      authorityCode: string;
+      slotId: string;
+      status: 'confirmed' | 'unavailable' | 'alternate_proposed';
+      alternateDate?: string;
+      officerNotes?: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return patch(`/projects/${projectId}/inspections/${inspectionId}/slots/respond`, body, { token });
+  },
+  /** PATCH submit departmental inspector checklist sign-off */
+  signoffChecklist(
+    projectId: string,
+    inspectionId: string,
+    checklistId: string,
+    body: {
+      inspectorName?: string;
+      inspectorDesignation?: string;
+      status: 'pending' | 'satisfactory' | 'needs_rectification' | 'rejected';
+      items: JointInspectorChecklistItem[];
+      findingsNotes?: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return patch(
+      `/projects/${projectId}/inspections/${inspectionId}/checklists/${checklistId}/signoff`,
+      body,
+      { token },
+    );
+  },
+  /** POST applicant submits rectification compliance actions & evidence */
+  submitRectification(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      authorityCode: string;
+      itemsResolved: Array<{
+        item: string;
+        actionTaken: string;
+        evidenceDocId?: string;
+        notes?: string;
+      }>;
+      complianceDeclaration: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return post(`/projects/${projectId}/inspections/${inspectionId}/rectifications/submit`, body, { token });
+  },
+  /** PATCH department officer reviews rectification proof and resolves */
+  reviewRectification(
+    projectId: string,
+    inspectionId: string,
+    body: {
+      authorityCode: string;
+      status: 'satisfactory' | 'needs_rectification';
+      reInspectionRequired: boolean;
+      reviewNotes: string;
+    },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return patch(`/projects/${projectId}/inspections/${inspectionId}/rectifications/review`, body, { token });
+  },
+  /** POST finalize joint inspection */
+  complete(
+    projectId: string,
+    inspectionId: string,
+    body: { jointReportSummary: string },
+    token?: string,
+  ): Promise<JointInspectionView> {
+    return post(`/projects/${projectId}/inspections/${inspectionId}/complete`, body, { token });
+  },
+};
+
 export type { LoginRequest, LoginResponse, RegisterRequest, RegisteredUser };
+
