@@ -1,10 +1,10 @@
 import { Link, useParams } from 'react-router-dom';
 import { DocumentDetailPage } from './document-detail';
 import { ApplicantClarificationsPage } from './clarifications';
-import { ApiError, projectsApi } from './api-client';
-import { EmptyState, ErrorBanner } from './components';
+import { EmptyState } from './components';
 import { RoadmapPage } from './roadmap';
 import { ProfileIntakeForm } from './profile-form';
+import { JointInspectionsPage } from './inspections';
 
 export { ProjectsOnboardingPage as ProjectsPage } from './projects/ProjectsOnboardingPage';
 
@@ -28,9 +28,6 @@ export function ProjectProfilePage(): JSX.Element {
     </div>
   );
 }
-
-
-import { JointInspectionsPage } from './inspections';
 
 export function ProjectRoadmapPage(): JSX.Element {
   return <RoadmapPage />;

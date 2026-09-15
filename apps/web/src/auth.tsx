@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     try {
       const res = await authApi.refresh();
       setAccessToken(res.accessToken);
-      setUser({ email: decodeEmailFromJwt(res.accessToken) ?? '' });
+      setUser(authUserFromToken(res.accessToken, ''));
     } catch (err) {
       setAccessToken(null);
       setUser(null);

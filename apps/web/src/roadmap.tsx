@@ -623,7 +623,6 @@ function DetailDrawer({
           </div>
         </div>
 
-<<<<<<< HEAD
         {/* What is this approval? */}
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
@@ -699,33 +698,6 @@ function DetailDrawer({
                 </div>
               ))}
             </div>
-=======
-      <div className="mt-3">
-        <p className="flex items-center justify-between text-sm font-semibold text-gray-800">
-          <span>Required documents</span>
-          <Link
-            to={`/projects/${projectId}/clarifications`}
-            className="text-xs font-normal text-blue-600 hover:underline"
-          >
-            Officer questions →
-          </Link>
-        </p>
-        {node.requiredDocuments.length === 0 ? (
-          <p className="mt-1 text-sm text-gray-500">None required for this approval.</p>
-        ) : (
-          <div className="mt-2 space-y-3">
-            {node.requiredDocuments.map((reqDoc) => (
-              <div key={reqDoc.id}>
-                <DocumentUploadControl
-                  projectId={projectId}
-                  requiredDoc={reqDoc}
-                  existingDoc={docMap.get(reqDoc.id) ?? null}
-                  token={accessToken ?? ''}
-                />
-                <ReuseCandidates group={reuseByCode.get(reqDoc.id)} projectId={projectId} />
-              </div>
-            ))}
->>>>>>> origin/main
           </div>
         )}
 
