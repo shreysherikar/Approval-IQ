@@ -8,6 +8,19 @@ export class ProjectsService {
 
   async create(dto: CreateProjectDto, userId: string): Promise<Record<string, unknown>> {
     const project = await this.prisma.$transaction(async (tx) => {
+      // Ensure user row exists in DB before linking membership
+      const userExists = await tx.user.findUnique({ where: { id: userId } });
+      if (!userExists) {
+        await tx.user.create({
+          data: {
+            id: userId,
+            email: `${userId}@auth.local`,
+            authProvider: 'google',
+            role: 'applicant',
+          },
+        });
+      }
+
       const p = await tx.project.create({
         data: { name: dto.name, industry: dto.industry, businessId: dto.businessId },
       });

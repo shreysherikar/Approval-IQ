@@ -32,6 +32,7 @@ interface AuthContextValue {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -118,6 +119,24 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     void authApi.logout().catch(() => undefined);
   }, []);
 
+  const refreshSession = useCallback(async (): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await authApi.refresh();
+      setAccessToken(res.accessToken);
+      setUser(authUserFromToken(res.accessToken, ''));
+    } catch (err) {
+      setAccessToken(null);
+      setUser(null);
+      setError(err instanceof Error ? err.message : 'Session restore failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+      setIsRestoring(false);
+    }
+  }, []);
+
   /**
    * Session restore: after a browser reload the in-memory access token is
    * gone, which previously made the (authorization-protected) document list
@@ -156,8 +175,9 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       error,
       login,
       logout,
+      refreshSession,
     }),
-    [user, accessToken, isLoading, isRestoring, error, login, logout],
+    [user, accessToken, isLoading, isRestoring, error, login, logout, refreshSession],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
