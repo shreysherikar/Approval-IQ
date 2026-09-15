@@ -14,7 +14,9 @@
     "typecheck": "pnpm -r --if-present run typecheck",
     "build": "pnpm -r --if-present run build",
     "ci:check": "pnpm install --frozen-lockfile && pnpm --filter api prisma generate && pnpm -r --if-present run lint && pnpm -r --if-present run typecheck && pnpm --filter api prisma migrate deploy && pnpm -r --if-present run test && pnpm --filter web build && pnpm --filter api build",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\""
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\"",
+    "seed:demo": "pnpm --filter api seed:demo",
+    "seed:demo:reset": "pnpm --filter api seed:demo:reset"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",
