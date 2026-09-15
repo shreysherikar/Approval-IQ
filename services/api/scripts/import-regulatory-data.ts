@@ -1,4 +1,4 @@
-﻿import { readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
@@ -206,8 +206,6 @@ async function main(): Promise<void> {
   for (let i = 0; i < apprCsv.rows.length; i++) {
     const row = apprCsv.rows[i] as CsvRow;
     const line = i + 2;
-    const ind = cell(row, 'industry').trim().toLowerCase();
-    if (ind && filter && ind !== filter) continue;
     const code = cell(row, 'approval_id', 'code', 'id');
     if (!code) { errors.push(`approvals.csv:${line}: missing approval_id`); continue; }
     if (apprs.has(code)) errors.push(`approvals.csv:${line}: duplicate approval "${code}"`);

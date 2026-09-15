@@ -406,11 +406,12 @@ export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Ele
               onChange={(e) => set('industry')(e.target.value)}
               className={`${inputClass}${fieldErrors.industry ? invalidClass : ''}`}
             >
-              <option value="brewery">Brewery</option>
+              <option value="brewery">Brewery & Fermentation</option>
+              <option value="solar_manufacturing">Solar PV & Clean Tech Equipment Manufacturing</option>
             </select>
             {fieldErrors.industry && <p className={errorTextClass}>{fieldErrors.industry}</p>}
             <p className="mt-1 text-xs text-gray-500">
-              Brewery is the only industry covered by the regulatory data today.
+              Regulatory catalogs available for Brewery and Solar PV Clean Tech Manufacturing (with RTS Act SLAs).
             </p>
           </label>
           {textField('state', 'State', { placeholder: 'e.g. Maharashtra' })}

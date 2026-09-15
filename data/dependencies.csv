@@ -5,3 +5,14 @@ MPCB-CTO-001,depends_on,MPCB-CTE-001,Previous consent copy is a required documen
 FIRE-FINAL-001,informational,FIRE-PROVISIONAL-001,Copy of provisional Fire NOC required only 'if issued.',,"Evidence marked verified_conditional ('if issued') — not a guaranteed gating relationship, so NOT modeled as depends_on."
 BRL-001,informational,FIRE-PROVISIONAL-001,BRL checklist item 10 lists 'Fire NOC' as a required document without specifying provisional vs final stage.,,"Real Fire NOC requirement exists (see DOC-008), but which specific approval instance (provisional vs final) satisfies it is not established by the retrieved source. Do not use for ordering until confirmed."
 DISH-LICENCE-001,unknown,DISH-PLAN-001,Standard Factories Act practice suggests plan approval typically precedes registration/licence.,,"NOT explicitly stated in the retrieved DISH service page — treat as unknown, not depends_on, until the department confirms sequencing."
+MPCB-CTE-RED-001,depends_on,MIDC-ALLOTMENT-001,MIDC land allotment & lease deed is a mandatory prerequisite for Consent to Establish.,Legal land title required before environmental consent.,
+FIRE-NOC-002,depends_on,MIDC-ALLOTMENT-001,Site plot allotment is required for Fire department building plan vetting.,Plot survey and access road clearance required.,
+DISH-FACTORY-002,depends_on,MIDC-ALLOTMENT-001,MIDC approved architectural drawings required for factory plan sanction.,Factory building layout review.,
+FIRE-NOC-002,parallel_with,DISH-FACTORY-002,Fire NOC vetting and DISH factory plan approval proceed concurrently in parallel.,Parallel single-window stage.,
+CEIG-SUBSTATION-001,depends_on,DISH-FACTORY-002,Electrical substation Single Line Diagram requires finalized factory floor layout.,Equipment and transformer placement.,
+CEIG-SUBSTATION-001,parallel_with,BOILER-REG-001,Electrical HT inspection and Boiler registration proceed concurrently during plant readiness.,Parallel utility clearance stage.,
+MEDA-GRID-001,depends_on,MIDC-ALLOTMENT-001,Grid evacuation feasibility requires confirmed project substation coordinates.,Transmission line route clearance.,
+CGWA-GW-001,depends_on,MIDC-ALLOTMENT-001,Groundwater abstraction NOC requires confirmed plot ownership and water balance audit.,Environmental aquifer protection.,
+MPCB-CTO-RED-001,depends_on,MPCB-CTE-RED-001,Consent to Operate strictly requires prior Consent to Establish compliance.,Water & Air Acts statutory prerequisite.,
+MPCB-CTO-RED-001,depends_on,FIRE-NOC-002,Final fire clearance required before commissioning production line.,Industrial safety compliance.,
+MPCB-CTO-RED-001,depends_on,CEIG-SUBSTATION-001,Energization and electrical clearance certificate required before plant operation.,Power connection and safety compliance.,
