@@ -12,12 +12,15 @@ import { authApi } from './api-client';
 
 export interface AuthUser {
   email: string;
+  role: string | null;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   accessToken: string | null;
   isAuthenticated: boolean;
+  /** True for officer/admin sessions — drives officer navigation only. */
+  isOfficer: boolean;
   isLoading: boolean;
   /**
    * True only while the on-boot silent session restore (httpOnly refresh
@@ -50,6 +53,37 @@ function decodeEmailFromJwt(token: string): string | null {
   }
 }
 
+/**
+ * Phase 9: the JWT also carries the caller's RBAC role (see
+ * services/api/src/auth/jwt.strategy.ts). The UI only uses it for routing —
+ * showing the officer queue to officers and the inbox to applicants — never as
+ * an authorization decision; the API re-checks role and authority scope
+ * server-side on every request.
+ */
+function decodeRoleFromJwt(token: string): string | null {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) {
+      return null;
+    }
+    const decoded: unknown = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof decoded === 'object' && decoded !== null && 'role' in decoded) {
+      const role = (decoded as { role: unknown }).role;
+      return typeof role === 'string' ? role : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function authUserFromToken(token: string, fallbackEmail: string): AuthUser {
+  return {
+    email: decodeEmailFromJwt(token) ?? fallbackEmail,
+    role: decodeRoleFromJwt(token),
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -65,8 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     try {
       const res = await authApi.login({ email, password });
       setAccessToken(res.accessToken);
-      const decoded = decodeEmailFromJwt(res.accessToken);
-      setUser({ email: decoded ?? email });
+      setUser(authUserFromToken(res.accessToken, email));
     } catch (err) {
       setAccessToken(null);
       setUser(null);
@@ -99,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       .then((res) => {
         if (cancelled) return;
         setAccessToken(res.accessToken);
-        setUser({ email: decodeEmailFromJwt(res.accessToken) ?? '' });
+        setUser(authUserFromToken(res.accessToken, ''));
       })
       .catch(() => undefined)
       .finally(() => {
@@ -117,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       user,
       accessToken,
       isAuthenticated: accessToken !== null,
+      isOfficer: user !== null && (user.role === 'officer' || user.role === 'admin'),
       isLoading,
       isRestoring,
       error,

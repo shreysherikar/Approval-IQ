@@ -29,14 +29,17 @@ model Industry {
 }
 
 model Authority {
-  id           String               @id @default(uuid())
-  code         String               @unique
-  name         String
-  department   String?
-  jurisdiction String?
-  officialUrl  String?              @map("official_url")
-  approvals    ApprovalDefinition[]
-  issuedDocs   DocumentDefinition[] @relation("IssuingAuthority")
+  id            String               @id @default(uuid())
+  code          String               @unique
+  name          String
+  department    String?
+  jurisdiction  String?
+  officialUrl   String?              @map("official_url")
+  approvals     ApprovalDefinition[]
+  issuedDocs    DocumentDefinition[] @relation("IssuingAuthority")
+  // Phase 9: officer queue scoping + denormalized clarification scope.
+  officerAssignments OfficerAuthorityAssignment[]
+  clarifications     ClarificationRequest[]
 
   @@map("authorities")
 }
@@ -189,6 +192,12 @@ model User {
   uploadedVersions DocumentVersion[]
   corrections      FieldCorrection[]
   verificationRuns VerificationRecord[]
+  // Phase 9: which authorities an officer may act for, and the attribution of
+  // every clarification action (append-only — never overwritten).
+  officerAssignments     OfficerAuthorityAssignment[] @relation("OfficerAuthorityAssignments")
+  clarificationsRequested ClarificationRequest[]      @relation("ClarificationRequester")
+  clarificationsResolved  ClarificationRequest[]      @relation("ClarificationResolver")
+  clarificationResponses  ClarificationResponse[]     @relation("ClarificationResponseAuthor")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
@@ -256,6 +265,8 @@ model ApprovalInstance {
   createdAt            DateTime               @default(now()) @map("created_at")
   updatedAt            DateTime               @updatedAt @map("updated_at")
   documents            ApprovalInstanceDocument[]
+  // Phase 9: clarifications raised by an authority officer on THIS application.
+  clarifications       ClarificationRequest[]
 
   // One roadmap slot per approval per project; re-evaluations re-point the
   // same instance at the newer evaluation result.
@@ -298,6 +309,8 @@ model Project {
   members           ProjectMember[]
   documents         Document[]
   consistencyCheckResults ConsistencyCheckResult[]
+  // Phase 9: applicant-visible clarification inbox for this project.
+  clarifications     ClarificationRequest[]
   createdAt         DateTime                 @default(now()) @map("created_at")
   updatedAt         DateTime                 @updatedAt @map("updated_at")
 
@@ -392,6 +405,8 @@ model Document {
   versions             DocumentVersion[]   @relation("Owned")
   approvalInstances    ApprovalInstanceDocument[]
   consistencyCheckResults ConsistencyCheckResult[]
+  // Phase 9: documents offered as evidence when answering a clarification.
+  clarificationResponses ClarificationResponseDocument[]
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
 
@@ -554,4 +569,113 @@ model ConsistencyCheckResult {
   @@index([documentVersionId])
   @@index([projectId])
   @@map("consistency_check_results")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9: officer side of the workflow. Two additions, both deliberately
+// narrow:
+//
+// 1. OfficerAuthorityAssignment — object-level authorization for officers.
+//    An `officer` may ONLY act on approvals whose ApprovalDefinition belongs to
+//    an Authority they are assigned to; `admin` is unrestricted (see
+//    OfficerGuard). A valid JWT proving role=officer is NOT sufficient —
+//    exactly the same principle as ProjectMemberGuard for applicants.
+//
+// 2. ClarificationRequest / ClarificationResponse / ClarificationResponseDocument
+//    — the persisted two-sided loop: officer asks → applicant answers (with
+//    optional evidence documents) → officer resolves. Append-only per the
+//    repo's provenance approach: responses are never edited or deleted, and
+//    every status change is attributed to the user who caused it.
+//    Status is a strict state machine (src/clarifications/clarification-state.ts):
+//      requested --applicant_response--> responded
+//      requested --officer_follow_up--> requested   (waiting on applicant)
+//      responded --officer_follow_up--> requested
+//      responded --officer_resolve----> resolved
+//      requested --officer_resolve----> resolved
+//      requested|responded --officer_cancel--> cancelled
+//    resolved / cancelled are terminal.
+// ---------------------------------------------------------------------------
+
+model OfficerAuthorityAssignment {
+  id          String    @id @default(uuid())
+  officerId   String    @map("officer_id")
+  officer     User      @relation("OfficerAuthorityAssignments", fields: [officerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorityId String    @map("authority_id")
+  authority   Authority @relation(fields: [authorityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([officerId, authorityId])
+  @@index([authorityId])
+  @@map("officer_authority_assignments")
+}
+
+enum ClarificationStatus {
+  requested
+  responded
+  resolved
+  cancelled
+}
+
+model ClarificationRequest {
+  id                 String               @id @default(uuid())
+  approvalInstanceId String               @map("approval_instance_id")
+  approvalInstance   ApprovalInstance     @relation(fields: [approvalInstanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  // Denormalized so the applicant inbox is a single indexed read and the
+  // officer scope check never needs a three-table join.
+  projectId          String               @map("project_id")
+  project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorityId        String               @map("authority_id")
+  authority          Authority            @relation(fields: [authorityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  requestedByUserId  String               @map("requested_by_user_id")
+  requestedBy        User                 @relation("ClarificationRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  subject            String
+  message            String               @db.Text
+  // The exact profile fields / document codes the officer is asking about, as a
+  // JSON snapshot taken at request time. Never re-derived at read time, so the
+  // ask cannot drift from what was actually asked.
+  requestedFields    Json                 @default("[]") @map("requested_fields") @db.JsonB
+  status             ClarificationStatus  @default(requested)
+  dueAt              DateTime?            @map("due_at")
+  respondedAt        DateTime?            @map("responded_at")
+  resolvedAt         DateTime?            @map("resolved_at")
+  resolvedByUserId   String?              @map("resolved_by_user_id")
+  resolvedBy         User?                @relation("ClarificationResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  resolutionNote     String?              @map("resolution_note") @db.Text
+  responses          ClarificationResponse[]
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  @@index([projectId, status])
+  @@index([approvalInstanceId])
+  @@index([authorityId, status])
+  @@map("clarification_requests")
+}
+
+model ClarificationResponse {
+  id                     String               @id @default(uuid())
+  clarificationRequestId String               @map("clarification_request_id")
+  clarificationRequest   ClarificationRequest @relation(fields: [clarificationRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorUserId           String               @map("author_user_id")
+  author                 User                 @relation("ClarificationResponseAuthor", fields: [authorUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  // Role AT THE TIME of writing — recorded so a later role change cannot
+  // rewrite who said what.
+  authorRole             Role                 @map("author_role")
+  message                String               @db.Text
+  documents              ClarificationResponseDocument[]
+  createdAt              DateTime             @default(now()) @map("created_at")
+
+  @@index([clarificationRequestId])
+  @@map("clarification_responses")
+}
+
+model ClarificationResponseDocument {
+  id                      String                @id @default(uuid())
+  clarificationResponseId String                @map("clarification_response_id")
+  clarificationResponse   ClarificationResponse @relation(fields: [clarificationResponseId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  documentId              String                @map("document_id")
+  document                Document              @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt               DateTime              @default(now()) @map("created_at")
+
+  @@unique([clarificationResponseId, documentId])
+  @@map("clarification_response_documents")
 }

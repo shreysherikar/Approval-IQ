@@ -332,6 +332,328 @@ export const roadmapApi = {
 };
 
 // ---------------------------------------------------------------------------
+// Clarifications (Phase 9 API): applicant inbox + threaded responses.
+// ---------------------------------------------------------------------------
+
+export type ClarificationStatus = 'requested' | 'responded' | 'resolved' | 'cancelled';
+
+export type ClarificationAwaitingParty = 'applicant' | 'officer' | null;
+
+export interface ClarificationRequestedField {
+  field: string;
+  reason?: string;
+  label?: string;
+}
+
+export interface ClarificationResponseDocumentView {
+  id: string;
+  documentId: string;
+  documentDefinitionId: string | null;
+  currentVersion: {
+    id: string;
+    versionNumber: number;
+    state: string;
+    originalFilename: string;
+    mimeType: string;
+    sizeBytes: number;
+    fileHash: string;
+  } | null;
+}
+
+export interface ClarificationResponseView {
+  id: string;
+  authorUserId: string;
+  author: { id: string; email: string; role: string } | null;
+  authorRole: string;
+  message: string;
+  documents: ClarificationResponseDocumentView[];
+  createdAt: string;
+}
+
+export interface ClarificationView {
+  id: string;
+  projectId: string;
+  approvalInstanceId: string;
+  approvalInstanceStatus: string | null;
+  approval: { id: string; code: string; name: string } | null;
+  authorityId: string;
+  authority: { id: string; code: string; name: string; department: string | null } | null;
+  subject: string;
+  message: string;
+  requestedFields: ClarificationRequestedField[];
+  status: ClarificationStatus;
+  awaitingParty: ClarificationAwaitingParty;
+  isOpen: boolean;
+  isTerminal: boolean;
+  allowedActions: string[];
+  dueAt: string | null;
+  respondedAt: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  requestedBy: { id: string; email: string; role: string } | null;
+  resolvedBy: { id: string; email: string; role: string } | null;
+  responses: ClarificationResponseView[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClarificationsInbox {
+  projectId: string;
+  total: number;
+  openCount: number;
+  awaitingApplicantCount: number;
+  countsByStatus: Record<ClarificationStatus, number>;
+  clarifications: ClarificationView[];
+}
+
+/**
+ * Applicant clarification inbox. Project-scoped (ProjectMemberGuard) — pass the
+ * caller's access token.
+ */
+export const clarificationsApi = {
+  /** GET /projects/:projectId/clarifications — inbox, open items first. */
+  list(projectId: string, token?: string, query?: string): Promise<ClarificationsInbox> {
+    const qs = query ? `?${query}` : '';
+    return get(`/projects/${projectId}/clarifications${qs}`, { token });
+  },
+  /** GET /projects/:projectId/clarifications/:clarificationId — full thread. */
+  get(projectId: string, clarificationId: string, token?: string): Promise<ClarificationView> {
+    return get(`/projects/${projectId}/clarifications/${clarificationId}`, { token });
+  },
+  /**
+   * POST /projects/:projectId/clarifications/:clarificationId/responses —
+   * answer, optionally attaching documents ALREADY in the project's vault.
+   */
+  respond(
+    projectId: string,
+    clarificationId: string,
+    body: { message: string; documentIds?: string[] },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/projects/${projectId}/clarifications/${clarificationId}/responses`, body, {
+      token,
+    });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Officer (Phase 9 API): authority-scoped queue, review packet, lifecycle.
+// ---------------------------------------------------------------------------
+
+export interface OfficerAuthorityView {
+  id: string;
+  code: string;
+  name: string;
+  department: string | null;
+  jurisdiction: string | null;
+  openApplications: number;
+  clarificationsAwaitingOfficer: number;
+}
+
+export interface RequiredDocumentState {
+  code: string;
+  name: string;
+  status: 'verified' | 'provided_unverified' | 'missing';
+  documentId: string | null;
+  versionState: string | null;
+}
+
+export interface QueueItem {
+  instanceId: string;
+  projectId: string;
+  project: {
+    id: string;
+    name: string;
+    industry: string;
+    businessId: string;
+    applicantEmails: string[];
+  } | null;
+  approval: { id: string; code: string; name: string } | null;
+  authority: { id: string; code: string; name: string; department: string | null } | null;
+  instanceStatus: string;
+  outcome: string | null;
+  attentionRequired: boolean;
+  missingFields: Array<{ field: string; reason: string; detail?: string }>;
+  slaDays: number | null;
+  inspectionRequired: boolean;
+  renewalRequired: boolean;
+  requiredDocuments: {
+    total: number;
+    verified: number;
+    providedUnverified: number;
+    missing: number;
+    items: RequiredDocumentState[];
+  };
+  openClarifications: number;
+  clarificationsAwaitingOfficer: number;
+  clarificationsAwaitingApplicant: number;
+  lastClarification: {
+    id: string;
+    status: string;
+    subject: string;
+    dueAt: string | null;
+    updatedAt: string;
+  } | null;
+  unlockedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfficerQueue {
+  status: string;
+  authorityIds: string[] | null;
+  unrestricted: boolean;
+  returned: number;
+  total: number;
+  truncated: boolean;
+  summary: { awaitingOfficer: number; awaitingApplicant: number; withMissingDocuments: number };
+  items: QueueItem[];
+}
+
+export interface ApplicationPacket {
+  instance: {
+    id: string;
+    projectId: string;
+    status: string;
+    unlockedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    outcome: string | null;
+    attentionRequired: boolean;
+    missingFields: Array<{ field: string; reason: string; detail?: string }>;
+  };
+  project: {
+    id: string;
+    name: string;
+    industry: string;
+    businessId: string;
+    createdAt: string;
+    contacts: Array<{ id: string; email: string; role: string }>;
+  } | null;
+  evaluation: {
+    runId: string;
+    engineVersion: string;
+    releaseId: string | null;
+    releaseVersion: string | null;
+    releaseStatus: string | null;
+    evaluatedAt: string;
+    profileSnapshot: Record<string, unknown>;
+  } | null;
+  approval: {
+    id: string;
+    code: string;
+    name: string;
+    whyRequired: string;
+    officialApplicationUrl: string | null;
+    ambiguityNotes: string | null;
+    lastVerifiedDate: string;
+    slaDays: number | null;
+    inspectionRequired: boolean;
+    renewalRequired: boolean;
+    authority: { id: string; code: string; name: string; department: string | null } | null;
+    source: {
+      id: string;
+      url: string;
+      title: string;
+      department: string | null;
+      lastVerifiedDate: string;
+      verificationStatus: string;
+      sourceLastReviewed: string | null;
+      stalenessFlag: boolean;
+    } | null;
+  } | null;
+  requiredDocuments: {
+    total: number;
+    verified: number;
+    providedUnverified: number;
+    missing: number;
+    items: Array<
+      RequiredDocumentState & {
+        documentType: string | null;
+        reusability: string | null;
+        reuseConditions: string | null;
+        condition: string | null;
+        matchingDocumentIds: string[];
+      }
+    >;
+  };
+  documents: Array<Document & { versions: Array<Record<string, unknown>> }>;
+  documentSummary: { totalVersions: number; stateCounts: Record<string, number> };
+  consistencyFindings: ConsistencyCheckResult[];
+  clarifications: ClarificationView[];
+  clarificationSummary: {
+    total: number;
+    open: number;
+    awaitingOfficer: number;
+    awaitingApplicant: number;
+  };
+}
+
+/** Officer surface. Officer-role + authority-assignment scoped — pass the access token. */
+export const officerApi = {
+  /** GET /officer/authorities — the signed-in officer's assigned authorities. */
+  authorities(token?: string): Promise<{ unrestricted: boolean; authorities: OfficerAuthorityView[] }> {
+    return get('/officer/authorities', { token });
+  },
+  /** GET /officer/queue — authority-scoped application queue. */
+  queue(token?: string, query?: string): Promise<OfficerQueue> {
+    return get(`/officer/queue${query ? `?${query}` : ''}`, { token });
+  },
+  /** GET /officer/applications/:instanceId — full review packet. */
+  application(instanceId: string, token?: string): Promise<ApplicationPacket> {
+    return get(`/officer/applications/${instanceId}`, { token });
+  },
+  /** GET /officer/applications/:instanceId/clarifications — threads for one application. */
+  clarifications(instanceId: string, token?: string): Promise<ClarificationView[]> {
+    return get(`/officer/applications/${instanceId}/clarifications`, { token });
+  },
+  /**
+   * POST /officer/applications/:instanceId/clarifications — request a clarification.
+   * requestedFields defaults server-side to the pinned evaluation's missing fields.
+   */
+  requestClarification(
+    instanceId: string,
+    body: {
+      subject?: string;
+      message: string;
+      requestedFields?: ClarificationRequestedField[];
+      dueAt?: string;
+    },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/officer/applications/${instanceId}/clarifications`, body, { token });
+  },
+  /** GET /officer/clarifications/:clarificationId — one thread. */
+  clarification(clarificationId: string, token?: string): Promise<ClarificationView> {
+    return get(`/officer/clarifications/${clarificationId}`, { token });
+  },
+  /** POST /officer/clarifications/:clarificationId/follow-up — ask another question. */
+  followUp(
+    clarificationId: string,
+    body: { message: string; requestedFields?: ClarificationRequestedField[]; dueAt?: string },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/officer/clarifications/${clarificationId}/follow-up`, body, { token });
+  },
+  /** POST /officer/clarifications/:clarificationId/resolve — close as resolved. */
+  resolve(
+    clarificationId: string,
+    body: { note?: string },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/officer/clarifications/${clarificationId}/resolve`, body, { token });
+  },
+  /** POST /officer/clarifications/:clarificationId/cancel — withdraw the request. */
+  cancel(
+    clarificationId: string,
+    body: { note?: string },
+    token?: string,
+  ): Promise<ClarificationView> {
+    return post(`/officer/clarifications/${clarificationId}/cancel`, body, { token });
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Documents (Phase 5+ API): upload, versioning, download.
 // ---------------------------------------------------------------------------
 
