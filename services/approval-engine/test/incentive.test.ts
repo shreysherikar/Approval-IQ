@@ -84,17 +84,17 @@ test('Schemes & Incentives — Pune Brewery produces excluded for PSI-2019 due t
   // 1. Check PSI-2019 evaluation
   const psiEval = result.schemes.find((s) => s.scheme.id === 'SCHEME-PSI-2019');
   assert.ok(psiEval, 'PSI-2019 should be in evaluated schemes');
-  assert.equal(psiEval.outcome, 'excluded');
-  assert.equal(psiEval.exclusionMatched, true);
+  assert.equal(psiEval?.outcome, 'excluded');
+  assert.equal(psiEval?.exclusionMatched, true);
   assert.equal(
-    psiEval.explanation,
+    psiEval?.explanation,
     'Beer and liquor manufacturing industries are excluded under the cited scheme (Annexure II Negative List).',
   );
 
   // 2. Check BRL-001 approval evaluation
   const brlEval = result.approvals.find((a) => a.approval.id === 'BRL-001');
   assert.ok(brlEval, 'BRL-001 should be in evaluated approvals');
-  assert.equal(brlEval.outcome, 'applicable');
+  assert.equal(brlEval?.outcome, 'applicable');
 
   // 3. Check dependency graph does NOT include incentive schemes
   assert.deepEqual(result.orderedApprovalIds, ['BRL-001']);
@@ -128,7 +128,7 @@ test('Schemes & Incentives — clean solar project produces potentially_eligible
   const evalResult = result.schemes.find((s) => s.scheme.id === 'SCHEME-SOLAR-2024');
 
   assert.ok(evalResult);
-  assert.equal(evalResult.outcome, 'potentially_eligible');
+  assert.equal(evalResult?.outcome, 'potentially_eligible');
 });
 
 test('Schemes & Incentives — missing business profile field produces needs_information', () => {
@@ -156,7 +156,7 @@ test('Schemes & Incentives — missing business profile field produces needs_inf
   const evalResult = result.schemes.find((s) => s.scheme.id === 'SCHEME-MSME-CAP');
 
   assert.ok(evalResult);
-  assert.equal(evalResult.outcome, 'needs_information');
-  assert.ok(evalResult.neededInformation.length > 0);
-  assert.equal(evalResult.neededInformation[0]?.field, 'investmentAmountInr');
+  assert.equal(evalResult?.outcome, 'needs_information');
+  assert.ok((evalResult?.neededInformation.length ?? 0) > 0);
+  assert.equal(evalResult?.neededInformation[0]?.field, 'investmentAmountInr');
 });
