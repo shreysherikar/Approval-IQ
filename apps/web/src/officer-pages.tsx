@@ -51,6 +51,23 @@ function getAuthorityBadge(code: string = ''): { bg: string; text: string; borde
   return { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200', name: code || 'Authority' };
 }
 
+function RiskBadge({ level, score }: { level: string; score: number }): JSX.Element {
+  const defaultStyle = { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300' };
+  const styles: Record<string, { bg: string; text: string; border: string }> = {
+    critical: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' },
+    high: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300' },
+    medium: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300' },
+    low: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300' },
+    unknown: defaultStyle,
+  };
+  const s = styles[level] ?? defaultStyle;
+  return (
+    <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold ${s.bg} ${s.text} ${s.border}`}>
+      Risk: {score} ({level})
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Clean Application List Row Card
 // ---------------------------------------------------------------------------
@@ -59,6 +76,10 @@ function CleanApplicationCard({ item }: { item: QueueItem }): JSX.Element {
   const isAwaitingOfficer = item.clarificationsAwaitingOfficer > 0;
   const verifiedCount = item.requiredDocuments.verified;
   const totalDocs = item.requiredDocuments.total;
+  const risk = (item as unknown as { risk?: Record<string, unknown> })?.risk;
+  const submissionRisk = risk?.['submissionRisk'] as Record<string, unknown> | undefined;
+  const complexity = risk?.['regulatoryComplexity'] as Record<string, unknown> | undefined;
+  const recommendation = typeof risk?.['recommendation'] === 'string' ? risk['recommendation'] : null;
 
   return (
     <div className="bg-white border border-slate-200/80 hover:border-blue-400 rounded-2xl p-5 shadow-xs transition-all hover:shadow-md group">
@@ -112,9 +133,12 @@ function CleanApplicationCard({ item }: { item: QueueItem }): JSX.Element {
             </div>
           </div>
         </div>
-
         {/* Right: Metrics & Action */}
         <div className="flex flex-wrap sm:flex-nowrap items-center justify-between lg:justify-end gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+          {submissionRisk && (
+            <RiskBadge level={String(submissionRisk.level ?? 'unknown')} score={Number(submissionRisk.score ?? 0)} />
+          )}
+
           {/* Docs status pill */}
           <div className="text-left sm:text-right text-xs">
             <span className="text-slate-400 block text-[11px]">Documents</span>
@@ -151,8 +175,31 @@ function CleanApplicationCard({ item }: { item: QueueItem }): JSX.Element {
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-
       </div>
+
+      {(complexity || recommendation || item.requiredDocuments.missing > 0) && (
+        <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-wrap gap-2 text-xs">
+          {item.requiredDocuments.missing > 0 && (
+            <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-800 text-[11px] font-medium">
+              {item.requiredDocuments.missing} required document{item.requiredDocuments.missing === 1 ? '' : 's'} missing
+            </span>
+          )}
+          {complexity && (
+            <span className="rounded-lg border border-purple-200 bg-purple-50 px-2 py-0.5 text-purple-800 text-[11px] font-medium">
+              Complexity: {String(complexity.level ?? 'unknown')}
+            </span>
+          )}
+          {recommendation && (
+            <span className={`rounded-lg border px-2 py-0.5 text-[11px] font-semibold ${
+              recommendation === 'Priority Review' ? 'border-red-300 bg-red-50 text-red-800' :
+              recommendation === 'Needs Clarification' ? 'border-amber-300 bg-amber-50 text-amber-800' :
+              'border-green-300 bg-green-50 text-green-800'
+            }`}>
+              Recommendation: {recommendation}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -213,6 +260,8 @@ export function OfficerQueuePage(): JSX.Element {
     );
   }
 
+  const [activeTab, setActiveTab] = useState<'applications' | 'grievances'>('applications');
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Top Header */}
@@ -223,118 +272,145 @@ export function OfficerQueuePage(): JSX.Element {
             <span>Officer Desk</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-            Application Review Queue
+            Officer Workstation
           </h1>
           <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            Manage statutory industrial clearances, inspect submitted evidence, and communicate with applicants.
+            Process clearance applications, answer inquiries, and adjudicate RTS statutory grievances.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            void queueQuery.refetch();
-            void authoritiesQuery.refetch();
-          }}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors self-start sm:self-auto cursor-pointer"
-        >
-          <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-          <span>Refresh</span>
-        </button>
-      </div>
-
-      {/* KPI Cards Strip */}
-      {queue && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <span className="text-xs text-slate-500 block">Total in Queue</span>
-            <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">{queue.total}</div>
-            <span className="text-[11px] text-slate-400">Assigned across boards</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 shadow-2xs">
-            <span className="text-xs text-amber-800 font-medium block">Awaiting Your Review</span>
-            <div className="text-2xl font-bold text-amber-900 mt-1 font-mono">{queue.summary.awaitingOfficer}</div>
-            <span className="text-[11px] text-amber-700">Applicant responses received</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200/80 shadow-2xs">
-            <span className="text-xs text-sky-800 font-medium block">Awaiting Applicant</span>
-            <div className="text-2xl font-bold text-sky-900 mt-1 font-mono">{queue.summary.awaitingApplicant}</div>
-            <span className="text-[11px] text-sky-700">Open clarification queries</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <span className="text-xs text-slate-500 block">Missing Documents</span>
-            <div className="text-2xl font-bold text-rose-600 mt-1 font-mono">{queue.summary.withMissingDocuments}</div>
-            <span className="text-[11px] text-slate-400">Applications needing uploads</span>
-          </div>
-        </div>
-      )}
-
-      {/* Clean Search & Filter Bar */}
-      <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-          {/* Search Box */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by project name, approval code, industry, or applicant email…"
-              className="w-full pl-10 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 transition-all"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Authority Dropdown */}
-          <select
-            value={authorityId}
-            onChange={(e) => setAuthorityId(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-700 font-medium focus:bg-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="">All Regulatory Boards ({authorities.length})</option>
-            {authorities.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.code ? `${a.code} - ` : ''}{a.name} ({a.openApplications} open)
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Status Tab Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-slate-100 text-xs">
-          {[
-            { id: 'in_progress', label: 'In Progress' },
-            { id: 'available', label: 'Available' },
-            { id: 'blocked', label: 'Blocked' },
-            { id: 'done', label: 'Approved' },
-            { id: 'all', label: 'All Statuses' },
-          ].map((st) => (
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1 text-xs font-semibold">
             <button
-              key={st.id}
               type="button"
-              onClick={() => setStatusFilter(st.id)}
-              className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                statusFilter === st.id
-                  ? 'bg-blue-600 text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              onClick={() => setActiveTab('applications')}
+              className={`rounded-lg px-3 py-1.5 transition-colors cursor-pointer ${
+                activeTab === 'applications' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              {st.label}
+              Applications ({queue?.total ?? 0})
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setActiveTab('grievances')}
+              className={`rounded-lg px-3 py-1.5 transition-colors cursor-pointer ${
+                activeTab === 'grievances' ? 'bg-white text-rose-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              ⚖️ RTS Grievances
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              void queueQuery.refetch();
+              void authoritiesQuery.refetch();
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+            <span>Refresh</span>
+          </button>
         </div>
       </div>
+
+      {activeTab === 'grievances' ? (
+        <OfficerGrievancesView />
+      ) : (
+        <>
+          {/* KPI Cards Strip */}
+          {queue && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+                <span className="text-xs text-slate-500 block">Total in Queue</span>
+                <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">{queue.total}</div>
+                <span className="text-[11px] text-slate-400">Assigned across boards</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 shadow-2xs">
+                <span className="text-xs text-amber-800 font-medium block">Awaiting Your Review</span>
+                <div className="text-2xl font-bold text-amber-900 mt-1 font-mono">{queue.summary.awaitingOfficer}</div>
+                <span className="text-[11px] text-amber-700">Applicant responses received</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200/80 shadow-2xs">
+                <span className="text-xs text-sky-800 font-medium block">Awaiting Applicant</span>
+                <div className="text-2xl font-bold text-sky-900 mt-1 font-mono">{queue.summary.awaitingApplicant}</div>
+                <span className="text-[11px] text-sky-700">Open clarification queries</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+                <span className="text-xs text-slate-500 block">Missing Documents</span>
+                <div className="text-2xl font-bold text-rose-600 mt-1 font-mono">{queue.summary.withMissingDocuments}</div>
+                <span className="text-[11px] text-slate-400">Applications needing uploads</span>
+              </div>
+            </div>
+          )}
+
+          {/* Clean Search & Filter Bar */}
+          <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-3">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+              {/* Search Box */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by project name, approval code, industry, or applicant email…"
+                  className="w-full pl-10 pr-8 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Authority Dropdown */}
+              <select
+                value={authorityId}
+                onChange={(e) => setAuthorityId(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-700 font-medium focus:bg-white focus:outline-none focus:border-blue-500"
+              >
+                <option value="">All Regulatory Boards ({authorities.length})</option>
+                {authorities.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.code ? `${a.code} - ` : ''}{a.name} ({a.openApplications} open)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status Tab Bar */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pt-1 border-t border-slate-100 text-xs">
+              {[
+                { id: 'in_progress', label: 'In Progress' },
+                { id: 'available', label: 'Available' },
+                { id: 'blocked', label: 'Blocked' },
+                { id: 'done', label: 'Approved' },
+                { id: 'all', label: 'All Statuses' },
+              ].map((st) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setStatusFilter(st.id)}
+                  className={`px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                    statusFilter === st.id
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
       {/* Application Cards List */}
       {authorities.length === 0 ? (
@@ -362,6 +438,127 @@ export function OfficerQueuePage(): JSX.Element {
               <CleanApplicationCard key={item.instanceId} item={item} />
             ))}
           </div>
+        </div>
+      )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function OfficerGrievancesView(): JSX.Element {
+  const { accessToken } = useAuth();
+  const queryClient = useQueryClient();
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterTier, setFilterTier] = useState<string>('all');
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['officer-grievances', filterStatus, filterTier],
+    queryFn: () =>
+      import('./api-client').then((m) => {
+        const params: {
+          status?: string | undefined;
+          tier?: string | undefined;
+        } = {};
+        if (filterStatus !== 'all') params.status = filterStatus;
+        if (filterTier !== 'all') params.tier = filterTier;
+        return m.grievancesApi.listForOfficer(params, accessToken ?? undefined);
+      }),
+    enabled: Boolean(accessToken),
+  });
+
+  const grievances = data?.grievances ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="rounded border border-gray-300 bg-white px-2.5 py-1 text-xs"
+          >
+            <option value="all">All Grievance Statuses</option>
+            <option value="submitted">Submitted (Action Required)</option>
+            <option value="under_investigation">Under Investigation</option>
+            <option value="escalated">Escalated to Higher Tier</option>
+            <option value="redressed">Redressed</option>
+            <option value="rejected">Rejected</option>
+          </select>
+
+          <select
+            value={filterTier}
+            onChange={(e) => setFilterTier(e.target.value)}
+            className="rounded border border-gray-300 bg-white px-2.5 py-1 text-xs"
+          >
+            <option value="all">All Appellate Tiers</option>
+            <option value="tier_1_nodal_officer">Tier 1: Nodal Officer</option>
+            <option value="tier_2_appellate_authority">Tier 2: First Appellate Authority</option>
+            <option value="tier_3_rts_commission">Tier 3: RTS Commission</option>
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void queryClient.invalidateQueries({ queryKey: ['officer-grievances'] })}
+          className="rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50"
+        >
+          ↻ Refresh Queue
+        </button>
+      </div>
+
+      {isLoading && <LoadingSpinner label="Loading RTS statutory grievances..." />}
+      {error && <ErrorBanner message={error instanceof Error ? error.message : 'Could not load grievances'} />}
+
+      {!isLoading && grievances.length === 0 ? (
+        <EmptyState
+          title="No Active Grievances in Queue"
+          description="Your department has no outstanding statutory delay disputes or appellate hearings under review."
+        />
+      ) : (
+        <div className="space-y-3">
+          {grievances.map((g) => (
+            <div key={g.id} className="rounded-md border border-gray-200 bg-white p-4 shadow-xs">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-indigo-700">{g.grievanceNumber}</span>
+                    <span className="rounded bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800">
+                      {g.type.replace(/_/g, ' ')}
+                    </span>
+                    <span className="rounded border px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                      {g.tier.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <h3 className="mt-1 text-sm font-semibold text-gray-900">{g.subject}</h3>
+                  <p className="mt-1 text-xs text-gray-600 line-clamp-2">{g.description}</p>
+                </div>
+
+                <div className="text-right text-xs">
+                  <span
+                    className={`font-semibold ${
+                      g.isOverdue ? 'text-rose-600 animate-pulse' : 'text-emerald-700'
+                    }`}
+                  >
+                    {g.isOverdue ? `⚠️ Overdue (${Math.abs(g.daysRemaining)}d)` : `⏱️ ${g.daysRemaining}d left`}
+                  </span>
+                  <p className="text-[11px] text-gray-400">Target: {new Date(g.targetResolutionDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-2 text-xs">
+                <span className="text-gray-500">
+                  Project: <span className="font-mono">{g.projectId}</span> · Filed by: {g.submittedBy.email}
+                </span>
+                <Link
+                  to={`/projects/${g.projectId}/grievances`}
+                  className="rounded bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
+                >
+                  Adjudicate in Grievance Dossier →
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -593,7 +790,7 @@ export function OfficerApplicationPage(): JSX.Element {
   const { accessToken, isRestoring, user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<'dossier' | 'documents' | 'clarifications' | 'consistency'>('dossier');
+  const [activeTab, setActiveTab] = useState<'dossier' | 'documents' | 'clarifications' | 'consistency' | 'risk_actions' | 'audit'>('dossier');
   const [clarificationSubject, setClarificationSubject] = useState('');
   const [clarificationMessage, setClarificationMessage] = useState('');
   const [clarificationError, setClarificationError] = useState<string | null>(null);
@@ -738,6 +935,8 @@ export function OfficerApplicationPage(): JSX.Element {
           { id: 'documents', label: `2. Evidence & Documents (${packet.documents.length})`, icon: FileText },
           { id: 'clarifications', label: `3. Clarifications (${packet.clarificationSummary.total})`, icon: MessageSquare },
           { id: 'consistency', label: `4. AI Pre-Audit Findings (${packet.consistencyFindings.length})`, icon: Sparkles },
+          { id: 'risk_actions', label: '5. Risk & Officer Actions', icon: ShieldCheck },
+          { id: 'audit', label: `6. Audit Trail (${(packet.auditTrail as unknown[] | undefined)?.length ?? 0})`, icon: FolderOpen },
         ].map((t) => {
           const Icon = t.icon;
           const isActive = activeTab === t.id;
@@ -875,27 +1074,30 @@ export function OfficerApplicationPage(): JSX.Element {
                 {packet.documents.map((d) => (
                   <div
                     key={d.id}
-                    className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
+                    className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs"
                   >
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-slate-500" />
-                      <div>
-                        <span className="font-semibold text-slate-900">
-                          {d.currentVersion?.originalFilename ?? d.id}
-                        </span>
-                        <span className="text-slate-400 font-mono ml-2">v{d.currentVersion?.versionNumber ?? 1}</span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-slate-500" />
+                        <div>
+                          <span className="font-semibold text-slate-900">
+                            {d.currentVersion?.originalFilename ?? d.id}
+                          </span>
+                          <span className="text-slate-400 font-mono ml-2">v{d.currentVersion?.versionNumber ?? 1}</span>
+                        </div>
                       </div>
-                    </div>
 
-                    <a
-                      href={officerApi.documentDownloadUrl(packet.instance.id, d.id, d.currentVersion?.id ?? '')}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-blue-600 text-xs font-semibold inline-flex items-center gap-1 shadow-2xs transition-colors"
-                    >
-                      <Download className="w-3 h-3" />
-                      <span>Download</span>
-                    </a>
+                      <a
+                        href={officerApi.documentDownloadUrl(packet.instance.id, d.id, d.currentVersion?.id ?? '')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-blue-600 text-xs font-semibold inline-flex items-center gap-1 shadow-2xs transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Download</span>
+                      </a>
+                    </div>
+                    <VersionList versions={(d as unknown as { versions?: Array<Record<string, unknown>> }).versions ?? []} />
                   </div>
                 ))}
               </div>
@@ -1055,6 +1257,266 @@ export function OfficerApplicationPage(): JSX.Element {
           )}
         </div>
       )}
+
+      {/* TAB 5: RISK ASSESSMENT & OFFICER ACTIONS */}
+      {activeTab === 'risk_actions' && (
+        <div className="space-y-4">
+          {packet.riskScores && (
+            <RiskScoresPanel riskScores={packet.riskScores as unknown as Record<string, unknown>} />
+          )}
+          <OfficerActionsPanel instanceId={packet.instance.id} />
+        </div>
+      )}
+
+      {/* TAB 6: AUDIT TRAIL */}
+      {activeTab === 'audit' && (
+        <div className="space-y-4">
+          <AuditTrailPanel auditTrail={((packet.auditTrail ?? []) as unknown as Array<Record<string, unknown>>)} />
+        </div>
+      )}
     </div>
+  );
+}
+
+function VersionList({ versions }: { versions: Array<Record<string, unknown>> }): JSX.Element | null {
+  if (versions.length === 0) return null;
+  return (
+    <ul className="mt-1 space-y-1 text-xs text-gray-600">
+      {versions.map((v) => {
+        const extraction = v['extraction'] as Record<string, unknown> | null;
+        const verification = v['verification'] as Record<string, unknown> | null;
+        return (
+          <li key={String(v['id'])}>
+            v{String(v['versionNumber'])} · {String(v['state'])} · extraction:{' '}
+            {typeof extraction?.['modelProvider'] === 'string' ? extraction['modelProvider'] : 'none'} ·
+            verification: {typeof verification?.['method'] === 'string' ? verification['method'] : 'none'}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Feature 3: Risk Scores Panel
+// ---------------------------------------------------------------------------
+
+function RiskScoresPanel({ riskScores }: { riskScores: Record<string, unknown> }): JSX.Element {
+  const submissionRisk = riskScores['submissionRisk'] as Record<string, unknown> | undefined;
+  const complexity = riskScores['regulatoryComplexity'] as Record<string, unknown> | undefined;
+  const recommendation = typeof riskScores['recommendation'] === 'string' ? riskScores['recommendation'] : 'Unknown';
+  const missingReqs = Array.isArray(riskScores['missingRequirements']) ? riskScores['missingRequirements'] as Array<Record<string, unknown>> : [];
+  const validationProblems = Array.isArray(riskScores['validationProblems']) ? riskScores['validationProblems'] as Array<Record<string, unknown>> : [];
+
+  const levelColor = (level: string): string => {
+    switch (level) {
+      case 'critical': return 'bg-red-100 text-red-800 border-red-300';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'low': return 'bg-green-100 text-green-800 border-green-300';
+      default: return 'bg-gray-100 text-gray-600 border-gray-300';
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+      <div>
+        <h2 className="text-base font-bold text-slate-900">Statutory Risk Assessment</h2>
+        <p className="text-xs text-slate-500">Automated submission risk analysis and regulatory complexity scoring</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Submission Risk */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-800">Submission Risk</h3>
+            {submissionRisk && (
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${levelColor(String(submissionRisk.level))}`}>
+                {String(submissionRisk.score)} · {String(submissionRisk.level)}
+              </span>
+            )}
+          </div>
+          {submissionRisk && Array.isArray(submissionRisk.reasons) && (
+            <ul className="mt-2 space-y-1 text-xs text-slate-700">
+              {(submissionRisk.reasons as string[]).map((r, i) => (
+                <li key={i} className="flex items-start gap-1">
+                  <span className="shrink-0 text-slate-400">•</span>
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Regulatory Complexity */}
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-800">Regulatory Complexity</h3>
+            {complexity && (
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold ${levelColor(String(complexity.level))}`}>
+                {String(complexity.score)} · {String(complexity.level)}
+              </span>
+            )}
+          </div>
+          {complexity && Array.isArray(complexity.reasons) && (
+            <ul className="mt-2 space-y-1 text-xs text-slate-700">
+              {(complexity.reasons as string[]).map((r, i) => (
+                <li key={i} className="flex items-start gap-1">
+                  <span className="shrink-0 text-slate-400">•</span>
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Recommendation */}
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-3.5">
+        <p className="text-xs sm:text-sm">
+          <span className="font-bold text-blue-900">Recommendation:</span>{' '}
+          <span className="text-blue-800">ApprovalIQ recommends <strong>{recommendation}</strong></span>
+        </p>
+      </div>
+
+      {/* Missing Requirements */}
+      {missingReqs.length > 0 && (
+        <div className="space-y-1.5">
+          <h3 className="text-xs font-bold text-slate-800">Missing Requirements</h3>
+          <ul className="space-y-1 text-xs">
+            {missingReqs.map((r, i) => (
+              <li key={i} className="rounded-lg bg-red-50 border border-red-200 px-3 py-1.5 text-red-800">
+                {String(r['field'])} — {String(r['reason'])}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Validation Problems */}
+      {validationProblems.length > 0 && (
+        <div className="space-y-1.5">
+          <h3 className="text-xs font-bold text-slate-800">Validation Problems</h3>
+          <ul className="space-y-1 text-xs">
+            {validationProblems.map((p, i) => (
+              <li key={i} className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-amber-800">
+                {String(p['detail'])}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Feature 3: Audit Trail Panel
+// ---------------------------------------------------------------------------
+
+function AuditTrailPanel({ auditTrail }: { auditTrail: Array<Record<string, unknown>> }): JSX.Element {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
+      <div>
+        <h2 className="text-base font-bold text-slate-900">Audit Trail</h2>
+        <p className="text-xs text-slate-500">Immutable chronological log of statutory actions and status changes</p>
+      </div>
+      {auditTrail.length === 0 ? (
+        <p className="text-xs text-slate-500">No audit events logged yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {auditTrail.map((event) => {
+            const user = event['user'] as Record<string, unknown> | null;
+            return (
+              <li key={String(event['id'])} className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs">
+                <span className="shrink-0 font-mono text-slate-400 text-[11px]">
+                  {event['createdAt'] ? new Date(String(event['createdAt'])).toLocaleString() : ''}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-slate-800">
+                    <span>{String(event['action'])}</span>
+                    {user ? <span className="text-slate-500 font-normal"> by {String(user['email'])} ({String(user['role'])})</span> : null}
+                  </p>
+                  {Boolean(event['details']) && typeof event['details'] === 'object' && (
+                    <pre className="mt-1 text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-200 overflow-x-auto">{String(JSON.stringify(event['details'] as object, null, 2))}</pre>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Feature 3: Officer Actions Panel
+// ---------------------------------------------------------------------------
+
+function OfficerActionsPanel({ instanceId }: { instanceId: string }): JSX.Element {
+  const { accessToken } = useAuth();
+  const queryClient = useQueryClient();
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const recordAction = useMutation({
+    mutationFn: (action: string) =>
+      fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/officer/applications/${instanceId}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ action, note: note.trim() || undefined }),
+      }).then((r) => {
+        if (!r.ok) throw new Error(`Failed: ${r.status}`);
+        return r.json() as Promise<Record<string, unknown>>;
+      }),
+    onSuccess: () => {
+      setNote('');
+      setError(null);
+      void queryClient.invalidateQueries({ queryKey: ['officer-application', instanceId] });
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'Action failed'),
+  });
+
+  const actions = [
+    { action: 'review_application', label: 'Review Application', color: 'bg-blue-600 hover:bg-blue-700' },
+    { action: 'recommend_approval', label: 'Recommend Approval', color: 'bg-emerald-600 hover:bg-emerald-700' },
+    { action: 'recommend_rejection', label: 'Recommend Rejection', color: 'bg-rose-600 hover:bg-rose-700' },
+    { action: 'return_for_correction', label: 'Return for Correction', color: 'bg-amber-600 hover:bg-amber-700' },
+    { action: 'mark_document_reviewed', label: 'Mark Document Reviewed', color: 'bg-purple-600 hover:bg-purple-700' },
+    { action: 'request_clarification', label: 'Request Clarification', color: 'bg-indigo-600 hover:bg-indigo-700' },
+  ];
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
+      <h2 className="text-base font-bold text-slate-900">Officer Statutory Actions</h2>
+      <p className="text-xs text-slate-500">All actions are recorded in the audit trail. No automatic approval/rejection occurs.</p>
+      {error && <div className="mb-2"><ErrorBanner message={error} /></div>}
+      <label className="block text-xs font-semibold text-slate-700">
+        <span>Review Note (optional)</span>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-blue-500"
+          placeholder="Add a statutory note about this action"
+        />
+      </label>
+      <div className="flex flex-wrap gap-2 pt-1">
+        {actions.map((a) => (
+          <button
+            key={a.action}
+            type="button"
+            disabled={recordAction.isPending}
+            onClick={() => recordAction.mutate(a.action)}
+            className={`rounded-xl px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition-colors cursor-pointer disabled:opacity-50 ${a.color}`}
+          >
+            {recordAction.isPending ? 'Recording…' : a.label}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

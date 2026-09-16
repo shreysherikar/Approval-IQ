@@ -1,6 +1,7 @@
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, forwardRef } from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { ExtractionHandler } from './extraction.handler';
+import { GrievancesService } from '../grievances/grievances.service';
 
 /**
  * Polling worker process for the Postgres-backed job queue.
@@ -15,9 +16,12 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WorkerService.name);
   private timer: NodeJS.Timeout | null = null;
   private running = false;
+  private lastAutoEscalateCheckMs = 0;
+
   constructor(
     @Inject(JobsService) private readonly jobs: JobsService,
     @Inject(ExtractionHandler) private readonly extraction: ExtractionHandler,
+    @Inject(forwardRef(() => GrievancesService)) private readonly grievances?: GrievancesService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -43,6 +47,22 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
+      // Periodic check every 30 seconds for overdue statutory grievances to auto-escalate
+      const now = Date.now();
+      if (this.grievances && now - this.lastAutoEscalateCheckMs > 30_000) {
+        this.lastAutoEscalateCheckMs = now;
+        try {
+          const res = await this.grievances.autoEscalateOverdueGrievances();
+          if (res.escalatedCount > 0) {
+            this.logger.log(
+              `Statutory daemon: auto-escalated ${res.escalatedCount} overdue grievance(s) under RTS Act.`,
+            );
+          }
+        } catch (err) {
+          this.logger.warn(`Failed during grievance auto-escalation check: ${String(err)}`);
+        }
+      }
+
       let job: Record<string, unknown> | null = null;
       try {
         job = await this.jobs.claimNext(['document_extraction']);

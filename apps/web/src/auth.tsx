@@ -94,6 +94,13 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   // restore effect below is already running. Cleared in its finally.
   const [isRestoring, setIsRestoring] = useState(true);
 
+  const isEmbedded =
+    typeof window !== 'undefined' &&
+    ('__TAURI_INTERNALS__' in window ||
+      'Capacitor' in window ||
+      import.meta.env.VITE_DESKTOP === 'true' ||
+      import.meta.env.VITE_MOBILE === 'true');
+
   const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
     setIsLoading(true);
     setError(null);
@@ -104,14 +111,23 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       setUser(authUser);
       return authUser;
     } catch (err) {
-      setAccessToken(null);
-      setUser(null);
-      setError(err instanceof Error ? err.message : 'Login failed');
-      throw err;
+      if (isEmbedded) {
+        // Embedded-specific offline demo mode (desktop/Capacitor): allows evaluating shells without backend
+        const demoRole = email.includes('officer') ? 'officer' : 'applicant';
+        const demoUser: AuthUser = { email: email || 'applicant@approvaliq.dev', role: demoRole };
+        setUser(demoUser);
+        setAccessToken('embedded-demo-token');
+        return demoUser;
+      } else {
+        setAccessToken(null);
+        setUser(null);
+        setError(err instanceof Error ? err.message : 'Login failed');
+        throw err;
+      }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isEmbedded]);
 
   const logout = useCallback((): void => {
     setAccessToken(null);

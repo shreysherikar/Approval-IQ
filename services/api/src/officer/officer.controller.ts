@@ -201,4 +201,29 @@ export class OfficerController {
       this.actor(req),
     );
   }
+
+  // Feature 3: Officer actions with audit trail
+
+  @Post('applications/:instanceId/review')
+  @UseGuards(OfficerApplicationGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Record an officer review action (review, recommend, return for correction, etc.)' })
+  async recordAction(
+    @Req() req: Request,
+    @Param('instanceId') instanceId: string,
+    @Body() body: { action: string; note?: string },
+  ): Promise<Record<string, unknown>> {
+    const { userId, role } = this.actor(req);
+    const instance = await this.service.getInstanceForAudit(instanceId);
+    const auditParams: { userId: string; projectId?: string; approvalInstanceId?: string; action: string; actor: string; details?: Record<string, unknown> } = {
+      userId,
+      approvalInstanceId: instanceId,
+      action: body.action,
+      actor: `${role}:${userId}`,
+    };
+    if (instance?.projectId) auditParams.projectId = instance.projectId;
+    if (body.note) auditParams.details = { note: body.note };
+    await this.service.recordAuditEvent(auditParams);
+    return { recorded: true, action: body.action, instanceId };
+  }
 }

@@ -19,6 +19,13 @@ import { useAuth } from './auth';
 import { ErrorBanner, GoogleSignInButton } from './components';
 import { LandingPage } from './landing/LandingPage';
 
+const isEmbedded =
+  typeof window !== 'undefined' &&
+  ('__TAURI_INTERNALS__' in window ||
+    'Capacitor' in window ||
+    import.meta.env.VITE_DESKTOP === 'true' ||
+    import.meta.env.VITE_MOBILE === 'true');
+
 export function HomePage(): JSX.Element {
   return <LandingPage />;
 }
@@ -236,18 +243,22 @@ export function LoginPage(): JSX.Element {
           {/* Error Banner */}
           {error && <ErrorBanner message={error} />}
 
-          {/* Google SSO Button */}
-          <div className="pt-1">
-            <GoogleSignInButton label="Continue with Google" disabled={isLoading} />
-          </div>
+          {!isEmbedded && (
+            <>
+              {/* Google SSO Button */}
+              <div className="pt-1">
+                <GoogleSignInButton label="Continue with Google" disabled={isLoading} />
+              </div>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center my-4">
-            <div className="w-full border-t border-slate-200" />
-            <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
-              or continue with email
-            </span>
-          </div>
+              {/* Divider */}
+              <div className="relative flex items-center justify-center my-4">
+                <div className="w-full border-t border-slate-200" />
+                <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
+                  or continue with email
+                </span>
+              </div>
+            </>
+          )}
 
           {/* Email / Password Form */}
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
@@ -434,18 +445,22 @@ export function RegisterPage(): JSX.Element {
           {/* Error Banner */}
           {error && <ErrorBanner message={error} />}
 
-          {/* Google SSO Button */}
-          <div className="pt-1">
-            <GoogleSignInButton label="Sign up with Google" disabled={isLoading} />
-          </div>
+          {!isEmbedded && (
+            <>
+              {/* Google SSO Button */}
+              <div className="pt-1">
+                <GoogleSignInButton label="Sign up with Google" disabled={isLoading} />
+              </div>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center my-4">
-            <div className="w-full border-t border-slate-200" />
-            <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
-              or register with work email
-            </span>
-          </div>
+              {/* Divider */}
+              <div className="relative flex items-center justify-center my-4">
+                <div className="w-full border-t border-slate-200" />
+                <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
+                  or register with work email
+                </span>
+              </div>
+            </>
+          )}
 
           {/* Registration Form */}
           <form onSubmit={(e) => void submit(e)} className="space-y-4">

@@ -84,6 +84,7 @@ import {
   DocumentUploadControl,
 } from './components';
 import { PROFILE_FIELD_LABELS } from './profile-form';
+import { RecoveryPlanPanel } from './recovery';
 
 // ---------------------------------------------------------------------------
 // Department & Regulatory Knowledge Mapping (Rule-aligned helper metadata)
@@ -531,10 +532,22 @@ function EnhancedRoadmapNodeCard({ data }: NodeProps<Node<CustomNodeData>>): JSX
           </span>
         )}
 
-        <span className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-0.5">
-          <span>Details</span>
-          <ChevronRight className="w-3 h-3" />
-        </span>
+        <div className="flex items-center gap-1">
+          {typeof node.slaDays === 'number' && (
+            <span className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
+              ⏱️ {node.slaDays}d RTS
+            </span>
+          )}
+          {node.inspectionRequired && (
+            <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              🔍 Insp.
+            </span>
+          )}
+          <span className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-0.5">
+            <span>Details</span>
+            <ChevronRight className="w-3 h-3" />
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -717,6 +730,51 @@ function DetailDrawer({
           </div>
         </div>
 
+        {/* Badges and metadata */}
+        <div className="flex flex-wrap gap-2">
+          {typeof node.slaDays === 'number' && (
+            <span className="rounded-xl border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-800">
+              ⏱️ Statutory SLA: {node.slaDays} Days (RTS Act)
+            </span>
+          )}
+          {node.inspectionRequired && (
+            <Link
+              to={`/projects/${projectId}/inspections`}
+              className="rounded-xl border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+            >
+              🔍 Joint Inspection Required →
+            </Link>
+          )}
+        </div>
+
+        {/* Direct RTS Delay / Issue Grievance Quick Action */}
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="font-bold text-rose-900">Encountering Delay or Irregularity?</p>
+              <p className="text-rose-700 text-[11px] mt-0.5">Enforce statutory resolution timelines under Maharashtra RTS Act.</p>
+            </div>
+            <Link
+              to={`/projects/${projectId}/grievances?approvalInstanceId=${node.id}`}
+              className="shrink-0 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700"
+            >
+              ⚖️ File RTS Grievance
+            </Link>
+          </div>
+        </div>
+
+        {Array.isArray(node.missingFields) && node.missingFields.length > 0 && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs font-bold text-amber-900">Still needed before this can be decided:</p>
+            <ul className="mt-1.5 list-disc pl-5 text-xs text-amber-800 space-y-1">
+              {node.missingFields.map((m) => (
+                <li key={`${m.field}:${m.reason}`}>
+                  <span className="font-semibold">{m.field}</span>: {m.reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {/* What is this approval? */}
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
@@ -2977,9 +3035,15 @@ export function RoadmapPage(): JSX.Element {
             Your compliance journey at a glance. Complete clearances progressively along the critical path.
           </p>
         </div>
-
         {/* Action controls */}
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+          <Link
+            to={`/projects/${projectId}/grievances`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors"
+          >
+            <span>⚖️ RTS Grievances</span>
+          </Link>
+
           <Link
             to={`/projects/${projectId}/clarifications`}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-xs font-semibold text-blue-700 transition-colors"
@@ -3891,6 +3955,11 @@ export function RoadmapPage(): JSX.Element {
           )}
         </div>
       )}
+
+      {/* 5.5 Compliance Recovery Plan */}
+      <div className="mt-4">
+        <RecoveryPlanPanel projectId={projectId} />
+      </div>
 
       {/* 6. Approval Detail Drawer (Slide-Over Panel) */}
       {selectedNode && (

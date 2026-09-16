@@ -1,0 +1,15 @@
+{
+  "name": "@approvaliq/desktop-shell",
+  "version": "0.0.1",
+  "private": true,
+  "description": "ApprovalIQ desktop shell — Tauri Windows wrapper",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build --no-bundle",
+    "build:debug": "tauri build --debug --no-bundle",
+    "typecheck": "echo @approvaliq/desktop-shell: no typescript to typecheck"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}

@@ -691,6 +691,8 @@ export interface ApplicationPacket {
     awaitingOfficer: number;
     awaitingApplicant: number;
   };
+  riskScores: RiskScoreView | null;
+  auditTrail: AuditEventView[];
 }
 
 /** Officer surface. Officer-role + authority-assignment scoped — pass the access token. */
@@ -1335,5 +1337,383 @@ export const inspectionsApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Feature #9: Grievance Escalation & Statutory RTS Act Escalation API Client
+// ---------------------------------------------------------------------------
+
+export type GrievanceType =
+  | 'sla_breach_delay'
+  | 'unjustified_clarification'
+  | 'arbitrary_rejection'
+  | 'inspection_harassment'
+  | 'fee_overcharge'
+  | 'other';
+
+export type GrievanceTier =
+  | 'tier_1_nodal_officer'
+  | 'tier_2_appellate_authority'
+  | 'tier_3_rts_commission';
+
+export type GrievanceStatus =
+  | 'submitted'
+  | 'under_investigation'
+  | 'escalated'
+  | 'redressed'
+  | 'rejected'
+  | 'withdrawn';
+
+export interface GrievanceDocumentItem {
+  id: string;
+  documentId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface GrievanceActionItem {
+  id: string;
+  actionType: string;
+  fromStatus: string | null;
+  toStatus: string;
+  fromTier: string | null;
+  toTier: string | null;
+  remarks: string;
+  orderNumber: string | null;
+  metadata: unknown;
+  actor: { id: string; email: string; role: string } | null;
+  actorRole: string;
+  createdAt: string;
+}
+
+export interface GrievanceView {
+  id: string;
+  grievanceNumber: string;
+  projectId: string;
+  type: GrievanceType;
+  tier: GrievanceTier;
+  status: GrievanceStatus;
+  subject: string;
+  description: string;
+  statutorySlaDays: number;
+  targetResolutionDate: string;
+  daysRemaining: number;
+  isOverdue: boolean;
+  slaBreachDetectedAt: string | null;
+  autoEscalatedAt: string | null;
+  resolvedAt: string | null;
+  resolutionSummary: string | null;
+  rectificationAction: string | null;
+  authority: { id: string; code: string; name: string; department: string | null } | null;
+  approval: { id: string; code: string; name: string; slaDays: number | null } | null;
+  submittedBy: { id: string; email: string; role: string };
+  resolvedBy: { id: string; email: string; role: string } | null;
+  documents: GrievanceDocumentItem[];
+  actions: GrievanceActionItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGrievancePayload {
+  type: GrievanceType;
+  subject: string;
+  description: string;
+  approvalInstanceId?: string;
+  authorityId?: string;
+  statutorySlaDays?: number;
+  documentIds?: string[];
+}
+
+export interface EscalateGrievancePayload {
+  remarks: string;
+  targetTier?: 'tier_2_appellate_authority' | 'tier_3_rts_commission';
+  documentIds?: string[];
+}
+
+export interface InvestigateGrievancePayload {
+  remarks: string;
+  hearingScheduledAt?: string;
+  assignedInvestigator?: string;
+}
+
+export interface ResolveGrievancePayload {
+  outcome: 'redressed' | 'rejected';
+  resolutionSummary: string;
+  rectificationAction?: string;
+  orderNumber?: string;
+}
+
+export const grievancesApi = {
+  /** List project grievances */
+  list(
+    projectId: string,
+    params?: {
+      status?: string | undefined;
+      tier?: string | undefined;
+      type?: string | undefined;
+      approvalInstanceId?: string | undefined;
+    },
+    token?: string,
+  ): Promise<{ grievances: GrievanceView[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.tier) qs.set('tier', params.tier);
+    if (params?.type) qs.set('type', params.type);
+    if (params?.approvalInstanceId) qs.set('approvalInstanceId', params.approvalInstanceId);
+    const query = qs.toString();
+    return get<{ grievances: GrievanceView[]; total: number }>(
+      `/projects/${projectId}/grievances${query ? `?${query}` : ''}`,
+      { token },
+    );
+  },
+
+  /** Get single grievance details and audit timeline */
+  get(projectId: string, grievanceId: string, token?: string): Promise<GrievanceView> {
+    return get<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}`, { token });
+  },
+
+  /** Lodge statutory grievance */
+  create(projectId: string, payload: CreateGrievancePayload, token?: string): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances`, payload, { token });
+  },
+
+  /** Escalate grievance to next tier */
+  escalate(
+    projectId: string,
+    grievanceId: string,
+    payload: EscalateGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}/escalate`, payload, {
+      token,
+    });
+  },
+
+  /** Withdraw grievance */
+  withdraw(
+    projectId: string,
+    grievanceId: string,
+    payload: { reason: string },
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}/withdraw`, payload, {
+      token,
+    });
+  },
+
+  /** Officer queue */
+  listForOfficer(
+    params?: { status?: string | undefined; tier?: string | undefined; type?: string | undefined },
+    token?: string,
+  ): Promise<{ grievances: GrievanceView[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.tier) qs.set('tier', params.tier);
+    if (params?.type) qs.set('type', params.type);
+    const query = qs.toString();
+    return get<{ grievances: GrievanceView[]; total: number }>(
+      `/officer/grievances${query ? `?${query}` : ''}`,
+      { token },
+    );
+  },
+
+  /** Officer investigate / schedule hearing */
+  officerInvestigate(
+    grievanceId: string,
+    payload: InvestigateGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/officer/grievances/${grievanceId}/investigate`, payload, { token });
+  },
+
+  /** Officer/Appellate resolve or reject order */
+  officerResolve(
+    grievanceId: string,
+    payload: ResolveGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/officer/grievances/${grievanceId}/resolve`, payload, { token });
+  },
+};
+
 export type { LoginRequest, LoginResponse, RegisterRequest, RegisteredUser };
+
+
+// ---------------------------------------------------------------------------
+// Feature 1: Regulatory Change Impact Engine API
+// ---------------------------------------------------------------------------
+
+export interface RegulatoryChangeView {
+  id: string;
+  title: string;
+  description: string;
+  approval: { id: string; code: string; name: string };
+  authority: string | null;
+  oldConditions: unknown;
+  newConditions: unknown;
+  effectiveDate: string;
+  sourceUrl: string | null;
+  sourceNotes: string | null;
+  status: string;
+  totalImpacts: number;
+  createdAt: string;
+}
+
+export interface RegulatoryImpactView {
+  id: string;
+  projectId: string;
+  project: { id: string; name: string; industry: string; businessId: string };
+  impactType: string;
+  priority: string;
+  oldApplicability: string;
+  newApplicability: string;
+  changedCondition: string | null;
+  requiredAction: string | null;
+  explanation: string;
+  confidence: string;
+  createdAt: string;
+}
+
+export interface ImpactAnalysisResult {
+  changeId: string;
+  status: string;
+  totalBusinessesAnalyzed: number;
+  summary: {
+    newlyAffected: number;
+    noLongerAffected: number;
+    requirementChanged: number;
+    noMaterialImpact: number;
+    needsReview: number;
+  };
+  impacts: RegulatoryImpactView[];
+}
+
+export const regulatoryChangesApi = {
+  list(token?: string): Promise<RegulatoryChangeView[]> {
+    return get('/regulatory-changes', { token });
+  },
+  get(id: string, token?: string): Promise<RegulatoryChangeView> {
+    return get(`/regulatory-changes/${id}`, { token });
+  },
+  create(
+    body: {
+      title: string;
+      description: string;
+      approvalDefinitionId: string;
+      oldConditions: unknown;
+      newConditions: unknown;
+      effectiveDate: string;
+      sourceUrl?: string;
+      sourceNotes?: string;
+    },
+    token?: string,
+  ): Promise<RegulatoryChangeView> {
+    return post('/regulatory-changes', body, { token });
+  },
+  analyze(id: string, token?: string): Promise<ImpactAnalysisResult> {
+    return post(`/regulatory-changes/${id}/analyze`, {}, { token });
+  },
+  getImpacts(
+    changeId: string,
+    filters?: { impactType?: string; priority?: string; industry?: string },
+    token?: string,
+  ): Promise<{ changeId: string; impacts: RegulatoryImpactView[] }> {
+    const params = new URLSearchParams();
+    if (filters?.impactType) params.set('impactType', filters.impactType);
+    if (filters?.priority) params.set('priority', filters.priority);
+    if (filters?.industry) params.set('industry', filters.industry);
+    const qs = params.toString();
+    return get(`/regulatory-changes/${changeId}/impacts${qs ? `?${qs}` : ''}`, { token });
+  },
+  getProjectImpacts(projectId: string, token?: string): Promise<RegulatoryImpactView[]> {
+    return get(`/regulatory-changes/project/${projectId}/impacts`, { token });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Feature 2: Compliance Recovery Engine API
+// ---------------------------------------------------------------------------
+
+export interface RecoveryActionView {
+  id: string;
+  issueId: string | null;
+  title: string;
+  description: string;
+  reason: string;
+  severity: string;
+  status: string;
+  sequenceOrder: number;
+  affectedApproval: string | null;
+  affectedDocument: string | null;
+}
+
+export interface RecoveryPlanView {
+  planId: string | null;
+  projectId: string;
+  readinessLevel: string;
+  totalBlocking: number;
+  totalWarnings: number;
+  totalActions: number;
+  resolvedActions: number;
+  actions: RecoveryActionView[];
+}
+
+export const recoveryApi = {
+  generate(projectId: string, token?: string, approvalInstanceId?: string): Promise<RecoveryPlanView> {
+    const qs = approvalInstanceId ? `?approvalInstanceId=${encodeURIComponent(approvalInstanceId)}` : '';
+    return post(`/projects/${projectId}/recovery/generate${qs}`, {}, { token });
+  },
+  getPlan(projectId: string, token?: string): Promise<RecoveryPlanView> {
+    return get(`/projects/${projectId}/recovery`, { token });
+  },
+  resolveAction(projectId: string, actionId: string, token?: string): Promise<Record<string, unknown>> {
+    return patch(`/projects/${projectId}/recovery/actions/${actionId}/resolve`, {}, { token });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Feature 3: Officer Review Actions + Audit Trail API
+// ---------------------------------------------------------------------------
+
+export interface AuditEventView {
+  id: string;
+  userId: string;
+  user: { id: string; email: string; role: string } | null;
+  projectId: string | null;
+  approvalInstanceId: string | null;
+  action: string;
+  actor: string;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface RiskScoreView {
+  submissionRisk: {
+    score: number;
+    level: string;
+    reasons: string[];
+  };
+  regulatoryComplexity: {
+    score: number;
+    level: string;
+    reasons: string[];
+  };
+  recommendation: string;
+  missingRequirements: Array<{ field: string; reason: string }>;
+  validationProblems: Array<{ detail: string }>;
+}
+
+export const officerActionsApi = {
+  recordAction(
+    instanceId: string,
+    body: { action: string; note?: string },
+    token?: string,
+  ): Promise<Record<string, unknown>> {
+    return post(`/officer/applications/${instanceId}/review`, body, { token });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Projects API (create)
+// ---------------------------------------------------------------------------
+
 

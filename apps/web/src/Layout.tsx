@@ -75,25 +75,41 @@ export function Layout(): JSX.Element {
                 </Link>
 
                 {isOfficer ? (
-                  <Link
-                    to="/officer"
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition-all ${
-                      location.pathname === '/officer'
-                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Review Queue</span>
-                  </Link>
+                  <>
+                    <Link
+                      to="/officer"
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-semibold transition-all ${
+                        location.pathname === '/officer'
+                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Review Queue</span>
+                    </Link>
+                    <Link
+                      to="/regulatory-changes"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-all"
+                    >
+                      <span>Regulatory Changes</span>
+                    </Link>
+                  </>
                 ) : (
-                  <Link
-                    to="/projects"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm transition-all"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Projects</span>
-                  </Link>
+                  <>
+                    <Link
+                      to="/projects"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm transition-all"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Projects</span>
+                    </Link>
+                    <Link
+                      to="/regulatory-changes"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-all"
+                    >
+                      <span>Regulatory Changes</span>
+                    </Link>
+                  </>
                 )}
 
                 <button

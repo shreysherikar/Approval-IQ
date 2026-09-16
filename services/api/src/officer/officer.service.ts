@@ -6,6 +6,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { RiskService } from '../risk/risk.service';
+import { AuditService } from '../audit/audit.service';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -331,6 +333,8 @@ export class OfficerService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(DocumentsService) private readonly documents: DocumentsService,
+    private readonly riskService: RiskService,
+    private readonly auditService: AuditService,
   ) {}
 
   /**
@@ -471,7 +475,24 @@ export class OfficerService {
     })) as unknown as QueueInstanceRow[];
 
     const items = rows.map((row) => this.serializeQueueItem(row));
+
+    // Feature 3: attach risk scores to each queue item
+    const riskPromises = items.map(async (item) => {
+      try {
+        const risk = await this.riskService.calculateRiskForInstance(String(item['instanceId']));
+        item['risk'] = risk;
+      } catch {
+        item['risk'] = { submissionRisk: { score: 0, level: 'unknown', reasons: [] }, regulatoryComplexity: { score: 0, level: 'unknown', reasons: [] }, recommendation: 'Needs assessment' };
+      }
+    });
+    await Promise.all(riskPromises);
+
     items.sort((a, b) => {
+      // Sort by highest submission risk first, then by awaiting officer, then by date
+      const riskA = (a['risk'] as Record<string, unknown>)?.['submissionRisk'] as Record<string, unknown> | undefined;
+      const riskB = (b['risk'] as Record<string, unknown>)?.['submissionRisk'] as Record<string, unknown> | undefined;
+      const riskDelta = (Number(riskB?.['score'] ?? 0)) - (Number(riskA?.['score'] ?? 0));
+      if (riskDelta !== 0) return riskDelta;
       const awaitingDelta =
         Number(b['clarificationsAwaitingOfficer'] as number) -
         Number(a['clarificationsAwaitingOfficer'] as number);
@@ -527,8 +548,6 @@ export class OfficerService {
       missingFields: Array.isArray(row.evaluationResult?.missingFields)
         ? row.evaluationResult?.missingFields
         : [],
-      // Passed through verbatim. No SLA basis is invented here: `null` means the
-      // dataset records no verified notified timeline for this approval.
       slaDays: row.approvalDefinition?.slaDays ?? null,
       inspectionRequired: row.approvalDefinition?.inspectionRequired ?? false,
       renewalRequired: row.approvalDefinition?.renewalRequired ?? false,
@@ -554,6 +573,8 @@ export class OfficerService {
       unlockedAt: row.unlockedAt,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      // Feature 3: Risk scores (computed asynchronously in listQueue)
+      risk: null as Record<string, unknown> | null,
     };
   }
 
@@ -663,7 +684,13 @@ export class OfficerService {
       stateCounts[v.state] = (stateCounts[v.state] ?? 0) + 1;
     }
 
-    return this.serializePacket({
+    // Feature 3: compute risk scores and fetch audit trail
+    const [riskScores, auditTrail] = await Promise.all([
+      this.riskService.calculateRiskForInstance(instanceId),
+      this.auditService.getInstanceAudit(instanceId, 50),
+    ]);
+
+    const packet = this.serializePacket({
       row,
       documents,
       versionsByDocument,
@@ -685,7 +712,10 @@ export class OfficerService {
         createdAt: c.createdAt,
       })),
       clarifications,
+      riskScores,
+      auditTrail,
     });
+    return packet;
   }
 
   /** Assembles the packet document. Pure formatting — no further I/O. */
@@ -697,8 +727,10 @@ export class OfficerService {
     stateCounts: Record<string, number>;
     consistencyFindings: Record<string, unknown>[];
     clarifications: Record<string, unknown>[];
+    riskScores?: Record<string, unknown>;
+    auditTrail?: Record<string, unknown>[];
   }): Record<string, unknown> {
-    const { row, documents, versionsByDocument, totalVersions, stateCounts, consistencyFindings, clarifications } = args;
+    const { row, documents, versionsByDocument, totalVersions, stateCounts, consistencyFindings, clarifications, riskScores, auditTrail } = args;
     const requirements = row.approvalDefinition?.requirements ?? [];
     const projectDocuments = row.project?.documents ?? [];
     const requiredItems = summarizeRequirements(requirements, projectDocuments);
@@ -791,6 +823,9 @@ export class OfficerService {
         awaitingOfficer: clarifications.filter((c) => c['status'] === 'responded').length,
         awaitingApplicant: clarifications.filter((c) => c['status'] === 'requested').length,
       },
+      // Feature 3: Risk scores and audit trail
+      riskScores: riskScores ?? null,
+      auditTrail: auditTrail ?? [],
     };
   }
 
@@ -1094,6 +1129,27 @@ export class OfficerService {
     });
 
     return this.loadClarificationForOfficer(scope, clarificationId);
+  }
+
+  /** Get instance info for audit logging (used by the controller). */
+  async getInstanceForAudit(instanceId: string): Promise<{ projectId: string } | null> {
+    const instance = await this.prisma.approvalInstance.findUnique({
+      where: { id: instanceId },
+      select: { projectId: true },
+    });
+    return instance;
+  }
+
+  /** Record an audit event (delegated to AuditService). */
+  async recordAuditEvent(params: {
+    userId: string;
+    projectId?: string;
+    approvalInstanceId?: string;
+    action: string;
+    actor: string;
+    details?: Record<string, unknown>;
+  }): Promise<void> {
+    return this.auditService.record(params);
   }
 }
 
