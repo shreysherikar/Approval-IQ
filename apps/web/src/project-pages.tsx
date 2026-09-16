@@ -5,6 +5,7 @@ import { EmptyState } from './components';
 import { RoadmapPage } from './roadmap';
 import { ProfileIntakeForm } from './profile-form';
 import { JointInspectionsPage } from './inspections';
+import { GrievanceCenterPage } from './grievances';
 
 export { ProjectsOnboardingPage as ProjectsPage } from './projects/ProjectsOnboardingPage';
 
@@ -35,6 +36,10 @@ export function ProjectRoadmapPage(): JSX.Element {
 
 export function ProjectInspectionsPage(): JSX.Element {
   return <JointInspectionsPage />;
+}
+
+export function ProjectGrievancesPage(): JSX.Element {
+  return <GrievanceCenterPage />;
 }
 
 export function ProjectDocumentPage(): JSX.Element {

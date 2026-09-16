@@ -413,6 +413,9 @@ export class RoadmapService {
             name: true,
             officialApplicationUrl: true,
             lastVerifiedDate: true,
+            slaDays: true,
+            inspectionRequired: true,
+            renewalRequired: true,
             source: { select: { url: true } },
             requirements: {
               select: { documentDefinition: { select: { code: true, name: true } } },
@@ -444,6 +447,9 @@ export class RoadmapService {
       approvalDefinitionId: i.approvalDefinitionId,
       approvalCode: i.approvalDefinition.code,
       approvalName: i.approvalDefinition.name,
+      slaDays: i.approvalDefinition.slaDays,
+      inspectionRequired: i.approvalDefinition.inspectionRequired,
+      renewalRequired: i.approvalDefinition.renewalRequired,
       // Pinned evaluation, never recomputed: outcome + attentionRequired are
       // derived from the linked EvaluationResult, not from instance state.
       evaluationResultId: i.evaluationResult.id,

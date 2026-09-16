@@ -159,15 +159,47 @@ export function OfficerQueuePage(): JSX.Element {
     return <LoadingSpinner label="Loading the officer queue…" />;
   }
 
+  const [activeTab, setActiveTab] = useState<'applications' | 'grievances'>('applications');
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Officer queue</h1>
-        <p className="text-sm text-gray-600">
-          {queue.total} application{queue.total === 1 ? '' : 's'} · {queue.summary.awaitingOfficer} waiting on
-          you · {queue.summary.awaitingApplicant} waiting on applicants
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Officer Workstation</h1>
+          <p className="text-sm text-gray-600">
+            Process clearance applications, answer inquiries, and adjudicate RTS statutory grievances.
+          </p>
+        </div>
+        <div className="flex rounded-md border border-gray-300 bg-gray-100 p-1 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('applications')}
+            className={`rounded px-3 py-1.5 transition-colors ${
+              activeTab === 'applications' ? 'bg-white text-blue-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Applications ({queue.total})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('grievances')}
+            className={`rounded px-3 py-1.5 transition-colors ${
+              activeTab === 'grievances' ? 'bg-white text-rose-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            ⚖️ Statutory RTS Grievances
+          </button>
+        </div>
       </div>
+
+      {activeTab === 'grievances' ? (
+        <OfficerGrievancesView />
+      ) : (
+        <>
+          <div className="text-xs text-gray-500">
+            {queue.total} application{queue.total === 1 ? '' : 's'} · {queue.summary.awaitingOfficer} waiting on
+            you · {queue.summary.awaitingApplicant} waiting on applicants
+          </div>
 
       <div className="flex flex-wrap gap-3 rounded-md border border-gray-200 bg-white p-3">
         <label className="text-sm">
@@ -208,6 +240,127 @@ export function OfficerQueuePage(): JSX.Element {
         <div className="space-y-3">
           {queue.items.map((item) => (
             <QueueCard key={item.instanceId} item={item} />
+          ))}
+        </div>
+      )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function OfficerGrievancesView(): JSX.Element {
+  const { accessToken } = useAuth();
+  const queryClient = useQueryClient();
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterTier, setFilterTier] = useState<string>('all');
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['officer-grievances', filterStatus, filterTier],
+    queryFn: () =>
+      import('./api-client').then((m) => {
+        const params: {
+          status?: string | undefined;
+          tier?: string | undefined;
+        } = {};
+        if (filterStatus !== 'all') params.status = filterStatus;
+        if (filterTier !== 'all') params.tier = filterTier;
+        return m.grievancesApi.listForOfficer(params, accessToken ?? undefined);
+      }),
+    enabled: Boolean(accessToken),
+  });
+
+  const grievances = data?.grievances ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="rounded border border-gray-300 bg-white px-2.5 py-1 text-xs"
+          >
+            <option value="all">All Grievance Statuses</option>
+            <option value="submitted">Submitted (Action Required)</option>
+            <option value="under_investigation">Under Investigation</option>
+            <option value="escalated">Escalated to Higher Tier</option>
+            <option value="redressed">Redressed</option>
+            <option value="rejected">Rejected</option>
+          </select>
+
+          <select
+            value={filterTier}
+            onChange={(e) => setFilterTier(e.target.value)}
+            className="rounded border border-gray-300 bg-white px-2.5 py-1 text-xs"
+          >
+            <option value="all">All Appellate Tiers</option>
+            <option value="tier_1_nodal_officer">Tier 1: Nodal Officer</option>
+            <option value="tier_2_appellate_authority">Tier 2: First Appellate Authority</option>
+            <option value="tier_3_rts_commission">Tier 3: RTS Commission</option>
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void queryClient.invalidateQueries({ queryKey: ['officer-grievances'] })}
+          className="rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50"
+        >
+          ↻ Refresh Queue
+        </button>
+      </div>
+
+      {isLoading && <LoadingSpinner label="Loading RTS statutory grievances..." />}
+      {error && <ErrorBanner message={error instanceof Error ? error.message : 'Could not load grievances'} />}
+
+      {!isLoading && grievances.length === 0 ? (
+        <EmptyState
+          title="No Active Grievances in Queue"
+          description="Your department has no outstanding statutory delay disputes or appellate hearings under review."
+        />
+      ) : (
+        <div className="space-y-3">
+          {grievances.map((g) => (
+            <div key={g.id} className="rounded-md border border-gray-200 bg-white p-4 shadow-xs">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-indigo-700">{g.grievanceNumber}</span>
+                    <span className="rounded bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800">
+                      {g.type.replace(/_/g, ' ')}
+                    </span>
+                    <span className="rounded border px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                      {g.tier.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <h3 className="mt-1 text-sm font-semibold text-gray-900">{g.subject}</h3>
+                  <p className="mt-1 text-xs text-gray-600 line-clamp-2">{g.description}</p>
+                </div>
+
+                <div className="text-right text-xs">
+                  <span
+                    className={`font-semibold ${
+                      g.isOverdue ? 'text-rose-600 animate-pulse' : 'text-emerald-700'
+                    }`}
+                  >
+                    {g.isOverdue ? `⚠️ Overdue (${Math.abs(g.daysRemaining)}d)` : `⏱️ ${g.daysRemaining}d left`}
+                  </span>
+                  <p className="text-[11px] text-gray-400">Target: {new Date(g.targetResolutionDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-2 text-xs">
+                <span className="text-gray-500">
+                  Project: <span className="font-mono">{g.projectId}</span> · Filed by: {g.submittedBy.email}
+                </span>
+                <Link
+                  to={`/projects/${g.projectId}/grievances`}
+                  className="rounded bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
+                >
+                  Adjudicate in Grievance Dossier →
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       )}
