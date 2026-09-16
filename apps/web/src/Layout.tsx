@@ -1,7 +1,8 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ShieldCheck, Compass, LogOut, Layers } from 'lucide-react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ShieldCheck, Compass, LogOut, Layers, Clock, MapPinned } from 'lucide-react';
 import { useAuth } from './auth';
 import { useLanguage } from './i18n';
+import { AssistantPanel } from './assistant-panel';
 
 export function LanguageSwitcher(): JSX.Element {
   const { setLanguage, isMarathi, t } = useLanguage();
@@ -55,15 +56,23 @@ export function Layout(): JSX.Element {
     void navigate('/');
   };
 
-  // Public marketing pages (home, about, contact) have their own dedicated sticky navbar and footer
+  // Public marketing pages (home, about, contact) have their own dedicated sticky navbar and footer.
+  // The floating AI assistant stays available on public pages too (home-page chatbot button).
   if (isPublicPage) {
-    return <Outlet />;
+    return (
+      <>
+        <Outlet />
+        <AssistantPanel />
+      </>
+    );
   }
 
   const isOfficerRoute = location.pathname.startsWith('/officer');
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
+      {/* Floating project assistant — available on every page. */}
+      <AssistantPanel />
       {/* Top Enterprise Clean Navigation */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
@@ -111,6 +120,33 @@ export function Layout(): JSX.Element {
                   <Compass className="w-4 h-4 text-slate-500" />
                   <span className="text-xs">{t('nav.map')}</span>
                 </Link>
+
+                {/* Business Intelligence section — dedicated, always visible. */}
+                <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono border-l border-slate-200 pl-3">
+                  Business Intelligence
+                </span>
+                <NavLink
+                  to="/time-cost-prediction"
+                  className={({ isActive }) =>
+                    `hidden sm:inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                      isActive ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-600 hover:bg-blue-50'
+                    }`
+                  }
+                >
+                  <Clock className="h-4 w-4" />
+                  <span className="hidden md:inline">Time &amp; Cost</span>
+                </NavLink>
+                <NavLink
+                  to="/market-intelligence"
+                  className={({ isActive }) =>
+                    `hidden sm:inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                      isActive ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-600 hover:bg-blue-50'
+                    }`
+                  }
+                >
+                  <MapPinned className="h-4 w-4" />
+                  <span className="hidden md:inline">Market Intel</span>
+                </NavLink>
 
                 {isOfficer ? (
                   <>
@@ -193,5 +229,3 @@ export function Layout(): JSX.Element {
     </div>
   );
 }
-
-

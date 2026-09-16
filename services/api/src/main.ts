@@ -15,21 +15,17 @@ async function bootstrap(): Promise<void> {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Local-dev CORS for the Vite web app (default http://localhost:5173).
-  // credentials: true is required for the httpOnly refresh cookie the web app
-  // uses to restore its session after a reload (see AuthController). Tighten
-  // origins in later phases; production hardening lands in Phase 15.
-  const corsOrigins = config
-    .get<string>(
-      'CORS_ORIGIN',
-      'http://localhost:5173,http://127.0.0.1:5173',
-    )
-    .split(',');
+const corsOrigins = config
+  .get<string>(
+    'CORS_ORIGIN',
+    'http://localhost:5173,http://127.0.0.1:5173',
+  )
+  .split(',');
 
-  app.enableCors({
-    origin: corsOrigins,
-    credentials: true,
-  });
+app.enableCors({
+  origin: corsOrigins,
+  credentials: true,
+});
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('ApprovalIQ API')

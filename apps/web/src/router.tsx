@@ -29,6 +29,9 @@ const RegulatoryChangesListPage = lazy(() => import('./regulatory-changes').then
 const RegulatoryChangeDetailPage = lazy(() => import('./regulatory-changes').then((m) => ({ default: m.RegulatoryChangeDetailPage })));
 const ImpactDashboardPage = lazy(() => import('./regulatory-changes').then((m) => ({ default: m.ImpactDashboardPage })));
 
+const TimeCostPredictionPage = lazy(() => import('./time-cost').then((m) => ({ default: m.TimeCostPredictionPage })));
+const MarketIntelligencePage = lazy(() => import('./market-intelligence').then((m) => ({ default: m.MarketIntelligencePage })));
+
 const OfficerQueuePage = lazy(() => import('./officer-pages').then((m) => ({ default: m.OfficerQueuePage })));
 const OfficerApplicationPage = lazy(() => import('./officer-pages').then((m) => ({ default: m.OfficerApplicationPage })));
 
@@ -81,6 +84,8 @@ export const router = createRouter([
       { path: 'regulatory-changes', element: <LazyRoute><RegulatoryChangesListPage /></LazyRoute> },
       { path: 'regulatory-changes/:id', element: <LazyRoute><RegulatoryChangeDetailPage /></LazyRoute> },
       { path: 'regulatory-changes/:id/impacts', element: <LazyRoute><ImpactDashboardPage /></LazyRoute> },
+      { path: 'time-cost-prediction', element: <LazyRoute><TimeCostPredictionPage /></LazyRoute> },
+      { path: 'market-intelligence', element: <LazyRoute><MarketIntelligencePage /></LazyRoute> },
       { path: 'officer', element: <LazyRoute><OfficerQueuePage /></LazyRoute> },
       { path: 'officer/applications/:instanceId', element: <LazyRoute><OfficerApplicationPage /></LazyRoute> },
       { path: '*', element: <LazyRoute><NotFoundPage /></LazyRoute> },
