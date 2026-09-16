@@ -205,9 +205,9 @@ export interface ApprovalEvaluation {
   approval: ApprovalDefinition;
   outcome: EvaluationOutcome;
   /** Explanatory reason (e.g. why excluded or why eligible). */
-  reason?: string;
+  reason?: string | undefined;
   /** True if the result was produced by an exclusion condition match. */
-  exclusionMatched?: boolean;
+  exclusionMatched?: boolean | undefined;
   /** Leaf conditions whose comparison passed against the profile. */
   matchedConditions: readonly Condition[];
   /** Leaf conditions whose comparison failed against the profile. */
@@ -217,14 +217,18 @@ export interface ApprovalEvaluation {
    * (or mismatched) and therefore must be collected before the rule can be
    * decided. Empty for every other outcome.
    */
+  neededInformation: readonly MissingField[];
+  missingFields: readonly MissingField[];
+}
+
 export interface SchemeEvaluation {
   scheme: ApprovalDefinition;
   outcome: IncentiveOutcome;
   explanation: string;
-  exclusionMatched?: boolean;
-  factsUsed?: Record<string, unknown>;
-  matchedConditions?: readonly Condition[];
-  matchedExclusions?: readonly Condition[];
+  exclusionMatched?: boolean | undefined;
+  factsUsed?: Record<string, unknown> | undefined;
+  matchedConditions?: readonly Condition[] | undefined;
+  matchedExclusions?: readonly Condition[] | undefined;
   neededInformation: readonly MissingField[];
 }
 

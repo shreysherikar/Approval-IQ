@@ -16,10 +16,12 @@ import type {
   Condition,
   Dependency,
   DocumentRequirement,
+  EvaluationOutcome,
   EvaluationResult,
+  IncentiveOutcome,
   MissingField,
   NumericRange,
-  StringProfileField,
+  SchemeEvaluation,
 } from './types.ts';
 
 /** Reads a known string field, normalising a literal `"unknown"` to unknown. */
@@ -207,7 +209,7 @@ function evalCondition(cond: Condition, profile: BusinessProfile, ctx: EvalConte
       return r.truth === 'pass' ? fail() : pass();
     }
     case 'eq': {
-      if (!(cond.field in profile) && !(cond.field === 'activity' && 'activityType' in profile)) return notEvaluable();
+      if (!(cond.field in profile) && !((cond.field as string) === 'activity' && 'activityType' in profile)) return notEvaluable();
       const v = stringValue(profile, cond.field);
       if (v === undefined) return needsInfo(missing(cond.field, 'unknown'));
       if (v === cond.value) {
@@ -218,7 +220,7 @@ function evalCondition(cond: Condition, profile: BusinessProfile, ctx: EvalConte
       return fail();
     }
     case 'in': {
-      if (!(cond.field in profile) && !(cond.field === 'activity' && 'activityType' in profile)) return notEvaluable();
+      if (!(cond.field in profile) && !((cond.field as string) === 'activity' && 'activityType' in profile)) return notEvaluable();
       const v = stringValue(profile, cond.field);
       if (v === undefined) return needsInfo(missing(cond.field, 'unknown'));
       if (cond.values.includes(v)) {
@@ -239,8 +241,8 @@ function evalCondition(cond: Condition, profile: BusinessProfile, ctx: EvalConte
 interface RuleVerdict {
   def: ApprovalDefinition;
   outcome: EvaluationOutcome;
-  reason?: string;
-  exclusionMatched?: boolean;
+  reason?: string | undefined;
+  exclusionMatched?: boolean | undefined;
   matched: readonly Condition[];
   failed: readonly Condition[];
   needed: readonly MissingField[];
@@ -469,6 +471,7 @@ export function evaluate(
         matchedConditions: v.matched,
         failedConditions: v.failed,
         neededInformation: outcome === 'needs_information' ? v.needed : [],
+        missingFields: outcome === 'needs_information' ? v.needed : [],
       };
       approvals.push(evalItem);
     }
