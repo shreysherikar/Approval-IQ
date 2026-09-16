@@ -26,8 +26,8 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../src/auth/password.util.js';
-import { toEngineCondition, type EngineCondition, type EngineRelationship } from '../src/evaluations/evaluations.service.js';
+import { hashPassword } from '../src/auth/password.util';
+import { toEngineCondition, type EngineCondition, type EngineRelationship } from '../src/evaluations/evaluations.service';
 
 const DEMO_PROJECT_NAME = 'Pune Craft Brewery';
 const DEMO_BUSINESS_ID = 'biz-demo-pune-brewery';
@@ -98,6 +98,7 @@ async function ensureRegulatoryData(prisma: PrismaClient): Promise<string> {
     cwd: resolve(__dirname, '..'),
     stdio: 'inherit',
     env: { ...process.env },
+    shell: true,
   });
 
   const recheck = await prisma.knowledgeRelease.findFirst({
@@ -268,7 +269,6 @@ async function main(): Promise<void> {
 
     const applicant = userMap.applicant!;
     const officer = userMap.officer!;
-    const _admin = userMap.admin!;
 
     // 3. Officer Authority Scoping
     console.log('\n[2/7] Scoping officer across authorities...');
@@ -362,8 +362,14 @@ async function main(): Promise<void> {
       relationship: d.relationship as EngineRelationship,
     }));
 
-    const { evaluate } = (await import('@approvaliq/approval-engine')) as {
-      evaluate: (profile: unknown, defs: unknown, deps: unknown) => {
+    const { evaluate } = (await import(
+      '@approvaliq/approval-engine' as string
+    )) as unknown as {
+      evaluate: (
+        profile: unknown,
+        defs: unknown,
+        deps: unknown,
+      ) => {
         approvals: Array<{ approval: { id: string }; outcome: string; neededInformation: unknown }>;
         [k: string]: unknown;
       };
@@ -470,7 +476,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
       data: {
         id: doc1Id,
         projectId: project.id,
-        documentDefinitionId: docDefTradeLicence?.id,
+        documentDefinitionId: docDefTradeLicence?.id ?? null,
         documentDefinitionManualOverride: true,
         metadata: {
           notes: 'Municipal Trade Licence issued by Pune Municipal Corporation',
@@ -529,7 +535,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
       promptVersion: string;
     };
 
-    if (isRealExtractionConfigured) {
+    if (isRealExtractionConfigured && anthropicApiKey) {
       console.log('  ⚡ LLM_PROVIDER=anthropic detected with API key. Executing real extraction via Anthropic API...');
       try {
         const { AnthropicExtractionProvider } = (await import('@approvaliq/document-engine')) as {
@@ -544,7 +550,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
         };
         const realProvider = new AnthropicExtractionProvider({
           apiKey: anthropicApiKey,
-          model: process.env.ANTHROPIC_MODEL,
+          ...(process.env.ANTHROPIC_MODEL ? { model: process.env.ANTHROPIC_MODEL } : {}),
         });
         doc1ExtractionOutput = await realProvider.extract(tradeLicenceBuffer, 'text/plain');
         console.log(`  ✓ Real Anthropic extraction completed successfully (${doc1ExtractionOutput.modelVersion}).`);
@@ -554,7 +560,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
           fields: doc1MockExtractionFields,
           modelProvider: 'mock',
           modelVersion: 'mock-1.0.0',
-          promptVersion: 'n/a',
+          promptVersion: '1.0.0',
         };
       }
     } else {
@@ -562,7 +568,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
         fields: doc1MockExtractionFields,
         modelProvider: 'mock',
         modelVersion: 'mock-1.0.0',
-        promptVersion: 'n/a',
+        promptVersion: '1.0.0',
       };
     }
 
@@ -677,7 +683,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
       data: {
         id: doc2Id,
         projectId: project.id,
-        documentDefinitionId: docDefLease?.id,
+        documentDefinitionId: docDefLease?.id ?? null,
         documentDefinitionManualOverride: true,
         metadata: {
           notes: 'Registered Long-Term Industrial Lease Deed (30 years) with MIDC / Landowner',
@@ -918,63 +924,70 @@ APPROVALIQ_DEMO_TRADE_LICENCE
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 5); // 5 days remaining in Tier 2
 
-    const grv = await prisma.grievance.create({
-      data: {
-        grievanceNumber: 'GRV-2026-948102',
-        projectId: project.id,
-        authorityId: authMpcb.id,
-        submittedByUserId: applicant.id,
-        type: 'sla_breach_delay',
-        tier: 'tier_2_appellate_authority',
-        status: 'under_investigation',
-        subject: 'Statutory Delay: Tree Authority NOC Exceeded 30-Day Mandatory SLA',
-        description:
-          'Tree felling & transplant NOC application filed 42 days ago. Mandated SLA under Maharashtra RTS Act is 30 days. No inspection conducted or reasons given for withholding sanction.',
-        statutorySlaDays: 15,
-        targetResolutionDate: targetDate,
-        actions: {
-          create: [
-            {
-              actorUserId: applicant.id,
-              actorRole: 'applicant',
-              actionType: 'grievance_submitted',
-              fromStatus: null,
-              toStatus: 'submitted',
-              fromTier: null,
-              toTier: 'tier_1_nodal_officer',
-              remarks: 'Initial complaint filed before Designated First Authority regarding 12-day SLA breach.',
-            },
-            {
-              actorUserId: applicant.id,
-              actorRole: 'applicant',
-              actionType: 'statutory_escalation',
-              fromStatus: 'submitted',
-              toStatus: 'escalated',
-              fromTier: 'tier_1_nodal_officer',
-              toTier: 'tier_2_appellate_authority',
-              remarks:
-                'First Authority failed to issue response within statutory 15 days. Escalated to First Appellate Authority (District Collector / Additional Commissioner).',
-            },
-            {
-              actorUserId: officer.id,
-              actorRole: 'officer',
-              actionType: 'investigation_initiated',
-              fromStatus: 'escalated',
-              toStatus: 'under_investigation',
-              fromTier: 'tier_2_appellate_authority',
-              toTier: 'tier_2_appellate_authority',
-              remarks:
-                'Appellate Authority took cognizance. Summons issued to desk officer; hearing fixed for tomorrow.',
-              metadata: {
-                hearingScheduledAt: new Date(Date.now() + 86400000).toISOString(),
-                assignedInvestigator: 'Additional District Magistrate (Industries)',
-              },
-            },
-          ],
-        },
-      },
+    const existingGrv = await prisma.grievance.findUnique({
+      where: { grievanceNumber: 'GRV-2026-948102' },
     });
-    console.log(`  ✓ Active statutory grievance created (${grv.grievanceNumber}) under Tier 2 Appellate review.`);
+    if (existingGrv) {
+      console.log(`  ✓ Active statutory grievance already present (${existingGrv.grievanceNumber}) under Tier 2 Appellate review.`);
+    } else {
+      const grv = await prisma.grievance.create({
+        data: {
+          grievanceNumber: 'GRV-2026-948102',
+          projectId: project.id,
+          authorityId: authMpcb.id,
+          submittedByUserId: applicant.id,
+          type: 'sla_breach_delay',
+          tier: 'tier_2_appellate_authority',
+          status: 'under_investigation',
+          subject: 'Statutory Delay: Tree Authority NOC Exceeded 30-Day Mandatory SLA',
+          description:
+            'Tree felling & transplant NOC application filed 42 days ago. Mandated SLA under Maharashtra RTS Act is 30 days. No inspection conducted or reasons given for withholding sanction.',
+          statutorySlaDays: 15,
+          targetResolutionDate: targetDate,
+          actions: {
+            create: [
+              {
+                actorUserId: applicant.id,
+                actorRole: 'applicant',
+                actionType: 'grievance_submitted',
+                fromStatus: null,
+                toStatus: 'submitted',
+                fromTier: null,
+                toTier: 'tier_1_nodal_officer',
+                remarks: 'Initial complaint filed before Designated First Authority regarding 12-day SLA breach.',
+              },
+              {
+                actorUserId: applicant.id,
+                actorRole: 'applicant',
+                actionType: 'statutory_escalation',
+                fromStatus: 'submitted',
+                toStatus: 'escalated',
+                fromTier: 'tier_1_nodal_officer',
+                toTier: 'tier_2_appellate_authority',
+                remarks:
+                  'First Authority failed to issue response within statutory 15 days. Escalated to First Appellate Authority (District Collector / Additional Commissioner).',
+              },
+              {
+                actorUserId: officer.id,
+                actorRole: 'officer',
+                actionType: 'investigation_initiated',
+                fromStatus: 'escalated',
+                toStatus: 'under_investigation',
+                fromTier: 'tier_2_appellate_authority',
+                toTier: 'tier_2_appellate_authority',
+                remarks:
+                  'Appellate Authority took cognizance. Summons issued to desk officer; hearing fixed for tomorrow.',
+                metadata: {
+                  hearingScheduledAt: new Date(Date.now() + 86400000).toISOString(),
+                  assignedInvestigator: 'Additional District Magistrate (Industries)',
+                },
+              },
+            ],
+          },
+        },
+      });
+      console.log(`  ✓ Active statutory grievance created (${grv.grievanceNumber}) under Tier 2 Appellate review.`);
+    }
 
     // Finished summary
     console.log('\n====================================================');
@@ -1006,7 +1019,6 @@ APPROVALIQ_DEMO_TRADE_LICENCE
 }
 
 
-void main();
 main().catch((err) => {
   console.error('\n❌ Seed failed:', err instanceof Error ? err.message : String(err));
   if (err instanceof Error && err.stack) console.error(err.stack);
