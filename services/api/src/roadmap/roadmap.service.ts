@@ -1144,7 +1144,7 @@ Based on your facility's profile, our AI engine has mapped out the optimal combi
           gitHubIssueUrl = issueData.html_url;
           gitHubStatus = 'dispatched';
         }
-      } catch (err) {
+      } catch {
         // Fallback gracefully to simulated payload metadata
       }
     }
