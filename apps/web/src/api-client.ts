@@ -1608,7 +1608,52 @@ export const officerActionsApi = {
 };
 
 // ---------------------------------------------------------------------------
-// Projects API (create)
+// Government Single-Window & DigiLocker Interoperability Gateway API
 // ---------------------------------------------------------------------------
 
+export interface ExternalPortalAdapter {
+  portalCode: 'maitri' | 'nsws' | 'digilocker' | 'apisetu';
+  portalName: string;
+  jurisdiction: string;
+  status: 'connected' | 'mock_ready' | 'sandbox_active';
+  syncDirection: 'inbound_push' | 'bidirectional' | 'pull_query';
+  supportedEntities: string[];
+}
 
+export const integrationsApi = {
+  getAdapters(token?: string): Promise<ExternalPortalAdapter[]> {
+    return get('/integrations/adapters', { token });
+  },
+  exportPacket(
+    body: { portalCode: 'maitri' | 'nsws'; projectId: string; approvalCode: string; packetId: string },
+    token?: string,
+  ): Promise<{
+    success: boolean;
+    remoteTransactionId: string;
+    targetPortal: string;
+    acknowledgedAt: string;
+    portalReceiptUrl: string;
+  }> {
+    return post('/integrations/export-packet', body, { token });
+  },
+  fetchDigiLocker(
+    body: { docType: string; docNumber: string },
+    token?: string,
+  ): Promise<{
+    verified: boolean;
+    issuer: string;
+    docType: string;
+    digiLockerDocId: string;
+    digitalSignature: {
+      signedBy: string;
+      algorithm: string;
+      valid: boolean;
+    };
+  }> {
+    return post('/integrations/digilocker/fetch', body, { token });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Projects API (create)
+// ---------------------------------------------------------------------------

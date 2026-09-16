@@ -21,6 +21,7 @@ import { RegulatoryChangesModule } from './regulatory-changes/regulatory-changes
 import { RecoveryModule } from './recovery/recovery.module';
 import { RiskModule } from './risk/risk.module';
 import { AuditModule } from './audit/audit.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AuditModule } from './audit/audit.module';
     RecoveryModule,
     RiskModule,
     AuditModule,
+    IntegrationsModule,
   ],
 })
 export class AppModule {}

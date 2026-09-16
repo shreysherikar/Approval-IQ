@@ -43,6 +43,9 @@ export function Layout(): JSX.Element {
                     <Link to="/regulatory-changes" className="text-blue-600 hover:underline">
                       Regulatory Changes
                     </Link>
+                    <Link to="/integrations" className="text-blue-600 hover:underline">
+                      Single-Window Hub
+                    </Link>
                   </>
                 ) : (
                   <>
@@ -51,6 +54,9 @@ export function Layout(): JSX.Element {
                     </Link>
                     <Link to="/regulatory-changes" className="text-blue-600 hover:underline">
                       Regulatory Changes
+                    </Link>
+                    <Link to="/integrations" className="text-blue-600 hover:underline">
+                      Single-Window Hub
                     </Link>
                   </>
                 )}
