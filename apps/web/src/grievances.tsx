@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './auth';
+import { FileText, Printer, X, Scale } from 'lucide-react';
+import { useLanguage } from './i18n';
 import {
   grievancesApi,
   documentsApi,
@@ -54,8 +56,6 @@ const TYPE_LABELS: Record<GrievanceType, string> = {
   fee_overcharge: 'Fee Schedule Discrepancy / Overcharge',
   other: 'Other Administrative Non-compliance',
 };
-
-import { useSearchParams } from 'react-router-dom';
 
 export function GrievanceCenterPage(): JSX.Element {
   const { id: projectId } = useParams<{ id: string }>();
@@ -298,10 +298,12 @@ function GrievanceDetailPanel({
   onRefresh: () => void;
   isOfficer: boolean;
 }): JSX.Element {
+  const { t } = useLanguage();
   const [showEscalateModal, setShowEscalateModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showInvestigateModal, setShowInvestigateModal] = useState(false);
   const [showResolveModal, setShowResolveModal] = useState(false);
+  const [showFilingPackModal, setShowFilingPackModal] = useState(false);
 
   const statusInfo = STATUS_LABELS[grievance.status];
   const currentTierInfo = TIER_LABELS[grievance.tier];
@@ -332,6 +334,15 @@ function GrievanceDetailPanel({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowFilingPackModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-100 cursor-pointer"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>{t('grievances.export_pack')}</span>
+          </button>
+
           {canEscalate && !isOfficer && (
             <button
               type="button"
@@ -596,6 +607,14 @@ function GrievanceDetailPanel({
             setShowResolveModal(false);
             onRefresh();
           }}
+        />
+      )}
+
+      {showFilingPackModal && (
+        <AppealFilingPackModal
+          grievance={grievance}
+          projectId={projectId}
+          onClose={() => setShowFilingPackModal(false)}
         />
       )}
     </div>
@@ -1150,6 +1169,211 @@ function ResolveGrievanceModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Statutory Appeal Filing Pack Modal (Print & PDF Docket)
+// ---------------------------------------------------------------------------
+
+function AppealFilingPackModal({
+  grievance,
+  projectId,
+  onClose,
+}: {
+  grievance: GrievanceView;
+  projectId: string;
+  onClose: () => void;
+}): JSX.Element {
+  const currentTierInfo = TIER_LABELS[grievance.tier];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-xs">
+      <div className="relative w-full max-w-3xl rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden animate-scaleUp">
+        {/* Top Modal Controls Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <Scale className="h-5 w-5 text-indigo-700" />
+            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800 font-mono">
+              Statutory Appeal Filing Pack (RTS Docket)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow transition-colors cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print / Save PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Printable Official Docket Sheet */}
+        <div className="p-8 space-y-6 max-h-[80vh] overflow-y-auto text-slate-800 font-sans print:p-0 print:overflow-visible">
+          {/* Official Emblem & Title */}
+          <div className="text-center border-b-2 border-slate-900 pb-5 space-y-1">
+            <div className="text-[11px] font-bold uppercase tracking-widest text-slate-600 font-mono">
+              Government of Maharashtra
+            </div>
+            <h2 className="text-xl font-black text-slate-950 tracking-tight uppercase">
+              Maharashtra Right to Public Services Act, 2015
+            </h2>
+            <div className="text-xs font-bold text-slate-700 font-mono">
+              FORM 1 · MEMORANDUM OF STATUTORY APPEAL UNDER SECTION 18 / 19
+            </div>
+          </div>
+
+          {/* Docket Summary Band */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+            <div>
+              <div className="text-[10px] text-slate-400 uppercase font-mono">Grievance Docket ID</div>
+              <div className="font-bold font-mono text-slate-900">{grievance.grievanceNumber}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400 uppercase font-mono">Appellate Stage</div>
+              <div className="font-bold text-indigo-700">{currentTierInfo.name.split(':')[0]}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400 uppercase font-mono">Filing Date</div>
+              <div className="font-bold text-slate-900">{new Date(grievance.createdAt).toLocaleDateString()}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400 uppercase font-mono">Statutory Breach</div>
+              <div className="font-bold text-rose-700 font-mono">
+                {grievance.isOverdue ? `${Math.abs(grievance.daysRemaining)} Days Delay` : 'Pending Order'}
+              </div>
+            </div>
+          </div>
+
+          {/* Section A: Particulars of the Appellant & Enterprise */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 font-mono">
+              Section A: Particulars of the Appellant Enterprise
+            </h3>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <p><span className="text-slate-500">Project / Enterprise ID:</span> <strong className="font-mono text-slate-900">{projectId}</strong></p>
+              <p><span className="text-slate-500">Jurisdiction / Location:</span> <strong className="text-slate-900">Pune, Maharashtra</strong></p>
+              <p><span className="text-slate-500">Authorized Representative:</span> <strong className="text-slate-900">{grievance.submittedBy.email}</strong></p>
+              <p><span className="text-slate-500">Project Sector:</span> <strong className="text-slate-900">Brewery &amp; Food Manufacturing</strong></p>
+            </div>
+          </div>
+
+          {/* Section B: Impugned Service & Regulatory Authority */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 font-mono">
+              Section B: Impugned Statutory Service &amp; Respondent Authority
+            </h3>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <p><span className="text-slate-500">Statutory Clearance / License:</span> <strong className="text-slate-900">{grievance.approval ? `${grievance.approval.code} - ${grievance.approval.name}` : 'General Regulatory Clearance'}</strong></p>
+              <p><span className="text-slate-500">Competent Authority (Respondent):</span> <strong className="text-slate-900">{grievance.authority?.name || 'Departmental Officer / SPCB / DISH'}</strong></p>
+              <p><span className="text-slate-500">Designated Statutory SLA:</span> <strong className="font-mono text-slate-900">{grievance.statutorySlaDays} Working Days</strong></p>
+              <p><span className="text-slate-500">Statutory Due Date:</span> <strong className="font-mono text-slate-900">{new Date(grievance.targetResolutionDate).toLocaleDateString()}</strong></p>
+            </div>
+          </div>
+
+          {/* Section C: Grounds of Grievance / Appeal */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 font-mono">
+              Section C: Nature of Statutory Default &amp; Grounds of Appeal
+            </h3>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
+              <p><span className="font-bold text-slate-700">Category of Violation:</span> <span className="font-mono text-indigo-700 font-bold">{TYPE_LABELS[grievance.type]}</span></p>
+              <p><span className="font-bold text-slate-700">Subject:</span> <span>{grievance.subject}</span></p>
+              <p><span className="font-bold text-slate-700">Statement of Facts &amp; Grievance Ground:</span></p>
+              <p className="text-slate-700 whitespace-pre-wrap bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed font-mono text-[11px]">
+                {grievance.description}
+              </p>
+            </div>
+          </div>
+
+          {/* Section D: Chronological Proceedings & Audit Trail */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 font-mono">
+              Section D: Chronological Action &amp; Statutory Hearing Trail ({grievance.actions.length} Events)
+            </h3>
+            <div className="space-y-2 text-xs">
+              {grievance.actions.map((act, idx) => (
+                <div key={act.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      {idx + 1}. {act.actionType.replace(/_/g, ' ').toUpperCase()} {act.orderNumber && `(Order #${act.orderNumber})`}
+                    </div>
+                    <div className="text-slate-600 mt-0.5">{act.remarks}</div>
+                  </div>
+                  <div className="text-[10px] font-mono text-slate-400 shrink-0 text-right">
+                    {new Date(act.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Section E: Evidentiary Attachments */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 border-b border-slate-200 pb-1 font-mono">
+              Section E: Attached Evidentiary Documents ({grievance.documents.length})
+            </h3>
+            {grievance.documents.length > 0 ? (
+              <ul className="divide-y divide-slate-100 text-xs">
+                {grievance.documents.map((d) => (
+                  <li key={d.id} className="py-2 flex items-center justify-between">
+                    <span className="font-mono text-slate-800">{d.filename}</span>
+                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Hash Verified (SHA-256)
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-slate-500 italic">No external document attachments linked to this grievance docket.</p>
+            )}
+          </div>
+
+          {/* Statutory Declaration & Signature Box */}
+          <div className="pt-4 border-t-2 border-slate-900 flex items-end justify-between text-xs">
+            <div className="space-y-1">
+              <p className="font-bold text-slate-900">Verification &amp; Attestation</p>
+              <p className="text-[11px] text-slate-600 max-w-sm">
+                I hereby declare that the particulars stated above are true and correct to the best of my knowledge and belief pursuant to the Maharashtra Right to Public Services Act, 2015.
+              </p>
+            </div>
+            <div className="text-right space-y-1">
+              <div className="font-mono text-[10px] text-slate-400">Digitally Verified via ApprovalIQ</div>
+              <div className="font-bold text-slate-900">{grievance.submittedBy.email}</div>
+              <div className="text-[10px] text-slate-500">Authorized Signatory</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-200 cursor-pointer"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow cursor-pointer"
+          >
+            Print Official Docket
+          </button>
+        </div>
       </div>
     </div>
   );

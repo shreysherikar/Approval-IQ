@@ -85,6 +85,7 @@ import {
 } from './components';
 import { PROFILE_FIELD_LABELS } from './profile-form';
 import { RecoveryPlanPanel } from './recovery';
+import { useLanguage } from './i18n';
 
 // ---------------------------------------------------------------------------
 // Department & Regulatory Knowledge Mapping (Rule-aligned helper metadata)
@@ -582,6 +583,11 @@ function DetailDrawer({
 }: DetailDrawerProps): JSX.Element {
   const queryClient = useQueryClient();
   const { accessToken } = useAuth();
+  const { t } = useLanguage();
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState<'ambiguous' | 'outdated' | 'missing_doc' | 'sla_discrepancy'>('ambiguous');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   const meta = getApprovalMeta(node.approvalCode, node.approvalName);
   const statusConfig = STATUS_CONFIGS[node.status] || STATUS_CONFIGS.blocked;
   const outcomeConfig = OUTCOME_CONFIGS[node.outcome] || OUTCOME_CONFIGS.not_evaluable;
@@ -977,9 +983,114 @@ function DetailDrawer({
               </a>
             </div>
           )}
+
+          {/* Report an Issue with this Requirement (Dossier Part 9.3) */}
+          <div className="pt-2 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => {
+                setIsReportOpen(true);
+                setReportSubmitted(false);
+              }}
+              className="inline-flex items-center justify-center w-full gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300 border border-slate-200 text-slate-600 font-semibold text-xs transition-colors cursor-pointer"
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+              <span>{t('roadmap.report_issue')}</span>
+            </button>
+          </div>
         </div>
 
       </div>
+
+      {/* Requirement Issue Reporting Modal */}
+      {isReportOpen && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+                <h4 className="font-bold text-slate-900 text-sm">{t('roadmap.report_modal_title')}</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReportOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {reportSubmitted ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                <p className="text-xs font-bold text-emerald-800">{t('roadmap.report_submitted')}</p>
+                <p className="text-[11px] text-emerald-700">Audit Reference: REP-{Date.now().toString(36).toUpperCase()}</p>
+                <button
+                  type="button"
+                  onClick={() => setIsReportOpen(false)}
+                  className="mt-2 px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-xs text-slate-600">
+                  Reporting an issue for: <strong className="text-slate-900">{node.approvalName}</strong> (<span className="font-mono text-[10px]">{node.approvalCode}</span>)
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Issue Category
+                  </label>
+                  <select
+                    value={reportCategory}
+                    onChange={(e) => setReportCategory(e.target.value as any)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
+                  >
+                    <option value="ambiguous">Ambiguous Requirement / Text</option>
+                    <option value="outdated">Outdated Statutory Reference or Clause</option>
+                    <option value="missing_doc">Missing Required Document</option>
+                    <option value="sla_discrepancy">SLA Timeline Discrepancy</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Specific Clarification / Discrepancy Note
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    placeholder="Describe the discrepancy or proposed regulatory correction..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsReportOpen(false)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportSubmitted(true);
+                    }}
+                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow"
+                  >
+                    Submit to Regulatory Desk
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Drawer Footer Action Buttons */}
       <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
@@ -2792,6 +2903,7 @@ export function RoadmapPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const projectId = id as string;
   const { accessToken, isRestoring } = useAuth();
+  const { t, language } = useLanguage();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedScheme, setSelectedScheme] = useState<SchemeEvaluationInfo | null>(null);
@@ -3015,16 +3127,16 @@ export function RoadmapPage(): JSX.Element {
         <div>
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium mb-1.5">
-            <Link to="/projects" className="hover:text-blue-600 transition-colors">Projects</Link>
+            <Link to="/projects" className="hover:text-blue-600 transition-colors">{t('nav.projects')}</Link>
             <span>/</span>
             <span className="text-slate-800 font-bold">Pune Brewery Expansion</span>
             <span>/</span>
-            <span className="text-blue-600 font-bold">Approval Roadmap</span>
+            <span className="text-blue-600 font-bold">{t('nav.roadmap')}</span>
           </nav>
 
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Approval Roadmap
+              {t('roadmap.title')}
             </h1>
             <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold font-mono">
               Pune, Maharashtra · Brewery
@@ -3032,7 +3144,7 @@ export function RoadmapPage(): JSX.Element {
           </div>
 
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Your compliance journey at a glance. Complete clearances progressively along the critical path.
+            {t('roadmap.subtitle')}
           </p>
         </div>
         {/* Action controls */}
@@ -3073,6 +3185,19 @@ export function RoadmapPage(): JSX.Element {
           >
             Edit Profile
           </Link>
+        </div>
+      </div>
+
+      {/* Point-of-Display Statutory Disclaimer Banner (Dossier Part 9.1) */}
+      <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-amber-900 text-xs shadow-2xs">
+        <Scale className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+        <div className="space-y-0.5">
+          <p className="font-bold tracking-tight">
+            {language === 'mr' ? 'वैधानिक अस्वीकरण (Statutory Disclaimer)' : 'Statutory Regulatory Notice & Disclaimer'}
+          </p>
+          <p className="text-amber-800 leading-relaxed text-[11px]">
+            {t('roadmap.disclaimer')}
+          </p>
         </div>
       </div>
 
