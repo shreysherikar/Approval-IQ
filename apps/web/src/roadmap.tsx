@@ -2980,7 +2980,7 @@ export function RoadmapPage(): JSX.Element {
   const [ruleKindFilter, setRuleKindFilter] = useState<'all' | 'approvals' | 'schemes'>('all');
   const [schemeStatusFilter, setSchemeStatusFilter] = useState<string>('all');
   const [schemeCategoryFilter, setSchemeCategoryFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'roadmap' | 'list' | 'timeline'>('roadmap');
+  const [viewMode, setViewMode] = useState<'roadmap' | 'parallel' | 'list' | 'timeline'>('roadmap');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -3525,11 +3525,11 @@ export function RoadmapPage(): JSX.Element {
           <div className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4">
             
             {/* View Mode Segmented Control */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs shrink-0 w-full lg:w-auto justify-center">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs shrink-0 w-full lg:w-auto justify-center">
               <button
                 type="button"
                 onClick={() => setViewMode('roadmap')}
-                className={`px-3.5 py-2 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'roadmap' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -3538,8 +3538,18 @@ export function RoadmapPage(): JSX.Element {
               </button>
               <button
                 type="button"
+                onClick={() => setViewMode('parallel')}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === 'parallel' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{t('view.parallel_layers', '⚡ Parallel Execution Layers')}</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setViewMode('list')}
-                className={`px-3.5 py-2 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'list' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -3549,7 +3559,7 @@ export function RoadmapPage(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setViewMode('timeline')}
-                className={`px-3.5 py-2 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'timeline' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -3641,6 +3651,92 @@ export function RoadmapPage(): JSX.Element {
                   <Controls position="bottom-left" showInteractive={false} />
                 </ReactFlow>
               </div>
+            </div>
+          )}
+
+          {/* VIEW 1.5: PARALLEL EXECUTION LAYERS (TOPOLOGICAL PARALLELIZATION VIEW) */}
+          {viewMode === 'parallel' && (
+            <div className="space-y-6 animate-fadeIn py-2">
+              <div className="p-5 rounded-3xl bg-indigo-950 text-white shadow-xl space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="p-2 rounded-xl bg-indigo-800 text-indigo-200">
+                    <Layers className="w-5 h-5" />
+                  </span>
+                  <h3 className="text-lg font-extrabold text-white">
+                    Topological Parallel Execution Layers
+                  </h3>
+                </div>
+                <p className="text-xs text-indigo-200 leading-relaxed max-w-3xl">
+                  Computed by <code className="font-mono bg-indigo-900 px-1.5 py-0.5 rounded text-indigo-300">gatingLayers()</code> over statutory <code className="font-mono bg-indigo-900 px-1.5 py-0.5 rounded text-indigo-300">depends_on</code> edges. Approvals in the same vertical layer share zero gating prerequisites with each other and can be legally prepared simultaneously.
+                </p>
+              </div>
+
+              {data?.parallelGroups && data.parallelGroups.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {data.parallelGroups.map((group, layerIdx) => {
+                    const layerNodes = data.nodes.filter((n) => group.includes(n.id));
+                    if (layerNodes.length === 0) return null;
+
+                    return (
+                      <div
+                        key={layerIdx}
+                        className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-4 shadow-sm"
+                      >
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white font-mono font-bold text-xs flex items-center justify-center">
+                              {layerIdx + 1}
+                            </span>
+                            <h4 className="font-extrabold text-slate-900 text-sm">
+                              {layerIdx === 0 ? 'Layer 1: Unblocked Readiness' : `Layer ${layerIdx + 1}: Unlocks Level ${layerIdx + 1}`}
+                            </h4>
+                          </div>
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                            {layerNodes.length} Parallel Node(s)
+                          </span>
+                        </div>
+
+                        <div className="space-y-3">
+                          {layerNodes.map((n) => {
+                            const meta = getApprovalMeta(n.approvalCode, n.approvalName);
+                            const statusConfig = STATUS_CONFIGS[n.status] || STATUS_CONFIGS.blocked;
+
+                            return (
+                              <div
+                                key={n.id}
+                                onClick={() => setSelectedId(n.id)}
+                                className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-500 shadow-2xs hover:shadow-md transition-all cursor-pointer space-y-2"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="p-1.5 rounded-lg bg-slate-100 border border-slate-200">
+                                      <ApprovalIcon iconKey={meta.iconKey} className="w-4 h-4 text-slate-800" />
+                                    </span>
+                                    <div>
+                                      <div className="font-bold text-slate-900 text-xs">{n.approvalName}</div>
+                                      <div className="text-[10px] font-mono text-slate-400">{n.approvalCode}</div>
+                                    </div>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${statusConfig.badgeBg}`}>
+                                    {n.status === 'available' ? 'Ready' : n.status === 'in_progress' ? 'In Progress' : n.status === 'done' ? 'Done' : 'Blocked'}
+                                  </span>
+                                </div>
+
+                                <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
+                                  <span>{meta.department}</span>
+                                  <span className="text-indigo-600 font-bold hover:underline">Inspect →</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 italic">No parallel layers computed.</p>
+              )}
             </div>
           )}
 

@@ -239,6 +239,7 @@ export const translations = {
 
     // Controls & Views
     'view.roadmap_graph': 'Roadmap Graph',
+    'view.parallel_layers': '⚡ Parallel Execution Layers',
     'view.list_view': 'List View',
     'view.timeline': 'Timeline',
     'search.placeholder': 'Search approvals or authority...',
