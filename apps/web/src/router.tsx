@@ -17,6 +17,8 @@ import { ContactPage } from './landing/ContactPage';
 import { BusinessMapPage } from './landing/BusinessMapPage';
 import { OfficerApplicationPage, OfficerQueuePage } from './officer-pages';
 import { RegulatoryChangesListPage, RegulatoryChangeDetailPage, ImpactDashboardPage } from './regulatory-changes';
+import { TimeCostPredictionPage } from './time-cost';
+import { MarketIntelligencePage } from './market-intelligence';
 
 export const router = createBrowserRouter([
   {
@@ -38,6 +40,8 @@ export const router = createBrowserRouter([
       { path: 'projects/:id/clarifications', element: <ProjectClarificationsPage /> },
       { path: 'projects/:id/documents/:documentId', element: <ProjectDocumentPage /> },
       { path: 'regulatory-changes', element: <RegulatoryChangesListPage /> },
+      { path: 'time-cost-prediction', element: <TimeCostPredictionPage /> },
+      { path: 'market-intelligence', element: <MarketIntelligencePage /> },
       { path: 'regulatory-changes/:id', element: <RegulatoryChangeDetailPage /> },
       { path: 'regulatory-changes/:id/impacts', element: <ImpactDashboardPage /> },
       { path: 'officer', element: <OfficerQueuePage /> },

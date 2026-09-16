@@ -1,5 +1,6 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
+import { Clock, MapPinned } from 'lucide-react';
 
 export function Layout(): JSX.Element {
   const { user, isAuthenticated, isOfficer, logout } = useAuth();
@@ -54,6 +55,32 @@ export function Layout(): JSX.Element {
                     </Link>
                   </>
                 )}
+                {/* Business Intelligence section — dedicated, always visible. */}
+                <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono border-l border-gray-200 pl-3">
+                  Business Intelligence
+                </span>
+                <NavLink
+                  to="/time-cost-prediction"
+                  className={({ isActive }) =>
+                    `inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      isActive ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-600 hover:bg-blue-50'
+                    }`
+                  }
+                >
+                  <Clock className="h-4 w-4" />
+                  Time &amp; Cost
+                </NavLink>
+                <NavLink
+                  to="/market-intelligence"
+                  className={({ isActive }) =>
+                    `inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      isActive ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-600 hover:bg-blue-50'
+                    }`
+                  }
+                >
+                  <MapPinned className="h-4 w-4" />
+                  Market Intel
+                </NavLink>
                 <button
                   type="button"
                   onClick={handleLogout}

@@ -20,6 +20,8 @@ import { RegulatoryChangesModule } from './regulatory-changes/regulatory-changes
 import { RecoveryModule } from './recovery/recovery.module';
 import { RiskModule } from './risk/risk.module';
 import { AuditModule } from './audit/audit.module';
+import { TimeCostModule } from './time-cost/time-cost.module';
+import { MarketModule } from './market/market.module';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { AuditModule } from './audit/audit.module';
     RecoveryModule,
     RiskModule,
     AuditModule,
+    TimeCostModule,
+    MarketModule,
   ],
 })
 export class AppModule {}

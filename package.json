@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "concurrently -n docker,api,web -c blue,green,magenta \"docker compose up\" \"pnpm --filter api dev\" \"pnpm --filter @approvaliq/web dev\"",
+    "dev": "concurrently -n docker,api,web -c blue,green,magenta \"docker compose up postgres\" \"pnpm --filter api dev\" \"pnpm --filter @approvaliq/web dev\"",
     "test": "pnpm -r --if-present run test",
     "lint": "pnpm -r --if-present run lint",
     "typecheck": "pnpm -r --if-present run typecheck",
