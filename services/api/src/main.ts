@@ -19,8 +19,15 @@ async function bootstrap(): Promise<void> {
   // credentials: true is required for the httpOnly refresh cookie the web app
   // uses to restore its session after a reload (see AuthController). Tighten
   // origins in later phases; production hardening lands in Phase 15.
+  const corsOrigins = config
+    .get<string>(
+      'CORS_ORIGIN',
+      'http://localhost:5173,http://127.0.0.1:5173',
+    )
+    .split(',');
+
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: corsOrigins,
     credentials: true,
   });
 
