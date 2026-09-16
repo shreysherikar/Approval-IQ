@@ -33,14 +33,12 @@
     "test:integration:clarifications": "tsx test/clarifications.integration.test.ts",
     "test:integration:grievances": "tsx test/grievances.integration.test.ts",
     "officer:assign": "tsx scripts/assign-officer.ts",
-    "demo:seed": "tsx scripts/seed-demo.ts"
-    "officer:assign": "tsx scripts/assign-officer.ts",
+    "demo:seed": "tsx scripts/seed-demo.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "seed:demo:reset": "tsx scripts/seed-demo.ts --reset"
   },
   "prisma": {
     "seed": "tsx scripts/seed-demo.ts"
-
   },
   "dependencies": {
     "@approvaliq/approval-engine": "workspace:*",

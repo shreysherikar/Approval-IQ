@@ -29,14 +29,14 @@ model Industry {
 }
 
 model Authority {
-  id            String               @id @default(uuid())
-  code          String               @unique
-  name          String
-  department    String?
-  jurisdiction  String?
-  officialUrl   String?              @map("official_url")
-  approvals     ApprovalDefinition[]
-  issuedDocs    DocumentDefinition[] @relation("IssuingAuthority")
+  id                 String                       @id @default(uuid())
+  code               String                       @unique
+  name               String
+  department         String?
+  jurisdiction       String?
+  officialUrl        String?                      @map("official_url")
+  approvals          ApprovalDefinition[]
+  issuedDocs         DocumentDefinition[]         @relation("IssuingAuthority")
   // Phase 9: officer queue scoping + denormalized clarification scope.
   officerAssignments OfficerAuthorityAssignment[]
   clarifications     ClarificationRequest[]
@@ -186,28 +186,28 @@ enum Role {
 
 // Minimal user record backing the auth skeleton. Extended in later phases.
 model User {
-  id               String            @id @default(uuid())
-  email            String            @unique
-  passwordHash     String?           @map("password_hash")
-  googleId         String?           @unique @map("google_id")
-  authProvider     String            @default("local") @map("auth_provider")
-  role             Role              @default(applicant)
-  memberships      ProjectMember[]
-  uploadedVersions DocumentVersion[]
-  corrections      FieldCorrection[]
-  verificationRuns VerificationRecord[]
+  id                      String                       @id @default(uuid())
+  email                   String                       @unique
+  passwordHash            String?                      @map("password_hash")
+  googleId                String?                      @unique @map("google_id")
+  authProvider            String                       @default("local") @map("auth_provider")
+  role                    Role                         @default(applicant)
+  memberships             ProjectMember[]
+  uploadedVersions        DocumentVersion[]
+  corrections             FieldCorrection[]
+  verificationRuns        VerificationRecord[]
   // Phase 9: which authorities an officer may act for, and the attribution of
   // every clarification action (append-only — never overwritten).
-  officerAssignments     OfficerAuthorityAssignment[] @relation("OfficerAuthorityAssignments")
-  clarificationsRequested ClarificationRequest[]      @relation("ClarificationRequester")
-  clarificationsResolved  ClarificationRequest[]      @relation("ClarificationResolver")
-  clarificationResponses  ClarificationResponse[]     @relation("ClarificationResponseAuthor")
-  grievancesSubmitted     Grievance[]                 @relation("GrievanceSubmitter")
-  grievancesResolved      Grievance[]                 @relation("GrievanceResolver")
-  grievanceActions        GrievanceAction[]           @relation("GrievanceActionAuthor")
-  auditEvents            AuditEvent[]
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
+  officerAssignments      OfficerAuthorityAssignment[] @relation("OfficerAuthorityAssignments")
+  clarificationsRequested ClarificationRequest[]       @relation("ClarificationRequester")
+  clarificationsResolved  ClarificationRequest[]       @relation("ClarificationResolver")
+  clarificationResponses  ClarificationResponse[]      @relation("ClarificationResponseAuthor")
+  grievancesSubmitted     Grievance[]                  @relation("GrievanceSubmitter")
+  grievancesResolved      Grievance[]                  @relation("GrievanceResolver")
+  grievanceActions        GrievanceAction[]            @relation("GrievanceActionAuthor")
+  auditEvents             AuditEvent[]
+  createdAt               DateTime                     @default(now()) @map("created_at")
+  updatedAt               DateTime                     @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -257,27 +257,28 @@ enum ApprovalInstanceStatus {
 }
 
 model ApprovalInstance {
-  id                   String                 @id @default(uuid())
-  projectId            String                 @map("project_id")
-  project              Project                @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  approvalDefinitionId String                 @map("approval_definition_id")
-  approvalDefinition   ApprovalDefinition     @relation(fields: [approvalDefinitionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  id                   String                     @id @default(uuid())
+  projectId            String                     @map("project_id")
+  project              Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalDefinitionId String                     @map("approval_definition_id")
+  approvalDefinition   ApprovalDefinition         @relation(fields: [approvalDefinitionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   // The specific EvaluationResult that produced this instance. Outcome is never
   // recomputed or restated here — always read it through this relation.
-  evaluationResultId   String                 @unique @map("evaluation_result_id")
-  evaluationResult     EvaluationResult       @relation(fields: [evaluationResultId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  status               ApprovalInstanceStatus @default(blocked)
+  evaluationResultId   String                     @unique @map("evaluation_result_id")
+  evaluationResult     EvaluationResult           @relation(fields: [evaluationResultId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  status               ApprovalInstanceStatus     @default(blocked)
   // Set (once) when the server's dependency re-evaluation first makes this
   // instance available. Never set by the client.
-  unlockedAt           DateTime?              @map("unlocked_at")
-  createdAt            DateTime               @default(now()) @map("created_at")
-  updatedAt            DateTime               @updatedAt @map("updated_at")
+  unlockedAt           DateTime?                  @map("unlocked_at")
+  createdAt            DateTime                   @default(now()) @map("created_at")
+  updatedAt            DateTime                   @updatedAt @map("updated_at")
   documents            ApprovalInstanceDocument[]
   jointInspections     JointInspectionApproval[]
   // Phase 9: clarifications raised by an authority officer on THIS application.
   clarifications       ClarificationRequest[]
   recoveryPlans        RecoveryPlan[]
   auditEvents          AuditEvent[]
+  grievances           Grievance[]
 
   // One roadmap slot per approval per project; re-evaluations re-point the
   // same instance at the newer evaluation result.
@@ -293,12 +294,12 @@ model ApprovalInstance {
 // ---------------------------------------------------------------------------
 
 model ApprovalInstanceDocument {
-  id                  String           @id @default(uuid())
-  approvalInstanceId  String           @map("approval_instance_id")
-  approvalInstance    ApprovalInstance @relation(fields: [approvalInstanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  documentId          String           @map("document_id")
-  document            Document         @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  createdAt           DateTime         @default(now()) @map("created_at")
+  id                 String           @id @default(uuid())
+  approvalInstanceId String           @map("approval_instance_id")
+  approvalInstance   ApprovalInstance @relation(fields: [approvalInstanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  documentId         String           @map("document_id")
+  document           Document         @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt          DateTime         @default(now()) @map("created_at")
 
   @@unique([approvalInstanceId, documentId])
   @@map("approval_instance_documents")
@@ -311,24 +312,24 @@ model ApprovalInstanceDocument {
 // ---------------------------------------------------------------------------
 
 model Project {
-  id                String                   @id @default(uuid())
-  name              String
-  industry          String
-  businessId        String                   @map("business_id")
-  profiles          BusinessProfileVersion[]
-  approvalInstances ApprovalInstance[]
-  members           ProjectMember[]
-  documents         Document[]
+  id                      String                   @id @default(uuid())
+  name                    String
+  industry                String
+  businessId              String                   @map("business_id")
+  profiles                BusinessProfileVersion[]
+  approvalInstances       ApprovalInstance[]
+  members                 ProjectMember[]
+  documents               Document[]
   consistencyCheckResults ConsistencyCheckResult[]
-  jointInspections  JointInspection[]
+  jointInspections        JointInspection[]
   // Phase 9: applicant-visible clarification inbox for this project.
-  clarifications     ClarificationRequest[]
-  grievances         Grievance[]
-  recoveryPlans      RecoveryPlan[]
-  regulatoryImpacts  RegulatoryChangeImpact[]
-  auditEvents        AuditEvent[]
-  createdAt         DateTime                 @default(now()) @map("created_at")
-  updatedAt         DateTime                 @updatedAt @map("updated_at")
+  clarifications          ClarificationRequest[]
+  grievances              Grievance[]
+  recoveryPlans           RecoveryPlan[]
+  regulatoryImpacts       RegulatoryChangeImpact[]
+  auditEvents             AuditEvent[]
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
 
   @@map("projects")
 }
@@ -343,18 +344,18 @@ enum ProfileStatus {
 // is enforced in the ProfilesService (explicit status check), not via DB
 // triggers (same approach as the Phase-1 KnowledgeRelease note above).
 model BusinessProfileVersion {
-  id            String        @id @default(uuid())
-  projectId     String        @map("project_id")
-  project       Project       @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  versionNumber Int           @map("version_number")
-  values        Json          @db.JsonB
-  status        ProfileStatus @default(draft)
-  confirmedAt   DateTime?     @map("confirmed_at")
+  id                String                   @id @default(uuid())
+  projectId         String                   @map("project_id")
+  project           Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  versionNumber     Int                      @map("version_number")
+  values            Json                     @db.JsonB
+  status            ProfileStatus            @default(draft)
+  confirmedAt       DateTime?                @map("confirmed_at")
   // Phase 7: profile-vs-document consistency checks pinned to the exact
   // profile version whose values were compared.
   consistencyChecks ConsistencyCheckResult[]
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
 
   @@unique([projectId, versionNumber])
   @@index([projectId])
@@ -406,26 +407,26 @@ model ProjectMember {
 }
 
 model Document {
-  id                   String              @id @default(uuid())
-  projectId            String              @map("project_id")
-  project              Project             @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id                               String                          @id @default(uuid())
+  projectId                        String                          @map("project_id")
+  project                          Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   // Classification may be unset or manual today; auto-classification is Phase 6.
-  documentDefinitionId String?             @map("document_definition_id")
-  documentDefinition   DocumentDefinition? @relation(fields: [documentDefinitionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  documentDefinitionId             String?                         @map("document_definition_id")
+  documentDefinition               DocumentDefinition?             @relation(fields: [documentDefinitionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   // Tracks if documentDefinitionId was manually overridden (Phase 6: manual override always wins)
-  documentDefinitionManualOverride Boolean   @default(false) @map("document_definition_manual_override")
+  documentDefinitionManualOverride Boolean                         @default(false) @map("document_definition_manual_override")
   // Free-text metadata for manual corrections/annotations
-  metadata             Json?               @db.JsonB
-  currentVersionId     String?             @unique @map("current_version_id")
-  currentVersion       DocumentVersion?    @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  versions             DocumentVersion[]   @relation("Owned")
-  approvalInstances    ApprovalInstanceDocument[]
-  consistencyCheckResults ConsistencyCheckResult[]
+  metadata                         Json?                           @db.JsonB
+  currentVersionId                 String?                         @unique @map("current_version_id")
+  currentVersion                   DocumentVersion?                @relation("CurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  versions                         DocumentVersion[]               @relation("Owned")
+  approvalInstances                ApprovalInstanceDocument[]
+  consistencyCheckResults          ConsistencyCheckResult[]
   // Phase 9: documents offered as evidence when answering a clarification.
-  clarificationResponses ClarificationResponseDocument[]
-  grievanceDocuments     GrievanceDocument[]
-  createdAt            DateTime            @default(now()) @map("created_at")
-  updatedAt            DateTime            @updatedAt @map("updated_at")
+  clarificationResponses           ClarificationResponseDocument[]
+  grievanceDocuments               GrievanceDocument[]
+  createdAt                        DateTime                        @default(now()) @map("created_at")
+  updatedAt                        DateTime                        @updatedAt @map("updated_at")
 
   @@index([projectId])
   @@map("documents")
@@ -460,34 +461,34 @@ model Job {
 }
 
 model DocumentVersion {
-  id               String               @id @default(uuid())
-  documentId       String               @map("document_id")
-  document         Document             @relation("Owned", fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id                         String                   @id @default(uuid())
+  documentId                 String                   @map("document_id")
+  document                   Document                 @relation("Owned", fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   // Inverse of Document.currentVersion — lets one side of the self-reference
   // resolve without ambiguity.
-  currentFor       Document?            @relation("CurrentVersion")
-  versionNumber    Int                  @map("version_number")
+  currentFor                 Document?                @relation("CurrentVersion")
+  versionNumber              Int                      @map("version_number")
   // Opaque key into StorageProvider. Never exposed as a fetchable URL.
-  storageKey       String               @map("storage_key")
-  originalFilename String               @map("original_filename")
-  mimeType         String               @map("mime_type")
-  sizeBytes        Int                  @map("size_bytes")
+  storageKey                 String                   @map("storage_key")
+  originalFilename           String                   @map("original_filename")
+  mimeType                   String                   @map("mime_type")
+  sizeBytes                  Int                      @map("size_bytes")
   // sha256 (Phase 7 content dedup).
-  fileHash         String               @map("file_hash")
-  uploadedByUserId String               @map("uploaded_by_user_id")
-  uploadedBy       User                 @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  uploadedAt       DateTime             @default(now()) @map("uploaded_at")
-  state            DocumentVersionState @default(uploaded)
-  extractions      ExtractionResult[]
-  corrections      FieldCorrection[]
-  verifications    VerificationRecord[]
+  fileHash                   String                   @map("file_hash")
+  uploadedByUserId           String                   @map("uploaded_by_user_id")
+  uploadedBy                 User                     @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  uploadedAt                 DateTime                 @default(now()) @map("uploaded_at")
+  state                      DocumentVersionState     @default(uploaded)
+  extractions                ExtractionResult[]
+  corrections                FieldCorrection[]
+  verifications              VerificationRecord[]
   // Phase 7 consistency checks where this version is the SUBJECT (checked
   // against the profile or another document). Consistency is a WARNING layer:
   // these rows never gate this version's state or its attachability.
   consistencyChecksAsSubject ConsistencyCheckResult[] @relation("ConsistencySubjectVersion")
   consistencyChecksAsOther   ConsistencyCheckResult[] @relation("ConsistencyOtherVersion")
-  createdAt        DateTime             @default(now()) @map("created_at")
-  updatedAt        DateTime             @updatedAt @map("updated_at")
+  createdAt                  DateTime                 @default(now()) @map("created_at")
+  updatedAt                  DateTime                 @updatedAt @map("updated_at")
 
   @@unique([documentId, versionNumber])
   @@index([documentId])
@@ -556,32 +557,32 @@ enum ConsistencyCheckType {
 }
 
 model ConsistencyCheckResult {
-  id                    String               @id @default(uuid())
-  projectId             String               @map("project_id")
-  project               Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  documentId            String               @map("document_id")
-  document              Document             @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id                     String                  @id @default(uuid())
+  projectId              String                  @map("project_id")
+  project                Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  documentId             String                  @map("document_id")
+  document               Document                @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   // The subject version that was checked.
-  documentVersionId     String               @map("document_version_id")
-  documentVersion       DocumentVersion      @relation("ConsistencySubjectVersion", fields: [documentVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  documentVersionId      String                  @map("document_version_id")
+  documentVersion        DocumentVersion         @relation("ConsistencySubjectVersion", fields: [documentVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   // The profile version whose confirmed values were compared (profile_vs_document).
-  profileVersionId      String?              @map("profile_version_id")
-  profileVersion        BusinessProfileVersion? @relation(fields: [profileVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  profileVersionId       String?                 @map("profile_version_id")
+  profileVersion         BusinessProfileVersion? @relation(fields: [profileVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   // The other document version (document_vs_document).
-  otherDocumentVersionId String?             @map("other_document_version_id")
-  otherDocumentVersion  DocumentVersion?     @relation("ConsistencyOtherVersion", fields: [otherDocumentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  checkType             ConsistencyCheckType @map("check_type")
-  checkId               String               @map("check_id")
-  profileField          String?              @map("profile_field")
-  documentField         String               @map("document_field")
+  otherDocumentVersionId String?                 @map("other_document_version_id")
+  otherDocumentVersion   DocumentVersion?        @relation("ConsistencyOtherVersion", fields: [otherDocumentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  checkType              ConsistencyCheckType    @map("check_type")
+  checkId                String                  @map("check_id")
+  profileField           String?                 @map("profile_field")
+  documentField          String                  @map("document_field")
   // Resolved side values at check time (for reviewer display).
-  sideAValue            String?              @map("side_a_value")
-  sideBValue            String?              @map("side_b_value")
+  sideAValue             String?                 @map("side_a_value")
+  sideBValue             String?                 @map("side_b_value")
   // One of: match | mismatch | missing | unknown | not_applicable | not_verified
-  outcome               String
-  tolerancePct          Float?               @map("tolerance_pct")
-  detail                String?
-  createdAt             DateTime             @default(now()) @map("created_at")
+  outcome                String
+  tolerancePct           Float?                  @map("tolerance_pct")
+  detail                 String?
+  createdAt              DateTime                @default(now()) @map("created_at")
 
   @@index([documentVersionId])
   @@index([projectId])
@@ -616,43 +617,43 @@ enum InspectorSignoffStatus {
 }
 
 model JointInspection {
-  id                 String                    @id @default(uuid())
-  projectId          String                    @map("project_id")
-  project            Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  title              String
-  stage              JointInspectionStage
-  status             JointInspectionStatus     @default(draft)
-  scheduledDate      DateTime?                 @map("scheduled_date")
-  timeSlot           String?                   @map("time_slot")
-  premisesAddress    String?                   @map("premises_address")
-  leadAuthorityCode  String?                   @map("lead_authority_code")
-  leadAuthorityName  String?                   @map("lead_authority_name")
-  notes              String?                   @db.Text
-  readinessChecklist Json?                     @map("readiness_checklist") @db.JsonB
-  slotNegotiation    Json?                     @map("slot_negotiation") @db.JsonB
-  rectificationPlan  Json?                     @map("rectification_plan") @db.JsonB
-  jointReportSummary String?                   @map("joint_report_summary") @db.Text
+  id                     String                    @id @default(uuid())
+  projectId              String                    @map("project_id")
+  project                Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  title                  String
+  stage                  JointInspectionStage
+  status                 JointInspectionStatus     @default(draft)
+  scheduledDate          DateTime?                 @map("scheduled_date")
+  timeSlot               String?                   @map("time_slot")
+  premisesAddress        String?                   @map("premises_address")
+  leadAuthorityCode      String?                   @map("lead_authority_code")
+  leadAuthorityName      String?                   @map("lead_authority_name")
+  notes                  String?                   @db.Text
+  readinessChecklist     Json?                     @map("readiness_checklist") @db.JsonB
+  slotNegotiation        Json?                     @map("slot_negotiation") @db.JsonB
+  rectificationPlan      Json?                     @map("rectification_plan") @db.JsonB
+  jointReportSummary     String?                   @map("joint_report_summary") @db.Text
   participatingApprovals JointInspectionApproval[]
   inspectorChecklists    JointInspectorChecklist[]
-  createdAt          DateTime                  @default(now()) @map("created_at")
-  updatedAt          DateTime                  @updatedAt @map("updated_at")
+  createdAt              DateTime                  @default(now()) @map("created_at")
+  updatedAt              DateTime                  @updatedAt @map("updated_at")
 
   @@index([projectId])
   @@map("joint_inspections")
 }
 
 model JointInspectionApproval {
-  id                   String           @id @default(uuid())
-  jointInspectionId    String           @map("joint_inspection_id")
-  jointInspection      JointInspection  @relation(fields: [jointInspectionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  approvalInstanceId   String?          @map("approval_instance_id")
+  id                   String            @id @default(uuid())
+  jointInspectionId    String            @map("joint_inspection_id")
+  jointInspection      JointInspection   @relation(fields: [jointInspectionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalInstanceId   String?           @map("approval_instance_id")
   approvalInstance     ApprovalInstance? @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  approvalCode         String           @map("approval_code")
-  approvalName         String           @map("approval_name")
-  authorityCode        String           @map("authority_code")
-  authorityName        String           @map("authority_name")
-  specificRequirements String?          @map("specific_requirements") @db.Text
-  createdAt            DateTime         @default(now()) @map("created_at")
+  approvalCode         String            @map("approval_code")
+  approvalName         String            @map("approval_name")
+  authorityCode        String            @map("authority_code")
+  authorityName        String            @map("authority_name")
+  specificRequirements String?           @map("specific_requirements") @db.Text
+  createdAt            DateTime          @default(now()) @map("created_at")
 
   @@unique([jointInspectionId, approvalCode])
   @@map("joint_inspection_approvals")
@@ -676,7 +677,6 @@ model JointInspectorChecklist {
   @@unique([jointInspectionId, authorityCode])
   @@map("joint_inspector_checklists")
 }
-
 
 // Phase 9: officer side of the workflow. Two additions, both deliberately
 // narrow:
@@ -723,33 +723,33 @@ enum ClarificationStatus {
 }
 
 model ClarificationRequest {
-  id                 String               @id @default(uuid())
-  approvalInstanceId String               @map("approval_instance_id")
-  approvalInstance   ApprovalInstance     @relation(fields: [approvalInstanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id                 String                  @id @default(uuid())
+  approvalInstanceId String                  @map("approval_instance_id")
+  approvalInstance   ApprovalInstance        @relation(fields: [approvalInstanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   // Denormalized so the applicant inbox is a single indexed read and the
   // officer scope check never needs a three-table join.
-  projectId          String               @map("project_id")
-  project            Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  authorityId        String               @map("authority_id")
-  authority          Authority            @relation(fields: [authorityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  requestedByUserId  String               @map("requested_by_user_id")
-  requestedBy        User                 @relation("ClarificationRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  projectId          String                  @map("project_id")
+  project            Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorityId        String                  @map("authority_id")
+  authority          Authority               @relation(fields: [authorityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  requestedByUserId  String                  @map("requested_by_user_id")
+  requestedBy        User                    @relation("ClarificationRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   subject            String
-  message            String               @db.Text
+  message            String                  @db.Text
   // The exact profile fields / document codes the officer is asking about, as a
   // JSON snapshot taken at request time. Never re-derived at read time, so the
   // ask cannot drift from what was actually asked.
-  requestedFields    Json                 @default("[]") @map("requested_fields") @db.JsonB
-  status             ClarificationStatus  @default(requested)
-  dueAt              DateTime?            @map("due_at")
-  respondedAt        DateTime?            @map("responded_at")
-  resolvedAt         DateTime?            @map("resolved_at")
-  resolvedByUserId   String?              @map("resolved_by_user_id")
-  resolvedBy         User?                @relation("ClarificationResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  resolutionNote     String?              @map("resolution_note") @db.Text
+  requestedFields    Json                    @default("[]") @map("requested_fields") @db.JsonB
+  status             ClarificationStatus     @default(requested)
+  dueAt              DateTime?               @map("due_at")
+  respondedAt        DateTime?               @map("responded_at")
+  resolvedAt         DateTime?               @map("resolved_at")
+  resolvedByUserId   String?                 @map("resolved_by_user_id")
+  resolvedBy         User?                   @relation("ClarificationResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  resolutionNote     String?                 @map("resolution_note") @db.Text
   responses          ClarificationResponse[]
-  createdAt          DateTime             @default(now()) @map("created_at")
-  updatedAt          DateTime             @updatedAt @map("updated_at")
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
 
   @@index([projectId, status])
   @@index([approvalInstanceId])
@@ -758,17 +758,17 @@ model ClarificationRequest {
 }
 
 model ClarificationResponse {
-  id                     String               @id @default(uuid())
-  clarificationRequestId String               @map("clarification_request_id")
-  clarificationRequest   ClarificationRequest @relation(fields: [clarificationRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  authorUserId           String               @map("author_user_id")
-  author                 User                 @relation("ClarificationResponseAuthor", fields: [authorUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  id                     String                          @id @default(uuid())
+  clarificationRequestId String                          @map("clarification_request_id")
+  clarificationRequest   ClarificationRequest            @relation(fields: [clarificationRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  authorUserId           String                          @map("author_user_id")
+  author                 User                            @relation("ClarificationResponseAuthor", fields: [authorUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   // Role AT THE TIME of writing — recorded so a later role change cannot
   // rewrite who said what.
-  authorRole             Role                 @map("author_role")
-  message                String               @db.Text
+  authorRole             Role                            @map("author_role")
+  message                String                          @db.Text
   documents              ClarificationResponseDocument[]
-  createdAt              DateTime             @default(now()) @map("created_at")
+  createdAt              DateTime                        @default(now()) @map("created_at")
 
   @@index([clarificationRequestId])
   @@map("clarification_responses")
@@ -785,7 +785,6 @@ model ClarificationResponseDocument {
   @@unique([clarificationResponseId, documentId])
   @@map("clarification_response_documents")
 }
-
 
 // ---------------------------------------------------------------------------
 // Feature #9: Grievance Escalation & Statutory RTS Act Delay Escalation System
@@ -816,34 +815,34 @@ enum GrievanceStatus {
 }
 
 model Grievance {
-  id                   String               @id @default(uuid())
-  grievanceNumber      String               @unique @map("grievance_number")
-  projectId            String               @map("project_id")
-  project              Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  approvalInstanceId   String?              @map("approval_instance_id")
-  approvalInstance     ApprovalInstance?    @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  authorityId          String?              @map("authority_id")
-  authority            Authority?           @relation(fields: [authorityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  submittedByUserId    String               @map("submitted_by_user_id")
-  submittedBy          User                 @relation("GrievanceSubmitter", fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  id                   String              @id @default(uuid())
+  grievanceNumber      String              @unique @map("grievance_number")
+  projectId            String              @map("project_id")
+  project              Project             @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalInstanceId   String?             @map("approval_instance_id")
+  approvalInstance     ApprovalInstance?   @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  authorityId          String?             @map("authority_id")
+  authority            Authority?          @relation(fields: [authorityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  submittedByUserId    String              @map("submitted_by_user_id")
+  submittedBy          User                @relation("GrievanceSubmitter", fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   type                 GrievanceType
-  tier                 GrievanceTier        @default(tier_1_nodal_officer)
-  status               GrievanceStatus      @default(submitted)
+  tier                 GrievanceTier       @default(tier_1_nodal_officer)
+  status               GrievanceStatus     @default(submitted)
   subject              String
-  description          String               @db.Text
-  statutorySlaDays     Int                  @default(15) @map("statutory_sla_days")
-  targetResolutionDate DateTime             @map("target_resolution_date")
-  slaBreachDetectedAt  DateTime?            @map("sla_breach_detected_at")
-  autoEscalatedAt      DateTime?            @map("auto_escalated_at")
-  resolvedAt           DateTime?            @map("resolved_at")
-  resolvedByUserId     String?              @map("resolved_by_user_id")
-  resolvedBy           User?                @relation("GrievanceResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  resolutionSummary    String?              @map("resolution_summary") @db.Text
-  rectificationAction  String?              @map("rectification_action") @db.Text
+  description          String              @db.Text
+  statutorySlaDays     Int                 @default(15) @map("statutory_sla_days")
+  targetResolutionDate DateTime            @map("target_resolution_date")
+  slaBreachDetectedAt  DateTime?           @map("sla_breach_detected_at")
+  autoEscalatedAt      DateTime?           @map("auto_escalated_at")
+  resolvedAt           DateTime?           @map("resolved_at")
+  resolvedByUserId     String?             @map("resolved_by_user_id")
+  resolvedBy           User?               @relation("GrievanceResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  resolutionSummary    String?             @map("resolution_summary") @db.Text
+  rectificationAction  String?             @map("rectification_action") @db.Text
   actions              GrievanceAction[]
   documents            GrievanceDocument[]
-  createdAt            DateTime             @default(now()) @map("created_at")
-  updatedAt            DateTime             @updatedAt @map("updated_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
 
   @@index([projectId, status])
   @@index([authorityId, status])
@@ -864,24 +863,26 @@ model GrievanceDocument {
 }
 
 model GrievanceAction {
-  id          String        @id @default(uuid())
-  grievanceId String        @map("grievance_id")
-  grievance   Grievance     @relation(fields: [grievanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  actorUserId String?       @map("actor_user_id")
-  actor       User?         @relation("GrievanceActionAuthor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  actorRole   Role          @map("actor_role")
-  actionType  String        @map("action_type")
+  id          String           @id @default(uuid())
+  grievanceId String           @map("grievance_id")
+  grievance   Grievance        @relation(fields: [grievanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  actorUserId String?          @map("actor_user_id")
+  actor       User?            @relation("GrievanceActionAuthor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  actorRole   Role             @map("actor_role")
+  actionType  String           @map("action_type")
   fromStatus  GrievanceStatus? @map("from_status")
   toStatus    GrievanceStatus  @map("to_status")
   fromTier    GrievanceTier?   @map("from_tier")
   toTier      GrievanceTier?   @map("to_tier")
-  remarks     String        @db.Text
-  orderNumber String?       @map("order_number")
-  metadata    Json?         @db.JsonB
-  createdAt   DateTime      @default(now()) @map("created_at")
+  remarks     String           @db.Text
+  orderNumber String?          @map("order_number")
+  metadata    Json?            @db.JsonB
+  createdAt   DateTime         @default(now()) @map("created_at")
 
   @@index([grievanceId])
   @@map("grievance_actions")
+}
+
 // ===========================================================================
 // Feature 1: Regulatory Change Impact Engine
 // ===========================================================================
@@ -910,42 +911,42 @@ enum ImpactPriority {
 }
 
 model RegulatoryChange {
-  id                      String                   @id @default(uuid())
-  title                   String
-  description             String                   @db.Text
-  approvalDefinitionId    String                   @map("approval_definition_id")
-  approvalDefinition      ApprovalDefinition       @relation(fields: [approvalDefinitionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  oldConditions           Json                     @map("old_conditions") @db.JsonB
-  newConditions           Json                     @map("new_conditions") @db.JsonB
-  effectiveDate           DateTime                 @map("effective_date")
-  sourceUrl               String?                  @map("source_url")
-  sourceNotes             String?                  @map("source_notes") @db.Text
-  status                  RegulatoryChangeStatus   @default(draft)
-  createdByUserId         String                   @map("created_by_user_id")
-  impacts                 RegulatoryChangeImpact[]
-  createdAt               DateTime                 @default(now()) @map("created_at")
-  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  id                   String                   @id @default(uuid())
+  title                String
+  description          String                   @db.Text
+  approvalDefinitionId String                   @map("approval_definition_id")
+  approvalDefinition   ApprovalDefinition       @relation(fields: [approvalDefinitionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  oldConditions        Json                     @map("old_conditions") @db.JsonB
+  newConditions        Json                     @map("new_conditions") @db.JsonB
+  effectiveDate        DateTime                 @map("effective_date")
+  sourceUrl            String?                  @map("source_url")
+  sourceNotes          String?                  @map("source_notes") @db.Text
+  status               RegulatoryChangeStatus   @default(draft)
+  createdByUserId      String                   @map("created_by_user_id")
+  impacts              RegulatoryChangeImpact[]
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
 
   @@index([approvalDefinitionId])
   @@map("regulatory_changes")
 }
 
 model RegulatoryChangeImpact {
-  id                    String             @id @default(uuid())
-  regulatoryChangeId    String             @map("regulatory_change_id")
-  regulatoryChange      RegulatoryChange    @relation(fields: [regulatoryChangeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  projectId             String             @map("project_id")
-  project               Project            @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  impactType            ImpactType         @map("impact_type")
-  priority              ImpactPriority     @default(no_impact)
-  oldApplicability      String             @map("old_applicability") @db.Text
-  newApplicability      String             @map("new_applicability") @db.Text
-  changedCondition      String?            @map("changed_condition") @db.Text
-  requiredAction        String?            @map("required_action") @db.Text
-  explanation           String             @db.Text
-  confidence            String             @default("high")
-  analyzedAt            DateTime           @default(now()) @map("analyzed_at")
-  createdAt             DateTime           @default(now()) @map("created_at")
+  id                 String           @id @default(uuid())
+  regulatoryChangeId String           @map("regulatory_change_id")
+  regulatoryChange   RegulatoryChange @relation(fields: [regulatoryChangeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  projectId          String           @map("project_id")
+  project            Project          @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  impactType         ImpactType       @map("impact_type")
+  priority           ImpactPriority   @default(no_impact)
+  oldApplicability   String           @map("old_applicability") @db.Text
+  newApplicability   String           @map("new_applicability") @db.Text
+  changedCondition   String?          @map("changed_condition") @db.Text
+  requiredAction     String?          @map("required_action") @db.Text
+  explanation        String           @db.Text
+  confidence         String           @default("high")
+  analyzedAt         DateTime         @default(now()) @map("analyzed_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
 
   @@unique([regulatoryChangeId, projectId])
   @@index([projectId])
@@ -977,41 +978,41 @@ enum RecoveryActionSeverity {
 }
 
 model RecoveryPlan {
-  id                    String                @id @default(uuid())
-  projectId             String                @map("project_id")
-  project               Project               @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  approvalInstanceId    String?               @map("approval_instance_id")
-  approvalInstance      ApprovalInstance?     @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  status                RecoveryPlanStatus    @default(active)
-  readinessLevel        String                @default("not_ready") @map("readiness_level")
-  totalBlocking         Int                   @default(0) @map("total_blocking")
-  totalWarnings         Int                   @default(0) @map("total_warnings")
-  totalActions          Int                   @default(0) @map("total_actions")
-  resolvedActions       Int                   @default(0) @map("resolved_actions")
-  actions               RecoveryAction[]
-  createdAt             DateTime              @default(now()) @map("created_at")
-  updatedAt             DateTime              @updatedAt @map("updated_at")
+  id                 String             @id @default(uuid())
+  projectId          String             @map("project_id")
+  project            Project            @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalInstanceId String?            @map("approval_instance_id")
+  approvalInstance   ApprovalInstance?  @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  status             RecoveryPlanStatus @default(active)
+  readinessLevel     String             @default("not_ready") @map("readiness_level")
+  totalBlocking      Int                @default(0) @map("total_blocking")
+  totalWarnings      Int                @default(0) @map("total_warnings")
+  totalActions       Int                @default(0) @map("total_actions")
+  resolvedActions    Int                @default(0) @map("resolved_actions")
+  actions            RecoveryAction[]
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
 
   @@index([projectId])
   @@map("recovery_plans")
 }
 
 model RecoveryAction {
-  id                    String                @id @default(uuid())
-  recoveryPlanId        String                @map("recovery_plan_id")
-  recoveryPlan          RecoveryPlan          @relation(fields: [recoveryPlanId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  issueId               String?               @map("issue_id")
-  title                 String
-  description           String                @db.Text
-  reason                String                @db.Text
-  severity              RecoveryActionSeverity
-  status                RecoveryActionStatus  @default(open)
-  sequenceOrder         Int                   @map("sequence_order")
-  affectedApproval      String?               @map("affected_approval")
-  affectedDocument      String?               @map("affected_document")
-  dependencyOnActionId  String?               @map("dependency_on_action_id")
-  createdAt             DateTime              @default(now()) @map("created_at")
-  updatedAt             DateTime              @updatedAt @map("updated_at")
+  id                   String                 @id @default(uuid())
+  recoveryPlanId       String                 @map("recovery_plan_id")
+  recoveryPlan         RecoveryPlan           @relation(fields: [recoveryPlanId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  issueId              String?                @map("issue_id")
+  title                String
+  description          String                 @db.Text
+  reason               String                 @db.Text
+  severity             RecoveryActionSeverity
+  status               RecoveryActionStatus   @default(open)
+  sequenceOrder        Int                    @map("sequence_order")
+  affectedApproval     String?                @map("affected_approval")
+  affectedDocument     String?                @map("affected_document")
+  dependencyOnActionId String?                @map("dependency_on_action_id")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
 
   @@map("recovery_actions")
 }
@@ -1021,21 +1022,20 @@ model RecoveryAction {
 // ===========================================================================
 
 model AuditEvent {
-  id                    String    @id @default(uuid())
-  userId                String    @map("user_id")
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  projectId             String?   @map("project_id")
-  project               Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  approvalInstanceId    String?   @map("approval_instance_id")
-  approvalInstance      ApprovalInstance? @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  action                String
-  actor                 String
-  details               Json?     @db.JsonB
-  createdAt             DateTime  @default(now()) @map("created_at")
+  id                 String            @id @default(uuid())
+  userId             String            @map("user_id")
+  user               User              @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  projectId          String?           @map("project_id")
+  project            Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  approvalInstanceId String?           @map("approval_instance_id")
+  approvalInstance   ApprovalInstance? @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  action             String
+  actor              String
+  details            Json?             @db.JsonB
+  createdAt          DateTime          @default(now()) @map("created_at")
 
   @@index([projectId])
   @@index([approvalInstanceId])
   @@index([userId])
   @@map("audit_events")
 }
-
