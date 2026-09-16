@@ -32,7 +32,9 @@
     "test:integration:consistency": "tsx test/consistency.integration.test.ts",
     "test:integration:reuse": "tsx test/reuse.integration.test.ts",
     "test:integration:clarifications": "tsx test/clarifications.integration.test.ts",
-    "officer:assign": "tsx scripts/assign-officer.ts"
+    "test:integration:grievances": "tsx test/grievances.integration.test.ts",
+    "officer:assign": "tsx scripts/assign-officer.ts",
+    "demo:seed": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@approvaliq/approval-engine": "workspace:*",

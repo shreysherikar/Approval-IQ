@@ -271,6 +271,9 @@ export interface RoadmapNode {
   missingFields: MissingFieldInfo[];
   requiredDocuments: Array<{ id: string; name: string }>;
   status: ApprovalInstanceStatus;
+  slaDays?: number | null;
+  inspectionRequired?: boolean;
+  renewalRequired?: boolean;
   sourceUrl: string | null;
   lastVerifiedDate: string | null;
   unlockedAt: string | null;
@@ -1227,5 +1230,204 @@ export const inspectionsApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Feature #9: Grievance Escalation & Statutory RTS Act Escalation API Client
+// ---------------------------------------------------------------------------
+
+export type GrievanceType =
+  | 'sla_breach_delay'
+  | 'unjustified_clarification'
+  | 'arbitrary_rejection'
+  | 'inspection_harassment'
+  | 'fee_overcharge'
+  | 'other';
+
+export type GrievanceTier =
+  | 'tier_1_nodal_officer'
+  | 'tier_2_appellate_authority'
+  | 'tier_3_rts_commission';
+
+export type GrievanceStatus =
+  | 'submitted'
+  | 'under_investigation'
+  | 'escalated'
+  | 'redressed'
+  | 'rejected'
+  | 'withdrawn';
+
+export interface GrievanceDocumentItem {
+  id: string;
+  documentId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface GrievanceActionItem {
+  id: string;
+  actionType: string;
+  fromStatus: string | null;
+  toStatus: string;
+  fromTier: string | null;
+  toTier: string | null;
+  remarks: string;
+  orderNumber: string | null;
+  metadata: unknown;
+  actor: { id: string; email: string; role: string } | null;
+  actorRole: string;
+  createdAt: string;
+}
+
+export interface GrievanceView {
+  id: string;
+  grievanceNumber: string;
+  projectId: string;
+  type: GrievanceType;
+  tier: GrievanceTier;
+  status: GrievanceStatus;
+  subject: string;
+  description: string;
+  statutorySlaDays: number;
+  targetResolutionDate: string;
+  daysRemaining: number;
+  isOverdue: boolean;
+  slaBreachDetectedAt: string | null;
+  autoEscalatedAt: string | null;
+  resolvedAt: string | null;
+  resolutionSummary: string | null;
+  rectificationAction: string | null;
+  authority: { id: string; code: string; name: string; department: string | null } | null;
+  approval: { id: string; code: string; name: string; slaDays: number | null } | null;
+  submittedBy: { id: string; email: string; role: string };
+  resolvedBy: { id: string; email: string; role: string } | null;
+  documents: GrievanceDocumentItem[];
+  actions: GrievanceActionItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGrievancePayload {
+  type: GrievanceType;
+  subject: string;
+  description: string;
+  approvalInstanceId?: string;
+  authorityId?: string;
+  statutorySlaDays?: number;
+  documentIds?: string[];
+}
+
+export interface EscalateGrievancePayload {
+  remarks: string;
+  targetTier?: 'tier_2_appellate_authority' | 'tier_3_rts_commission';
+  documentIds?: string[];
+}
+
+export interface InvestigateGrievancePayload {
+  remarks: string;
+  hearingScheduledAt?: string;
+  assignedInvestigator?: string;
+}
+
+export interface ResolveGrievancePayload {
+  outcome: 'redressed' | 'rejected';
+  resolutionSummary: string;
+  rectificationAction?: string;
+  orderNumber?: string;
+}
+
+export const grievancesApi = {
+  /** List project grievances */
+  list(
+    projectId: string,
+    params?: {
+      status?: string | undefined;
+      tier?: string | undefined;
+      type?: string | undefined;
+      approvalInstanceId?: string | undefined;
+    },
+    token?: string,
+  ): Promise<{ grievances: GrievanceView[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.tier) qs.set('tier', params.tier);
+    if (params?.type) qs.set('type', params.type);
+    if (params?.approvalInstanceId) qs.set('approvalInstanceId', params.approvalInstanceId);
+    const query = qs.toString();
+    return get<{ grievances: GrievanceView[]; total: number }>(
+      `/projects/${projectId}/grievances${query ? `?${query}` : ''}`,
+      { token },
+    );
+  },
+
+  /** Get single grievance details and audit timeline */
+  get(projectId: string, grievanceId: string, token?: string): Promise<GrievanceView> {
+    return get<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}`, { token });
+  },
+
+  /** Lodge statutory grievance */
+  create(projectId: string, payload: CreateGrievancePayload, token?: string): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances`, payload, { token });
+  },
+
+  /** Escalate grievance to next tier */
+  escalate(
+    projectId: string,
+    grievanceId: string,
+    payload: EscalateGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}/escalate`, payload, {
+      token,
+    });
+  },
+
+  /** Withdraw grievance */
+  withdraw(
+    projectId: string,
+    grievanceId: string,
+    payload: { reason: string },
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}/withdraw`, payload, {
+      token,
+    });
+  },
+
+  /** Officer queue */
+  listForOfficer(
+    params?: { status?: string | undefined; tier?: string | undefined; type?: string | undefined },
+    token?: string,
+  ): Promise<{ grievances: GrievanceView[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.tier) qs.set('tier', params.tier);
+    if (params?.type) qs.set('type', params.type);
+    const query = qs.toString();
+    return get<{ grievances: GrievanceView[]; total: number }>(
+      `/officer/grievances${query ? `?${query}` : ''}`,
+      { token },
+    );
+  },
+
+  /** Officer investigate / schedule hearing */
+  officerInvestigate(
+    grievanceId: string,
+    payload: InvestigateGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/officer/grievances/${grievanceId}/investigate`, payload, { token });
+  },
+
+  /** Officer/Appellate resolve or reject order */
+  officerResolve(
+    grievanceId: string,
+    payload: ResolveGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/officer/grievances/${grievanceId}/resolve`, payload, { token });
+  },
+};
+
 export type { LoginRequest, LoginResponse, RegisterRequest, RegisteredUser };
+
 

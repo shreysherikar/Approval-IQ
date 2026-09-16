@@ -40,6 +40,7 @@ model Authority {
   // Phase 9: officer queue scoping + denormalized clarification scope.
   officerAssignments OfficerAuthorityAssignment[]
   clarifications     ClarificationRequest[]
+  grievances         Grievance[]
 
   @@map("authorities")
 }
@@ -200,6 +201,9 @@ model User {
   clarificationsRequested ClarificationRequest[]      @relation("ClarificationRequester")
   clarificationsResolved  ClarificationRequest[]      @relation("ClarificationResolver")
   clarificationResponses  ClarificationResponse[]     @relation("ClarificationResponseAuthor")
+  grievancesSubmitted     Grievance[]                 @relation("GrievanceSubmitter")
+  grievancesResolved      Grievance[]                 @relation("GrievanceResolver")
+  grievanceActions        GrievanceAction[]           @relation("GrievanceActionAuthor")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
@@ -270,6 +274,7 @@ model ApprovalInstance {
   jointInspections     JointInspectionApproval[]
   // Phase 9: clarifications raised by an authority officer on THIS application.
   clarifications       ClarificationRequest[]
+  grievances           Grievance[]
 
   // One roadmap slot per approval per project; re-evaluations re-point the
   // same instance at the newer evaluation result.
@@ -315,6 +320,7 @@ model Project {
   jointInspections  JointInspection[]
   // Phase 9: applicant-visible clarification inbox for this project.
   clarifications     ClarificationRequest[]
+  grievances         Grievance[]
   createdAt         DateTime                 @default(now()) @map("created_at")
   updatedAt         DateTime                 @updatedAt @map("updated_at")
 
@@ -411,6 +417,7 @@ model Document {
   consistencyCheckResults ConsistencyCheckResult[]
   // Phase 9: documents offered as evidence when answering a clarification.
   clarificationResponses ClarificationResponseDocument[]
+  grievanceDocuments     GrievanceDocument[]
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
 
@@ -771,5 +778,102 @@ model ClarificationResponseDocument {
 
   @@unique([clarificationResponseId, documentId])
   @@map("clarification_response_documents")
+}
+
+// ---------------------------------------------------------------------------
+// Feature #9: Grievance Escalation & Statutory RTS Act Delay Escalation System
+// ---------------------------------------------------------------------------
+
+enum GrievanceType {
+  sla_breach_delay
+  unjustified_clarification
+  arbitrary_rejection
+  inspection_harassment
+  fee_overcharge
+  other
+}
+
+enum GrievanceTier {
+  tier_1_nodal_officer
+  tier_2_appellate_authority
+  tier_3_rts_commission
+}
+
+enum GrievanceStatus {
+  submitted
+  under_investigation
+  escalated
+  redressed
+  rejected
+  withdrawn
+}
+
+model Grievance {
+  id                   String               @id @default(uuid())
+  grievanceNumber      String               @unique @map("grievance_number")
+  projectId            String               @map("project_id")
+  project              Project              @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  approvalInstanceId   String?              @map("approval_instance_id")
+  approvalInstance     ApprovalInstance?    @relation(fields: [approvalInstanceId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  authorityId          String?              @map("authority_id")
+  authority            Authority?           @relation(fields: [authorityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  submittedByUserId    String               @map("submitted_by_user_id")
+  submittedBy          User                 @relation("GrievanceSubmitter", fields: [submittedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  type                 GrievanceType
+  tier                 GrievanceTier        @default(tier_1_nodal_officer)
+  status               GrievanceStatus      @default(submitted)
+  subject              String
+  description          String               @db.Text
+  statutorySlaDays     Int                  @default(15) @map("statutory_sla_days")
+  targetResolutionDate DateTime             @map("target_resolution_date")
+  slaBreachDetectedAt  DateTime?            @map("sla_breach_detected_at")
+  autoEscalatedAt      DateTime?            @map("auto_escalated_at")
+  resolvedAt           DateTime?            @map("resolved_at")
+  resolvedByUserId     String?              @map("resolved_by_user_id")
+  resolvedBy           User?                @relation("GrievanceResolver", fields: [resolvedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  resolutionSummary    String?              @map("resolution_summary") @db.Text
+  rectificationAction  String?              @map("rectification_action") @db.Text
+  actions              GrievanceAction[]
+  documents            GrievanceDocument[]
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+
+  @@index([projectId, status])
+  @@index([authorityId, status])
+  @@index([tier, status])
+  @@map("grievances")
+}
+
+model GrievanceDocument {
+  id          String    @id @default(uuid())
+  grievanceId String    @map("grievance_id")
+  grievance   Grievance @relation(fields: [grievanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  documentId  String    @map("document_id")
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@unique([grievanceId, documentId])
+  @@map("grievance_documents")
+}
+
+model GrievanceAction {
+  id          String        @id @default(uuid())
+  grievanceId String        @map("grievance_id")
+  grievance   Grievance     @relation(fields: [grievanceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  actorUserId String?       @map("actor_user_id")
+  actor       User?         @relation("GrievanceActionAuthor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  actorRole   Role          @map("actor_role")
+  actionType  String        @map("action_type")
+  fromStatus  GrievanceStatus? @map("from_status")
+  toStatus    GrievanceStatus  @map("to_status")
+  fromTier    GrievanceTier?   @map("from_tier")
+  toTier      GrievanceTier?   @map("to_tier")
+  remarks     String        @db.Text
+  orderNumber String?       @map("order_number")
+  metadata    Json?         @db.JsonB
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@index([grievanceId])
+  @@map("grievance_actions")
 }
 

@@ -16,6 +16,7 @@ import { BusinessMapModule } from './business-map/business-map.module';
 import { InspectionsModule } from './inspections/inspections.module';
 import { ClarificationsModule } from './clarifications/clarifications.module';
 import { OfficerModule } from './officer/officer.module';
+import { GrievancesModule } from './grievances/grievances.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { OfficerModule } from './officer/officer.module';
     InspectionsModule,
     ClarificationsModule,
     OfficerModule,
+    GrievancesModule,
   ],
 })
 export class AppModule {}
