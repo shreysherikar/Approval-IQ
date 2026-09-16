@@ -13,7 +13,7 @@ import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
 
 export function JointInspectionsPage(): JSX.Element {
   const { id: projectId } = useParams<{ id: string }>();
-  const { accessToken } = useAuth();
+  const { accessToken, isRestoring } = useAuth();
 
   const [inspections, setInspections] = useState<JointInspectionView[]>([]);
   const [candidateData, setCandidateData] =
@@ -247,6 +247,11 @@ export function JointInspectionsPage(): JSX.Element {
 
   const loadData = async (): Promise<void> => {
     if (!projectId) return;
+    if (isRestoring) return;
+    if (!accessToken) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -274,8 +279,10 @@ export function JointInspectionsPage(): JSX.Element {
   };
 
   useEffect(() => {
-    void loadData();
-  }, [projectId]);
+    if (!isRestoring && accessToken && projectId) {
+      void loadData();
+    }
+  }, [projectId, accessToken, isRestoring]);
 
   const initInspectionState = (inspection: JointInspectionView) => {
     const dateStr = inspection.scheduledDate
@@ -528,6 +535,12 @@ export function JointInspectionsPage(): JSX.Element {
           <span className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm">
             Joint Inspections
           </span>
+          <Link
+            to={`/projects/${projectId}/grievances`}
+            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+          >
+            <span>⚖️ Grievances</span>
+          </Link>
         </div>
       </div>
 

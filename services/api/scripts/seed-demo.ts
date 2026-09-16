@@ -989,6 +989,105 @@ APPROVALIQ_DEMO_TRADE_LICENCE
       console.log(`  ✓ Active statutory grievance created (${grv.grievanceNumber}) under Tier 2 Appellate review.`);
     }
 
+    // 10. Regulatory Change Impact Engine (Feature #8)
+    console.log('\n[9/9] Seeding realistic regulatory change & impact analysis...');
+    const mpcbCteDef = dbApprovals.find((a) => a.code === 'MPCB-CTE-001') || dbApprovals[0]!;
+    const existingRegChange = await prisma.regulatoryChange.findFirst({
+      where: { approvalDefinitionId: mpcbCteDef.id },
+    });
+
+    if (existingRegChange) {
+      console.log(`  ✓ Regulatory change already present (${existingRegChange.title}).`);
+    } else {
+      const regChange = await prisma.regulatoryChange.create({
+        data: {
+          title: 'MPCB Gazette Notification 2026: Revision of Capital Threshold for Red/Orange Category CTE',
+          description:
+            'Maharashtra Pollution Control Board notification amending Consent to Establish threshold. Stricter effluent recycling benchmarks and revised capital investment limits applied for commercial brewing & fermentation units.',
+          approvalDefinitionId: mpcbCteDef.id,
+          oldConditions: {
+            all: [
+              { field: 'industry', op: 'equals', value: 'brewery' },
+              { kind: 'range', field: 'investmentAmountInr', min: 250000000, expectedInvestmentDefinition: 'total_project_cost' },
+            ],
+          } as object,
+          newConditions: {
+            all: [
+              { field: 'industry', op: 'equals', value: 'brewery' },
+              { kind: 'range', field: 'investmentAmountInr', min: 100000000, expectedInvestmentDefinition: 'total_project_cost' },
+            ],
+          } as object,
+          effectiveDate: new Date('2026-10-01'),
+          sourceUrl: 'https://mpcb.gov.in/notifications/gazette-2026-cte-revision.pdf',
+          sourceNotes: 'Notified under Water (Prevention and Control of Pollution) Act and Air Act amendments 2026.',
+          status: 'analyzed',
+          createdByUserId: officer.id,
+        },
+      });
+
+      // Seed impact cascade result for Pune Craft Brewery
+      await prisma.regulatoryChangeImpact.create({
+        data: {
+          regulatoryChangeId: regChange.id,
+          projectId: project.id,
+          impactType: 'requirement_changed',
+          priority: 'high',
+          oldApplicability: 'Applicable (Investment ₹40 Cr >= old threshold ₹25 Cr)',
+          newApplicability: 'Applicable (Investment ₹40 Cr >= new threshold ₹10 Cr)',
+          changedCondition: 'Old: investmentAmountInr >= 250000000 | New: investmentAmountInr >= 100000000 with mandatory Zero Liquid Discharge (ZLD) audit',
+          requiredAction: 'Upgrade secondary ETP aeration tank specifications and submit revised ZLD engineering blueprint before next inspection.',
+          explanation:
+            'Pune Craft Brewery remains under Consent to Establish mandate. Lowered threshold increases inspection rigor and brings mandatory continuous effluent monitoring telemetry into scope.',
+          confidence: 'high',
+        },
+      });
+
+      // Second amendment: Solar and Clean Energy Exemption
+      const solarDef = dbApprovals.find((a) => a.code === 'DISH-PLAN-001') || dbApprovals[1]!;
+      const regChange2 = await prisma.regulatoryChange.create({
+        data: {
+          title: 'DISH Rule Amendment 2026: Factory Rooftop Solar Power Plant Structural Clearance',
+          description:
+            'Directorate of Industrial Safety & Health mandatory structural dead-load certification for industrial rooftop solar installations exceeding 50 kW capacity.',
+          approvalDefinitionId: solarDef.id,
+          oldConditions: {
+            all: [
+              { field: 'industry', op: 'equals', value: 'brewery' },
+              { field: 'areaSqft', op: 'gte', value: 10000 },
+            ],
+          } as object,
+          newConditions: {
+            all: [
+              { field: 'industry', op: 'equals', value: 'brewery' },
+              { field: 'areaSqft', op: 'gte', value: 5000 },
+            ],
+          } as object,
+          effectiveDate: new Date('2026-11-15'),
+          sourceUrl: 'https://dish.maharashtra.gov.in/orders/solar-structural-safety-2026.pdf',
+          status: 'analyzed',
+          createdByUserId: userMap.admin?.id ?? officer.id,
+        },
+      });
+
+      await prisma.regulatoryChangeImpact.create({
+        data: {
+          regulatoryChangeId: regChange2.id,
+          projectId: project.id,
+          impactType: 'newly_affected',
+          priority: 'critical',
+          oldApplicability: 'Not applicable: Footprint 6,000 sq ft was below previous 10,000 sq ft threshold',
+          newApplicability: 'Applicable: Footprint 6,000 sq ft meets revised 5,000 sq ft threshold',
+          changedCondition: 'Old: areaSqft >= 10,000 | New: areaSqft >= 5,000',
+          requiredAction: 'Obtain structural stability certificate from DISH-chartered structural engineer for rooftop panels.',
+          explanation:
+            'Previously exempt due to building footprint under 10,000 sq ft. Under new notification, the 6,000 sq ft facility now falls under mandatory DISH structural clearance.',
+          confidence: 'high',
+        },
+      });
+
+      console.log(`  ✓ Seeded 2 gazette regulatory amendments with active project impact cascade analysis.`);
+    }
+
     // Finished summary
     console.log('\n====================================================');
     console.log('            ApprovalIQ DEMO READY! 🎉              ');

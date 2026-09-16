@@ -41,11 +41,13 @@ export class ScheduleInspectionDto {
 }
 
 export class CreateJointInspectionDto {
+  @IsOptional()
   @IsString()
-  title!: string;
+  title?: string;
 
+  @IsOptional()
   @IsEnum(JointInspectionStageEnum)
-  stage!: JointInspectionStageEnum;
+  stage?: JointInspectionStageEnum;
 
   @IsOptional()
   @IsString()
