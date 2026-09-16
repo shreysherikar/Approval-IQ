@@ -26,8 +26,8 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../src/auth/password.util.js';
-import { toEngineCondition, type EngineCondition, type EngineRelationship } from '../src/evaluations/evaluations.service.js';
+import { hashPassword } from '../src/auth/password.util';
+import { toEngineCondition, type EngineCondition, type EngineRelationship } from '../src/evaluations/evaluations.service';
 
 const DEMO_PROJECT_NAME = 'Pune Craft Brewery';
 const DEMO_BUSINESS_ID = 'biz-demo-pune-brewery';
@@ -362,8 +362,14 @@ async function main(): Promise<void> {
       relationship: d.relationship as EngineRelationship,
     }));
 
-    const { evaluate } = (await import('@approvaliq/approval-engine')) as {
-      evaluate: (profile: unknown, defs: unknown, deps: unknown) => {
+    const { evaluate } = (await import(
+      '@approvaliq/approval-engine' as string
+    )) as unknown as {
+      evaluate: (
+        profile: unknown,
+        defs: unknown,
+        deps: unknown,
+      ) => {
         approvals: Array<{ approval: { id: string }; outcome: string; neededInformation: unknown }>;
         [k: string]: unknown;
       };
