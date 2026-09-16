@@ -30,7 +30,7 @@ interface AuthContextValue {
    */
   isRestoring: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => void;
   refreshSession: () => Promise<void>;
 }
@@ -101,19 +101,23 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       import.meta.env.VITE_DESKTOP === 'true' ||
       import.meta.env.VITE_MOBILE === 'true');
 
-  const login = useCallback(async (email: string, password: string): Promise<void> => {
+  const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
     setIsLoading(true);
     setError(null);
     try {
       const res = await authApi.login({ email, password });
+      const authUser = authUserFromToken(res.accessToken, email);
       setAccessToken(res.accessToken);
-      setUser(authUserFromToken(res.accessToken, email));
+      setUser(authUser);
+      return authUser;
     } catch (err) {
       if (isEmbedded) {
         // Embedded-specific offline demo mode (desktop/Capacitor): allows evaluating shells without backend
         const demoRole = email.includes('officer') ? 'officer' : 'applicant';
-        setUser({ email: email || 'applicant@approvaliq.dev', role: demoRole });
+        const demoUser: AuthUser = { email: email || 'applicant@approvaliq.dev', role: demoRole };
+        setUser(demoUser);
         setAccessToken('embedded-demo-token');
+        return demoUser;
       } else {
         setAccessToken(null);
         setUser(null);

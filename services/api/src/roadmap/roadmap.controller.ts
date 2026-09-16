@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ProjectMemberGuard } from '../common/guards/project-member.guard';
@@ -36,4 +36,26 @@ export class RoadmapController {
   ): Promise<Record<string, unknown>> {
     return this.service.updateStatus(projectId, instanceId, body);
   }
+
+  @Get('schemes/ai-analysis')
+  @ApiOperation({
+    summary:
+      'Get dynamic AI Profile analysis, readiness score, and strategic optimization roadmap for schemes.',
+  })
+  getAiSchemeAnalysis(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
+    return this.service.getAiSchemeAnalysis(projectId);
+  }
+
+  @Post('schemes/ai-chat')
+  @ApiOperation({
+    summary:
+      'Interactive AI copilot query synthesizer for government schemes and incentives.',
+  })
+  queryAiSchemeAdvisor(
+    @Param('projectId') projectId: string,
+    @Body() body: { query: string; context?: Record<string, unknown> },
+  ): Promise<Record<string, unknown>> {
+    return this.service.queryAiSchemeAdvisor(projectId, body);
+  }
 }
+
