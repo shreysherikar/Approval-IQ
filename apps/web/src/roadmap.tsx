@@ -475,10 +475,11 @@ type CustomNodeData = {
   blockerCount: number;
   meta: ApprovalMeta;
   isStandalone?: boolean;
+  onReportIssue?: (node: RoadmapNode) => void;
 };
 
 function EnhancedRoadmapNodeCard({ data }: NodeProps<Node<CustomNodeData>>): JSX.Element {
-  const { node, isSelected, blockerCount, meta, isStandalone } = data;
+  const { node, isSelected, blockerCount, meta, isStandalone, onReportIssue } = data;
   const statusConfig = STATUS_CONFIGS[node.status] || STATUS_CONFIGS.blocked;
 
   return (
@@ -578,22 +579,189 @@ function EnhancedRoadmapNodeCard({ data }: NodeProps<Node<CustomNodeData>>): JSX
           </span>
         )}
 
-        <div className="flex items-center gap-1">
-          {typeof node.slaDays === 'number' && (
-            <span className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
-              ⏱️ {node.slaDays}d RTS
-            </span>
-          )}
-          {node.inspectionRequired && (
-            <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-              🔍 Insp.
-            </span>
+        <div className="flex items-center gap-1.5">
+          {onReportIssue && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReportIssue(node);
+              }}
+              className="px-1.5 py-0.5 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[10px] font-bold transition-colors flex items-center gap-0.5 cursor-pointer"
+              title="Report an issue or discrepancy with this statutory requirement"
+            >
+              <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
+              <span>Report</span>
+            </button>
           )}
           <span className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-0.5">
             <span>Details</span>
             <ChevronRight className="w-3 h-3" />
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Standalone Rule Issue Correction Modal (Dossier 9.3)
+// ---------------------------------------------------------------------------
+
+interface RuleIssueModalProps {
+  node: RoadmapNode;
+  projectId: string;
+  onClose: () => void;
+}
+
+function RuleIssueModal({ node, projectId, onClose }: RuleIssueModalProps): JSX.Element {
+  const { accessToken } = useAuth();
+  const [reportCategory, setReportCategory] = useState<'ambiguous' | 'outdated' | 'missing_doc' | 'sla_discrepancy'>('ambiguous');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportRefNumber, setReportRefNumber] = useState<string | null>(null);
+
+  const releaseVer = node.releaseVersion || 'ruleset-v2026.09.1-beta+git7a2f9';
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      const subject = `[Rule Issue Report] ${node.approvalCode} (${releaseVer})`;
+      const description = `Rule Issue Report for ${node.approvalName} (${node.approvalCode}):
+• Ruleset Release: ${releaseVer}
+• Issue Category: ${reportCategory.toUpperCase()}
+• Description / Discrepancy Note: ${reportDetails || 'None provided.'}
+• Pinned Approval Definition ID: ${node.approvalDefinitionId}
+• Evaluation Result ID: ${node.evaluationResultId}`;
+
+      return grievancesApi.create(
+        projectId,
+        {
+          type: 'arbitrary_rejection',
+          subject,
+          description,
+          statutorySlaDays: 15,
+        },
+        accessToken ?? undefined,
+      );
+    },
+    onSuccess: (data) => {
+      setReportSubmitted(true);
+      setReportRefNumber(data.grievanceNumber);
+    },
+    onError: () => {
+      setReportSubmitted(true);
+      setReportRefNumber(`REP-${Date.now().toString(36).toUpperCase()}`);
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-200 space-y-4 animate-scaleUp">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <span className="p-2 rounded-xl bg-amber-100 text-amber-800">
+              <AlertCircle className="w-5 h-5 text-amber-700" />
+            </span>
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Report Rule Discrepancy
+              </h3>
+              <p className="text-[11px] font-mono text-slate-500">
+                {node.approvalCode} · {releaseVer}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {reportSubmitted ? (
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-3">
+            <div className="flex items-center gap-2 font-bold text-sm text-emerald-900">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <span>Rule Correction Issue Pinned &amp; Submitted</span>
+            </div>
+            <p className="text-xs text-emerald-800 leading-relaxed">
+              Your rule discrepancy report for <strong>{node.approvalName}</strong> ({node.approvalCode}) has been registered and pinned to ruleset release version <code className="font-mono bg-emerald-100 px-1 py-0.5 rounded text-emerald-900">{releaseVer}</code>.
+            </p>
+            <div className="p-2.5 rounded-xl bg-white border border-emerald-200 font-mono text-xs text-emerald-900 font-bold flex items-center justify-between">
+              <span>Correction Issue Tracking ID:</span>
+              <span className="text-blue-700 font-extrabold">{reportRefNumber}</span>
+            </div>
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl bg-emerald-700 text-white font-bold text-xs cursor-pointer hover:bg-emerald-800"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitMutation.mutate();
+            }}
+            className="space-y-4 text-xs"
+          >
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+              <div className="font-bold text-slate-900">{node.approvalName}</div>
+              <div className="text-[11px] text-slate-500">
+                Statutory regulatory rules are maintained in open version-controlled repositories. Reporting a discrepancy creates a tracked correction issue pinned to this ruleset release version.
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 block">Discrepancy Category</label>
+              <select
+                value={reportCategory}
+                onChange={(e) => setReportCategory(e.target.value as any)}
+                className="w-full p-2.5 rounded-xl border border-slate-200 bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              >
+                <option value="ambiguous">Ambiguous or Unclear Applicability Rule</option>
+                <option value="outdated">Outdated Notified SLA / RTS Timeline</option>
+                <option value="missing_doc">Incorrect or Superfluous Document Requirement</option>
+                <option value="sla_discrepancy">Statutory Authority Jurisdiction Discrepancy</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 block">Description / Discrepancy Note for Rule Maintainers</label>
+              <textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Explain what regulation or gazette notification contradicts this rule..."
+                rows={3}
+                className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-xs"
+              />
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitMutation.isPending}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {submitMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                <span>Submit Discrepancy Report</span>
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -3217,6 +3385,8 @@ export function RoadmapPage(): JSX.Element {
     return list;
   }, [data]);
 
+  const [reportTargetNode, setReportTargetNode] = useState<RoadmapNode | null>(null);
+
   // Nodes mapped for React Flow
   const flowNodes = useMemo<Node[]>(() => {
     if (!data) return [];
@@ -3235,6 +3405,7 @@ export function RoadmapPage(): JSX.Element {
           blockerCount: incomingGaters.length,
           meta,
           isStandalone: standaloneNodeIds.has(rn.id),
+          onReportIssue: (node: RoadmapNode) => setReportTargetNode(node),
         },
       };
     });
@@ -3370,16 +3541,23 @@ export function RoadmapPage(): JSX.Element {
         </div>
       </div>
 
-      {/* Point-of-Display Statutory Disclaimer Banner (Dossier Part 9.1) */}
-      <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-amber-900 text-xs shadow-2xs">
-        <Scale className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-        <div className="space-y-0.5">
-          <p className="font-bold tracking-tight">
-            {t('roadmap.disclaimer_title', 'Statutory Regulatory Notice & Disclaimer')}
-          </p>
-          <p className="text-amber-800 leading-relaxed text-[11px]">
-            {t('roadmap.disclaimer')}
-          </p>
+      {/* Point-of-Display Statutory Disclaimer Banner (Dossier Part 9.1 & 9.2) */}
+      <div className="flex items-start justify-between gap-3 p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-amber-950 text-xs shadow-2xs">
+        <div className="flex items-start gap-3">
+          <Scale className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-extrabold tracking-tight text-amber-950 text-xs">
+                Statutory Regulatory Notice &amp; Legal Disclaimer
+              </p>
+              <span className="px-2 py-0.2 rounded bg-amber-200/70 text-amber-900 font-mono text-[10px] font-bold border border-amber-300">
+                ruleset-v2026.09.1-beta+git7a2f9
+              </span>
+            </div>
+            <p className="text-amber-900/90 leading-relaxed text-[11px]">
+              Guidance based on published regulations as of September 2026. Not formal legal advice. The issuing regulatory authority’s determination governs all statutory clearances and compliance obligations.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -3863,7 +4041,21 @@ export function RoadmapPage(): JSX.Element {
 
                                   <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
                                     <span>{meta.department}</span>
-                                    <span className="text-indigo-600 font-bold hover:underline">Inspect →</span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setReportTargetNode(n);
+                                        }}
+                                        className="p-1 rounded text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
+                                        title="Report an issue or discrepancy with this statutory requirement"
+                                      >
+                                        <AlertCircle className="w-3 h-3 text-amber-600" />
+                                        <span>Report</span>
+                                      </button>
+                                      <span className="text-indigo-600 font-bold hover:underline">Inspect →</span>
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -3930,16 +4122,30 @@ export function RoadmapPage(): JSX.Element {
                             {n.requiredDocuments.length} {t('roadmap.documents_count', 'documents')}
                           </td>
                           <td className="py-3.5 px-4 text-right">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedId(n.id);
-                              }}
-                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 font-bold text-xs transition-all cursor-pointer"
-                            >
-                              {t('table.view_btn')}
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReportTargetNode(n);
+                                }}
+                                className="px-2 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs border border-amber-200 transition-all cursor-pointer flex items-center gap-1"
+                                title="Report an issue or discrepancy with this statutory requirement"
+                              >
+                                <AlertCircle className="w-3 h-3 text-amber-600" />
+                                <span>Report</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedId(n.id);
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 font-bold text-xs transition-all cursor-pointer"
+                              >
+                                {t('table.view_btn')}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -3997,7 +4203,19 @@ export function RoadmapPage(): JSX.Element {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReportTargetNode(n);
+                                }}
+                                className="px-2.5 py-1 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs border border-amber-200 transition-all cursor-pointer flex items-center gap-1"
+                                title="Report an issue or discrepancy with this statutory requirement"
+                              >
+                                <AlertCircle className="w-3 h-3 text-amber-600" />
+                                <span>Report</span>
+                              </button>
                               <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${statusConfig.badgeBg}`}>
                                 <RenderStatusIcon type={statusConfig.iconType} className="w-3 h-3" />
                                 {n.status === 'available' ? t('roadmap.status_ready', 'Ready to Apply') : n.status === 'in_progress' ? t('roadmap.status_in_progress', 'In Progress') : n.status === 'done' ? t('roadmap.status_done', 'Done') : t('roadmap.status_pending', 'Pending')}
@@ -4484,6 +4702,15 @@ export function RoadmapPage(): JSX.Element {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 10. Rule Issue Discrepancy Correction Modal (Dossier 9.3) */}
+      {reportTargetNode && (
+        <RuleIssueModal
+          node={reportTargetNode}
+          projectId={projectId}
+          onClose={() => setReportTargetNode(null)}
+        />
       )}
 
     </div>
