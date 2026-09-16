@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLanguage } from '../i18n';
 
 interface MetricItem {
   id: string;
   targetNumber: number;
   prefix?: string;
   suffix: string;
-  label: string;
-  sublabel: string;
+  labelKey: string;
+  defaultLabel: string;
+  sublabelKey: string;
+  defaultSublabel: string;
   icon: React.ReactNode;
   iconBg: string;
   iconColor: string;
@@ -18,8 +21,10 @@ const METRICS: MetricItem[] = [
     targetNumber: 1284,
     prefix: '',
     suffix: '+',
-    label: 'Businesses Supported',
-    sublabel: 'Across Indian States & UTs',
+    labelKey: 'metrics.businesses',
+    defaultLabel: 'Businesses Supported',
+    sublabelKey: 'metrics.businesses_sub',
+    defaultSublabel: 'Across Indian States & UTs',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -33,8 +38,10 @@ const METRICS: MetricItem[] = [
     targetNumber: 10450,
     prefix: '',
     suffix: '+',
-    label: 'Regulations Mapped',
-    sublabel: 'Central, State & Municipal Rules',
+    labelKey: 'metrics.regulations',
+    defaultLabel: 'Regulations Mapped',
+    sublabelKey: 'metrics.regulations_sub',
+    defaultSublabel: 'Central, State & Municipal Rules',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -48,8 +55,10 @@ const METRICS: MetricItem[] = [
     targetNumber: 70,
     prefix: '',
     suffix: '%',
-    label: 'Faster Approvals',
-    sublabel: 'Reduced Filing & Review Friction',
+    labelKey: 'metrics.speed',
+    defaultLabel: 'Faster Approvals',
+    sublabelKey: 'metrics.speed_sub',
+    defaultSublabel: 'Reduced Filing & Review Friction',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -63,8 +72,10 @@ const METRICS: MetricItem[] = [
     targetNumber: 100,
     prefix: '',
     suffix: '%',
-    label: 'Built for a Compliant India',
-    sublabel: 'Aligned with National Single Window',
+    labelKey: 'metrics.india',
+    defaultLabel: 'Built for a Compliant India',
+    sublabelKey: 'metrics.india_sub',
+    defaultSublabel: 'Aligned with National Single Window',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -103,9 +114,11 @@ const CounterDisplay: React.FC<{ target: number; prefix?: string | undefined; su
               setCount(Math.floor(current));
             }
           }, duration / steps);
+
+          return () => clearInterval(timer);
         }
       },
-      { threshold: 0.2 }
+      { threshold: 0.1 },
     );
 
     if (ref.current) observer.observe(ref.current);
@@ -122,6 +135,8 @@ const CounterDisplay: React.FC<{ target: number; prefix?: string | undefined; su
 };
 
 export const MetricsStrip: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <section className="relative z-10 -mt-6 sm:-mt-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 p-6 sm:p-8">
@@ -145,13 +160,11 @@ export const MetricsStrip: React.FC = () => {
                   />
                 </div>
                 <div className="text-xs sm:text-sm font-semibold text-slate-700">
-                  {metric.label}
+                  {t(metric.labelKey, metric.defaultLabel)}
                 </div>
-                {metric.sublabel && (
-                  <div className="text-[11px] text-slate-400 mt-0.5 font-normal hidden sm:block">
-                    {metric.sublabel}
-                  </div>
-                )}
+                <div className="text-[11px] text-slate-400 mt-0.5 font-normal hidden sm:block">
+                  {t(metric.sublabelKey, metric.defaultSublabel)}
+                </div>
               </div>
             </div>
           ))}

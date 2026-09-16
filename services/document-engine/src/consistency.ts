@@ -59,7 +59,8 @@ function toFiniteNumber(value: string | number): number | null {
 export function parseAreaToSqft(value: string | number, units?: string | null): number | null {
   const n = toFiniteNumber(value);
   if (n === null) return null;
-  switch ((units ?? 'sqft').trim().toLowerCase()) {
+  const normalizedUnits = (units ?? 'sqft').trim().toLowerCase();
+  switch (normalizedUnits) {
     case '':
     case 'sqft':
     case 'sq_ft':
@@ -67,22 +68,41 @@ export function parseAreaToSqft(value: string | number, units?: string | null): 
     case 'square_feet':
     case 'square feet':
     case 'sq.feet':
+    case 'चौ. फूट':
+    case 'चौ.फू':
+    case 'चौरस फूट':
+    case 'चौ फूट':
       return n;
     case 'sqm':
     case 'sq_m':
     case 'sq m':
     case 'square_meters':
     case 'square meters':
+    case 'चौ. मी.':
+    case 'चौ.मी.':
+    case 'चौरस मीटर':
+    case 'चौ मीटर':
       return n * 10.7639;
+    case 'guntha':
+    case 'gunthas':
+    case 'गुंठा':
+    case 'गुंठे':
+      return n * 1089;
     case 'sqyd':
     case 'sq_yd':
     case 'sq yd':
     case 'square_yards':
     case 'square yards':
+    case 'वार':
       return n * 9;
     case 'acre':
     case 'acres':
+    case 'एकर':
       return n * 43_560;
+    case 'hectare':
+    case 'hectares':
+    case 'हेक्टर':
+      return n * 107_639;
     default:
       return null;
   }

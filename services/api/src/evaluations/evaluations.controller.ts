@@ -21,6 +21,12 @@ export class EvaluationsController {
     return this.service.create(body);
   }
 
+  @Post('what-if')
+  @HttpCode(HttpStatus.OK)
+  simulateWhatIf(@Body() body: unknown): Promise<Record<string, unknown>> {
+    return this.service.simulateWhatIf(body);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string): Promise<Record<string, unknown>> {
     return this.service.findOne(id);

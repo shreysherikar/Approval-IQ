@@ -7,11 +7,12 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
   STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./data/storage'),
-  LLM_PROVIDER: z.enum(['mock', 'anthropic']).default('mock'),
-  // Anthropic adapter config (blueprint §17.3-17.4). Only required when
-  // LLM_PROVIDER=anthropic; mock stays the default so local/dev never needs a key.
+  LLM_PROVIDER: z.enum(['mock', 'anthropic', 'orcarouter', 'gemini']).default('mock'),
+  // Anthropic / OrcaRouter adapter config. Only required when
+  // LLM_PROVIDER is not mock; mock stays the default so local/dev never needs a key.
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-5-20250929'),
+  LLM_FALLBACK_TO_MOCK: z.string().optional(),
   // Phase 6 Decision #6: per-field confidence threshold below which the UI flags
   // a field as needing extra attention. Provisional default until real
   // accuracy data exists — config, never a hardcoded number in an `if`.
@@ -24,6 +25,12 @@ const envSchema = z.object({
   // Feature 2 (Market & Competitor Intelligence): server-side Google Maps
   // Platform key for Places API (New). Never exposed to the client.
   GOOGLE_MAPS_API_KEY: z.string().optional(),
+  // OrcaRouter AI LLM Configuration (https://orcarouter.ai)
+  ORCAROUTER_API_KEY: z.string().optional(),
+  ORCAROUTER_BASE_URL: z.string().default('https://api.orcarouter.ai/v1'),
+  ORCAROUTER_MODEL: z.string().default('glm-5.3-flash'),
+  GEMINI_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

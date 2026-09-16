@@ -16,8 +16,17 @@ import {
 } from 'lucide-react';
 import { ApiError, authApi } from './api-client';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n';
+import { LanguageSwitcher } from './Layout';
 import { ErrorBanner, GoogleSignInButton } from './components';
 import { LandingPage } from './landing/LandingPage';
+
+const isEmbedded =
+  typeof window !== 'undefined' &&
+  ('__TAURI_INTERNALS__' in window ||
+    'Capacitor' in window ||
+    import.meta.env.VITE_DESKTOP === 'true' ||
+    import.meta.env.VITE_MOBILE === 'true');
 
 export function HomePage(): JSX.Element {
   return <LandingPage />;
@@ -28,6 +37,8 @@ export function HomePage(): JSX.Element {
 // ---------------------------------------------------------------------------
 
 function AuthShowcaseSidebar(): JSX.Element {
+  const { t } = useLanguage();
+
   return (
     <div className="hidden lg:flex flex-col justify-between w-1/2 p-12 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white relative overflow-hidden">
       
@@ -37,7 +48,7 @@ function AuthShowcaseSidebar(): JSX.Element {
       <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
 
       {/* Top Brand Logo */}
-      <div className="relative z-10">
+      <div className="relative z-10 flex items-center justify-between">
         <Link to="/" className="inline-flex items-center gap-2.5 group">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform">
             <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
@@ -58,18 +69,15 @@ function AuthShowcaseSidebar(): JSX.Element {
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-400/20 text-cyan-300 text-xs font-bold uppercase tracking-wider font-mono">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            Statutory Intelligence Platform
+            {t('auth.sidebar_badge', 'Statutory Intelligence Platform')}
           </div>
           
           <h2 className="text-3xl xl:text-4xl font-black tracking-tight text-white leading-tight">
-            Streamline industrial <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-400 to-indigo-300">
-              clearances across India
-            </span>
+            {t('auth.sidebar_headline', 'Streamline industrial clearances across India')}
           </h2>
           
           <p className="text-slate-300 text-sm xl:text-base leading-relaxed max-w-md">
-            Instant dependency roadmaps, auto-gated prerequisites, and document deduplication for over 10,450+ central & state regulatory norms.
+            {t('auth.sidebar_sub', 'Instant dependency roadmaps, auto-gated prerequisites, and document deduplication for over 10,450+ central & state regulatory norms.')}
           </p>
         </div>
 
@@ -162,6 +170,7 @@ function AuthShowcaseSidebar(): JSX.Element {
 
 export function LoginPage(): JSX.Element {
   const { login, isLoading, error: authError } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const oauthError = searchParams.get('error');
@@ -175,8 +184,12 @@ export function LoginPage(): JSX.Element {
     e.preventDefault();
     setFormError(null);
     try {
-      await login(email, password);
-      void navigate('/projects');
+      const authUser = await login(email, password);
+      if (authUser.role === 'officer' || authUser.role === 'admin') {
+        void navigate('/officer');
+      } else {
+        void navigate('/projects');
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Login failed');
     }
@@ -203,11 +216,14 @@ export function LoginPage(): JSX.Element {
             <span>Back to website</span>
           </Link>
 
-          <div className="text-xs text-slate-500 font-medium">
-            New to ApprovalIQ?{' '}
-            <Link to="/register" className="text-blue-600 hover:text-blue-700 font-bold ml-1 hover:underline">
-              Create account →
-            </Link>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <div className="text-xs text-slate-500 font-medium">
+              {t('auth.no_account', 'New to ApprovalIQ?')}{' '}
+              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-bold ml-1 hover:underline">
+                {t('nav.register', 'Create account →')}
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -222,35 +238,39 @@ export function LoginPage(): JSX.Element {
             </div>
             
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-              Sign in to your account
+              {t('auth.login_title', 'Sign in to your account')}
             </h1>
             <p className="text-sm text-slate-500 mt-1.5">
-              Access your regulatory roadmaps, projects, and statutory dossiers.
+              {t('auth.login_sub', 'Access your regulatory roadmaps, projects, and statutory dossiers.')}
             </p>
           </div>
 
           {/* Error Banner */}
           {error && <ErrorBanner message={error} />}
 
-          {/* Google SSO Button */}
-          <div className="pt-1">
-            <GoogleSignInButton label="Continue with Google" disabled={isLoading} />
-          </div>
+          {!isEmbedded && (
+            <>
+              {/* Google SSO Button */}
+              <div className="pt-1">
+                <GoogleSignInButton label="Continue with Google" disabled={isLoading} />
+              </div>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center my-4">
-            <div className="w-full border-t border-slate-200" />
-            <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
-              or continue with email
-            </span>
-          </div>
+              {/* Divider */}
+              <div className="relative flex items-center justify-center my-4">
+                <div className="w-full border-t border-slate-200" />
+                <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
+                  or continue with email
+                </span>
+              </div>
+            </>
+          )}
 
           {/* Email / Password Form */}
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
             
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 font-mono">
-                Email Address
+                {t('auth.email_label', 'Email Address')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -273,7 +293,7 @@ export function LoginPage(): JSX.Element {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 font-mono">
-                  Password
+                  {t('auth.password_label', 'Password')}
                 </label>
               </div>
               
@@ -322,7 +342,7 @@ export function LoginPage(): JSX.Element {
                   <span>Signing in…</span>
                 </>
               ) : (
-                <span>Sign in to Dashboard →</span>
+                <span>{t('auth.sign_in_btn', 'Sign in to Dashboard →')}</span>
               )}
             </button>
           </form>
@@ -330,9 +350,9 @@ export function LoginPage(): JSX.Element {
           {/* Quick Switch to Register */}
           <div className="text-center pt-2">
             <p className="text-xs text-slate-500">
-              Don't have an ApprovalIQ account yet?{' '}
+              {t('auth.no_account', "Don't have an ApprovalIQ account yet?")}{' '}
               <Link to="/register" className="text-blue-600 hover:text-blue-700 font-bold hover:underline">
-                Sign up free
+                {t('nav.register', 'Sign up free')}
               </Link>
             </p>
           </div>
@@ -358,6 +378,7 @@ export function LoginPage(): JSX.Element {
 
 export function RegisterPage(): JSX.Element {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -401,11 +422,14 @@ export function RegisterPage(): JSX.Element {
             <span>Back to website</span>
           </Link>
 
-          <div className="text-xs text-slate-500 font-medium">
-            Already have an account?{' '}
-            <Link to="/login" className="text-blue-600 hover:text-blue-700 font-bold ml-1 hover:underline">
-              Sign in →
-            </Link>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <div className="text-xs text-slate-500 font-medium">
+              {t('auth.has_account', 'Already have an account?')}{' '}
+              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-bold ml-1 hover:underline">
+                {t('nav.login', 'Sign in →')}
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -420,35 +444,39 @@ export function RegisterPage(): JSX.Element {
             </div>
             
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-              Create your account
+              {t('auth.register_title', 'Create your account')}
             </h1>
             <p className="text-sm text-slate-500 mt-1.5">
-              Start building your regulatory clearance roadmap for your business.
+              {t('auth.register_sub', 'Start building your regulatory clearance roadmap for your business.')}
             </p>
           </div>
 
           {/* Error Banner */}
           {error && <ErrorBanner message={error} />}
 
-          {/* Google SSO Button */}
-          <div className="pt-1">
-            <GoogleSignInButton label="Sign up with Google" disabled={isLoading} />
-          </div>
+          {!isEmbedded && (
+            <>
+              {/* Google SSO Button */}
+              <div className="pt-1">
+                <GoogleSignInButton label="Sign up with Google" disabled={isLoading} />
+              </div>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center my-4">
-            <div className="w-full border-t border-slate-200" />
-            <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
-              or register with work email
-            </span>
-          </div>
+              {/* Divider */}
+              <div className="relative flex items-center justify-center my-4">
+                <div className="w-full border-t border-slate-200" />
+                <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
+                  or register with work email
+                </span>
+              </div>
+            </>
+          )}
 
           {/* Registration Form */}
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
             
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 font-mono">
-                Work Email Address
+                {t('auth.email_label', 'Work Email Address')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -470,7 +498,7 @@ export function RegisterPage(): JSX.Element {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 font-mono">
-                Password (min 8 characters)
+                {t('auth.password_label', 'Password')} (min 8 characters)
               </label>
               
               <div className="relative">
@@ -533,7 +561,7 @@ export function RegisterPage(): JSX.Element {
                   <span>Creating your account…</span>
                 </>
               ) : (
-                <span>Create Enterprise Account →</span>
+                <span>{t('auth.create_account_btn', 'Create Enterprise Account →')}</span>
               )}
             </button>
           </form>
@@ -541,9 +569,9 @@ export function RegisterPage(): JSX.Element {
           {/* Bottom Switch Link */}
           <div className="text-center pt-2">
             <p className="text-xs text-slate-500">
-              Already have an account?{' '}
+              {t('auth.has_account', 'Already have an account?')}{' '}
               <Link to="/login" className="text-blue-600 hover:text-blue-700 font-bold hover:underline">
-                Sign in
+                {t('nav.login', 'Sign in')}
               </Link>
             </p>
           </div>

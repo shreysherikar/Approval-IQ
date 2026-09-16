@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -63,6 +64,18 @@ async function bootstrap(): Promise<void> {
   const port = config.getOrThrow<number>('PORT');
   await app.listen(port);
   console.log(`ApprovalIQ API listening on port ${port}`);
+
+  // Background cold-start database check
+  const prisma = app.get(PrismaService);
+  prisma.knowledgeRelease.count().then((count) => {
+    if (count === 0) {
+      console.log('ℹ️ Clean database detected: Run `pnpm run seed:demo` to populate full Maharashtra brewery demo dataset.');
+    } else {
+      console.log(`✓ Regulatory Knowledge Base active (${count} releases indexed).`);
+    }
+  }).catch(() => {
+    // Database connecting asynchronously
+  });
 }
 
 void bootstrap();

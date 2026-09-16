@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { recoveryApi, type RecoveryActionView, ApiError } from './api-client';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n/LanguageContext';
 import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
 
 // ---------------------------------------------------------------------------
@@ -121,6 +122,7 @@ function RecoveryActionCard({
 
 export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Element {
   const { accessToken, isRestoring } = useAuth();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
 
   const planQuery = useQuery({
@@ -146,63 +148,63 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
   });
 
   if (planQuery.isLoading || isRestoring) {
-    return <LoadingSpinner label="Loading recovery plan…" />;
+    return <LoadingSpinner label={t('recovery.loading', 'Loading recovery plan…')} />;
   }
 
   const plan = planQuery.data;
 
   return (
-    <section className="rounded-md border border-gray-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-3">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Compliance Recovery</h2>
-          <p className="text-sm text-gray-600">
+          <h2 className="text-base sm:text-lg font-black text-slate-900">{t('recovery.title')}</h2>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             {plan?.planId
-              ? `${plan.totalActions} action${plan.totalActions === 1 ? '' : 's'} · ${plan.resolvedActions} resolved`
-              : 'No recovery plan generated yet'}
+              ? `${plan.totalActions} ${t('recovery.actions_label', 'actions')} · ${plan.resolvedActions} ${t('recovery.resolved_label', 'resolved')}`
+              : t('recovery.no_plan')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {plan?.planId && <ReadinessBadge level={plan.readinessLevel} />}
           <button
             type="button"
             disabled={generateMutation.isPending || rerunValidation.isPending}
             onClick={() => generateMutation.mutate()}
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors cursor-pointer"
           >
-            {generateMutation.isPending ? 'Generating…' : plan?.planId ? 'Regenerate Plan' : 'Generate Recovery Plan'}
+            {generateMutation.isPending ? t('recovery.generating') : plan?.planId ? t('recovery.regenerate_btn') : t('recovery.generate_btn')}
           </button>
           {plan?.planId && plan.totalActions > 0 && (
             <button
               type="button"
               disabled={rerunValidation.isPending}
               onClick={() => rerunValidation.mutate()}
-              className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
             >
-              {rerunValidation.isPending ? 'Re-validating…' : 'Re-run Validation'}
+              {rerunValidation.isPending ? t('recovery.revalidating') : t('recovery.revalidate_btn')}
             </button>
           )}
         </div>
       </div>
 
       {generateMutation.isError && (
-        <div className="mt-2">
-          <ErrorBanner message={generateMutation.error instanceof Error ? generateMutation.error.message : 'Generation failed'} />
+        <div className="mt-3">
+          <ErrorBanner message={generateMutation.error instanceof Error ? generateMutation.error.message : t('recovery.error_generation', 'Generation failed')} />
         </div>
       )}
 
       {plan?.planId && plan.totalBlocking > 0 && (
-        <div className="mt-3 rounded border border-red-200 bg-red-50 p-3">
-          <p className="text-sm font-medium text-red-800">
-            {plan.totalBlocking} blocking issue{plan.totalBlocking === 1 ? '' : 's'} must be resolved before submission.
+        <div className="mt-3 rounded-2xl border border-red-200 bg-red-50/80 p-3.5">
+          <p className="text-xs font-semibold text-red-800">
+            {plan.totalBlocking} {t('recovery.blocking_issues')}
           </p>
         </div>
       )}
 
       {plan?.planId && plan.totalWarnings > 0 && (
-        <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-3">
-          <p className="text-sm text-amber-800">
-            {plan.totalWarnings} warning{plan.totalWarnings === 1 ? '' : 's'} should be reviewed.
+        <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5">
+          <p className="text-xs text-amber-800">
+            {plan.totalWarnings} {t('recovery.warnings_review', 'warning(s) should be reviewed.')}
           </p>
         </div>
       )}
@@ -210,8 +212,8 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
       {!plan?.planId && (
         <div className="mt-4">
           <EmptyState
-            title="No recovery plan"
-            description="Generate a recovery plan to identify and fix compliance issues before submission."
+            title={t('recovery.empty_title', 'No recovery plan')}
+            description={t('recovery.empty_desc', 'Generate a recovery plan to identify and fix compliance issues before submission.')}
           />
         </div>
       )}
@@ -231,9 +233,9 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
       )}
 
       {plan?.planId && plan.totalActions > 0 && plan.resolvedActions === plan.totalActions && (
-        <div className="mt-4 rounded border border-green-200 bg-green-50 p-4 text-center">
-          <p className="text-sm font-medium text-green-800">
-            All issues resolved! The application is ready for submission.
+        <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-center">
+          <p className="text-xs sm:text-sm font-bold text-green-800">
+            {t('recovery.all_resolved_banner', 'All issues resolved! The application is ready for submission.')}
           </p>
         </div>
       )}

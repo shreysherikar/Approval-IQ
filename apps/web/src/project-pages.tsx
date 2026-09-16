@@ -5,6 +5,8 @@ import { EmptyState } from './components';
 import { RoadmapPage } from './roadmap';
 import { ProfileIntakeForm } from './profile-form';
 import { JointInspectionsPage } from './inspections';
+import { GrievanceCenterPage } from './grievances';
+import { SchemesPage } from './schemes-page';
 
 export { ProjectsOnboardingPage as ProjectsPage } from './projects/ProjectsOnboardingPage';
 
@@ -33,8 +35,16 @@ export function ProjectRoadmapPage(): JSX.Element {
   return <RoadmapPage />;
 }
 
+export function ProjectSchemesPage(): JSX.Element {
+  return <SchemesPage />;
+}
+
 export function ProjectInspectionsPage(): JSX.Element {
   return <JointInspectionsPage />;
+}
+
+export function ProjectGrievancesPage(): JSX.Element {
+  return <GrievanceCenterPage />;
 }
 
 export function ProjectDocumentPage(): JSX.Element {

@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { RealIndiaLeafletMap, CityMarkerData } from './RealIndiaLeafletMap';
 import { ScrollProgressBar } from './ScrollProgressBar';
+import { LanguageSwitcher } from '../Layout';
+import { useLanguage } from '../i18n';
 
 interface DomainPreset {
   id: string;
@@ -413,6 +415,7 @@ const CITY_DISTRIBUTION_WEIGHTS: Record<string, Record<string, number>> = {
 };
 
 export const BusinessMapPage: React.FC = () => {
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const initialDomain = searchParams.get('domain') || 'pharma';
 
@@ -435,38 +438,35 @@ export const BusinessMapPage: React.FC = () => {
       const cityWeight = weights[base.id] || 1.0;
       let rawCount = Math.round(180 * baseMult * cityWeight);
       if (statusFilter === 'greenfield') rawCount = Math.round(rawCount * 0.28);
-      if (statusFilter === 'operational') rawCount = Math.round(rawCount * 0.72);
+      else if (statusFilter === 'operational') rawCount = Math.round(rawCount * 0.72);
 
       return {
         ...base,
-        count: rawCount,
+        count: Math.max(12, rawCount),
       };
     });
-  }, [selectedDomainId, activePreset.multiplier, statusFilter]);
+  }, [selectedDomainId, statusFilter, activePreset.multiplier]);
 
   // Total National Business Count
   const totalNationalCount = useMemo(() => {
-    return computedCities.reduce((sum, c) => sum + c.count, 0);
+    return computedCities.reduce((acc, c) => acc + c.count, 0);
   }, [computedCities]);
 
-  // Group cities by State for the Leaderboard
+  // Grouped by State for sidebar ranking
   const stateLeaderboard = useMemo(() => {
     const stateMap = new Map<string, { code: string; name: string; totalCount: number; cities: CityMarkerData[] }>();
 
-    computedCities.forEach((city) => {
-      const existing = stateMap.get(city.stateCode);
-      if (existing) {
-        existing.totalCount += city.count;
-        existing.cities.push(city);
-      } else {
-        stateMap.set(city.stateCode, {
-          code: city.stateCode,
-          name: city.stateName,
-          totalCount: city.count,
-          cities: [city],
-        });
-      }
-    });
+    for (const city of computedCities) {
+      const existing = stateMap.get(city.stateCode) || {
+        code: city.stateCode,
+        name: city.stateName,
+        totalCount: 0,
+        cities: [],
+      };
+      existing.totalCount += city.count;
+      existing.cities.push(city);
+      stateMap.set(city.stateCode, existing);
+    }
 
     return Array.from(stateMap.values()).sort((a, b) => b.totalCount - a.totalCount);
   }, [computedCities]);
@@ -486,28 +486,32 @@ export const BusinessMapPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all hover:scale-105 border border-slate-700"
           >
             <span>←</span>
-            <span>Back to Home</span>
+            <span>{t('map.back_home', 'Back to Home')}</span>
           </Link>
 
           <div className="flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500/50" />
             <div>
               <div className="text-xs font-bold text-white tracking-wide uppercase font-mono flex items-center gap-2">
-                <span>ApprovalIQ Real Business Map</span>
+                <span>{t('map.title', 'ApprovalIQ Real Business Map')}</span>
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-blue-900/80 text-blue-300 text-[10px] border border-blue-700">
-                  Live Geospatial Engine
+                  {t('map.live_engine', 'Live Geospatial Engine')}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Global Business Count Counter in Header */}
+        {/* Global Business Count Counter and Language Switcher in Header */}
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+
           <div className="hidden md:flex flex-col text-right">
-            <span className="text-[10px] uppercase font-mono text-slate-400">Total Mapped Units</span>
+            <span className="text-[10px] uppercase font-mono text-slate-400">
+              {t('map.total_units', 'Total Mapped Units')}
+            </span>
             <span className="text-sm font-black text-cyan-400 font-mono tracking-tight">
-              {totalNationalCount.toLocaleString()} Across India
+              {totalNationalCount.toLocaleString()} {t('map.across_india', 'Across India')}
             </span>
           </div>
 
@@ -515,7 +519,7 @@ export const BusinessMapPage: React.FC = () => {
             to={`/register?state=${activeCity.stateCode}&industry=${encodeURIComponent(currentDomainName)}`}
             className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-500/30 transition-all hover:scale-105"
           >
-            Start Project in {activeCity.name} →
+            {t('map.start_in_city', `Start Project in ${activeCity.name} →`).replace('{city}', activeCity.name)}
           </Link>
         </div>
       </header>

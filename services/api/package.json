@@ -17,10 +17,11 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "import:regulatory": "tsx scripts/import-regulatory-data.ts",
-    "test:unit": "tsx --test test/to-engine-condition.test.ts test/inspections.unit.test.ts test/evaluations.data-depth.unit.test.ts test/clarification-state.test.ts",
+    "test:unit": "tsx --test test/to-engine-condition.test.ts test/clarification-state.test.ts test/auth.google.test.ts test/inspections.unit.test.ts test/evaluations.data-depth.unit.test.ts test/extraction.provider.unit.test.ts",
+    "test:unit:auth": "tsx --test test/auth.google.test.ts",
     "test:unit:inspections": "tsx --test test/inspections.unit.test.ts",
     "test:unit:data-depth": "tsx --test test/evaluations.data-depth.unit.test.ts",
-    "test:unit:auth": "tsx --test test/auth.google.test.ts",
+    "test:unit:extraction": "tsx --test test/extraction.provider.unit.test.ts",
     "test:integration:evaluations": "tsx scripts/evaluations.integration.ts",
     "test:integration:profiles": "tsx scripts/profiles.integration.ts",
     "test:integration:roadmap": "tsx scripts/roadmap.integration.ts",
@@ -30,7 +31,14 @@
     "test:integration:consistency": "tsx test/consistency.integration.test.ts",
     "test:integration:reuse": "tsx test/reuse.integration.test.ts",
     "test:integration:clarifications": "tsx test/clarifications.integration.test.ts",
-    "officer:assign": "tsx scripts/assign-officer.ts"
+    "test:integration:grievances": "tsx test/grievances.integration.test.ts",
+    "officer:assign": "tsx scripts/assign-officer.ts",
+    "demo:seed": "tsx scripts/seed-demo.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "seed:demo:reset": "tsx scripts/seed-demo.ts --reset"
+  },
+  "prisma": {
+    "seed": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@approvaliq/approval-engine": "workspace:*",

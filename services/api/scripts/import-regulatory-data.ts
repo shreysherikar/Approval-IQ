@@ -110,7 +110,7 @@ const REUSES: string[] = ['reusable', 'conditional', 'fresh_required', 'unknown'
 type VStatus = 'research_verified' | 'production_verified';
 interface AuthRec { line: number; code: string; name: string; dept: string | null; jur: string | null; url: string | null; }
 interface SrcRec { line: number; key: string; url: string; title: string; dept: string | null; pub: Date | null; ret: Date; ver: Date; by: string; notes: string | null; reviewed: Date | null; status: VStatus; stale: boolean; }
-interface ApprRec { line: number; code: string; name: string; industry: string; auth: string; why: string; cond: string | null; notes: string | null; docs: string[]; insp: boolean; renew: boolean; sla: number | null; url: string | null; src: string; verified: Date;
+interface ApprRec { line: number; code: string; name: string; shortName: string | null; ruleKind: string; jurisdiction: string | null; industry: string; auth: string; why: string; cond: string | null; exclCond: string | null; exclReason: string | null; notes: string | null; docs: string[]; insp: boolean; renew: boolean; sla: number | null; url: string | null; src: string; verified: Date;
   // Business Intelligence (time & cost prediction) — optional, evidence-tracked.
   tMin: number | null; tMax: number | null; timeBasis: string | null; timeStatus: string | null; timeNote: string | null;
   govtMin: number | null; govtMax: number | null; regMin: number | null; regMax: number | null;
@@ -226,12 +226,15 @@ function toIntOrNull(raw: string): number | null {
     const slaUnknown = slaRaw === '' || /^unknown$/i.test(slaRaw);
     const sla = slaUnknown ? null : Number.parseInt(slaRaw, 10);
     if (!slaUnknown && (sla === null || Number.isNaN(sla))) errors.push(`approvals.csv:${line}: bad sla "${slaRaw}"`);
-    // applicability_conditions is free-text prose in the dataset; store it
-    // verbatim as a JSON string rather than requiring a JSON document.
     const cond: string | null = cell(row, 'applicability_conditions').trim() || null;
+    const exclCond: string | null = cell(row, 'exclusion_conditions').trim() || null;
+    const exclReason: string | null = cell(row, 'exclusion_reason').trim() || null;
+    const ruleKind = cell(row, 'rule_kind', 'ruleKind').trim() || 'approval';
+    const shortName = cell(row, 'short_name', 'shortName').trim() || null;
+    const jurisdiction = cell(row, 'jurisdiction').trim() || null;
     const verified = toDateOrNull(cell(row, 'last_verified'));
     if (!verified) errors.push(`approvals.csv:${line}: missing last_verified`);
-    apprs.set(code, { line, code, name: cell(row, 'approval_name', 'name') || code, industry: cell(row, 'industry') || opts.industry, auth: cell(row, 'authority_id', 'authority'), why: cell(row, 'why_required'), cond, notes: cell(row, 'notes').trim() || null, docs: splitCodes(cell(row, 'required_documents')), insp: toBool(cell(row, 'inspection_required'), false), renew: toBool(cell(row, 'renewal'), false), sla, url: cell(row, 'official_url') || null, src: cell(row, 'source_id', 'source'), verified: verified ?? new Date(0),
+    apprs.set(code, { line, code, name: cell(row, 'approval_name', 'name') || code, shortName, ruleKind, jurisdiction, industry: cell(row, 'industry') || opts.industry, auth: cell(row, 'authority_id', 'authority'), why: cell(row, 'why_required'), cond, exclCond, exclReason, notes: cell(row, 'notes').trim() || null, docs: splitCodes(cell(row, 'required_documents')), insp: toBool(cell(row, 'inspection_required'), false), renew: toBool(cell(row, 'renewal'), false), sla, url: cell(row, 'official_url') || null, src: cell(row, 'source_id', 'source'), verified: verified ?? new Date(0),
       tMin: toIntOrNull(cell(row, 'processing_time_min_days')),
       tMax: toIntOrNull(cell(row, 'processing_time_max_days')),
       timeBasis: cell(row, 'time_basis').trim() || null,
@@ -386,9 +389,57 @@ function toIntOrNull(raw: string): number | null {
         const indId = industryMap.get(a.industry.trim().toLowerCase());
         if (!indId) throw new Error(`missing industry for "${a.code}"`);
         const conds = toConditionJson(a.cond);
+        const exclConds = toConditionJson(a.exclCond);
         const biTime = { processingTimeMinDays: a.tMin, processingTimeMaxDays: a.tMax, timeBasis: a.timeBasis, timeStatus: a.timeStatus, timeSourceNote: a.timeNote };
         const biCost = { govtFeeMinInr: a.govtMin, govtFeeMaxInr: a.govtMax, registrationFeeMinInr: a.regMin, registrationFeeMaxInr: a.regMax, inspectionFeeMinInr: a.inspFeeMin, inspectionFeeMaxInr: a.inspFeeMax, documentationCostMinInr: a.docMin, documentationCostMaxInr: a.docMax, otherCostMinInr: a.othMin, otherCostMaxInr: a.othMax, costStatus: a.costStatus, costSourceNote: a.costNote };
-        const r = await tx.approvalDefinition.upsert({ where: { code: a.code }, update: { name: a.name, industryId: indId, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, ambiguityNotes: a.notes, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id, ...biTime, ...biCost }, create: { code: a.code, name: a.name, industryId: indId, authorityId: aid, whyRequired: a.why, applicabilityConditions: conds, ambiguityNotes: a.notes, inspectionRequired: a.insp, renewalRequired: a.renew, slaDays: a.sla, officialApplicationUrl: a.url, sourceId: sid, lastVerifiedDate: a.verified, releaseId: release.id, ...biTime, ...biCost } });
+        const r = await tx.approvalDefinition.upsert({
+          where: { code: a.code },
+          update: {
+            name: a.name,
+            shortName: a.shortName,
+            ruleKind: a.ruleKind,
+            jurisdiction: a.jurisdiction,
+            industryId: indId,
+            authorityId: aid,
+            whyRequired: a.why,
+            applicabilityConditions: conds,
+            exclusionConditions: exclConds,
+            exclusionReason: a.exclReason,
+            ambiguityNotes: a.notes,
+            inspectionRequired: a.insp,
+            renewalRequired: a.renew,
+            slaDays: a.sla,
+            officialApplicationUrl: a.url,
+            sourceId: sid,
+            lastVerifiedDate: a.verified,
+            releaseId: release.id,
+            ...biTime,
+            ...biCost,
+          },
+          create: {
+            code: a.code,
+            name: a.name,
+            shortName: a.shortName,
+            ruleKind: a.ruleKind,
+            jurisdiction: a.jurisdiction,
+            industryId: indId,
+            authorityId: aid,
+            whyRequired: a.why,
+            applicabilityConditions: conds,
+            exclusionConditions: exclConds,
+            exclusionReason: a.exclReason,
+            ambiguityNotes: a.notes,
+            inspectionRequired: a.insp,
+            renewalRequired: a.renew,
+            slaDays: a.sla,
+            officialApplicationUrl: a.url,
+            sourceId: sid,
+            lastVerifiedDate: a.verified,
+            releaseId: release.id,
+            ...biTime,
+            ...biCost,
+          },
+        });
         apprIds.set(a.code, r.id);
         await tx.approvalDocumentRequirement.deleteMany({ where: { approvalDefinitionId: r.id } });
         for (const dc of a.docs) {

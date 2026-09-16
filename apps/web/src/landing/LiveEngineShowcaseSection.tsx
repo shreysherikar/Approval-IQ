@@ -1,8 +1,11 @@
 import React from 'react';
 import { DocumentToDecisionFlow } from './DocumentToDecisionFlow';
 import { LiveAuditStream } from './LiveAuditStream';
+import { useLanguage } from '../i18n';
 
 export const LiveEngineShowcaseSection: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <section className="py-20 bg-slate-950 text-white relative overflow-hidden border-t border-slate-800">
       {/* Background glow accents */}
@@ -15,13 +18,16 @@ export const LiveEngineShowcaseSection: React.FC = () => {
         <div className="text-center max-w-3xl mx-auto mb-14">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/80 border border-blue-800 text-blue-300 text-xs font-semibold uppercase tracking-wider mb-3">
             <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-            LIVE ENGINE CAPABILITIES
+            {t('engine.tag', 'LIVE ENGINE CAPABILITIES')}
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            From Raw Application to Statutory Decision in Seconds
+            {t('engine.title', 'From Raw Application to Statutory Decision in Seconds')}
           </h2>
           <p className="mt-3 text-sm sm:text-base text-slate-300">
-            Watch how ApprovalIQ ingests complex filings, parses statutory entities, verifies rule graphs, and logs every audit event.
+            {t(
+              'engine.subtitle',
+              'Watch how ApprovalIQ ingests complex filings, parses statutory entities, verifies rule graphs, and logs every audit event.',
+            )}
           </p>
         </div>
 
@@ -41,26 +47,28 @@ export const LiveEngineShowcaseSection: React.FC = () => {
             <div className="bg-[#0b1329]/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl p-5 shadow-xl">
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                  Security & Integrity Controls
+                  {t('engine.security_title', 'Security & Integrity Controls')}
                 </span>
-                <span className="text-[10px] text-emerald-400 font-mono">100% Active</span>
+                <span className="text-[10px] text-emerald-400 font-mono">
+                  {t('engine.security_active', '100% Active')}
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-900/80 border border-slate-800">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Role-Based RBAC</span>
+                  <span>{t('engine.rbac', 'Role-Based RBAC')}</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-900/80 border border-slate-800">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>AES-256 Storage</span>
+                  <span>{t('engine.aes', 'AES-256 Storage')}</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-900/80 border border-slate-800">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Audit Immutability</span>
+                  <span>{t('engine.audit', 'Audit Immutability')}</span>
                 </div>
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-900/80 border border-slate-800">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Google OAuth 2.0</span>
+                  <span>{t('engine.oauth', 'Google OAuth 2.0')}</span>
                 </div>
               </div>
             </div>

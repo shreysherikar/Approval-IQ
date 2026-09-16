@@ -16,6 +16,7 @@ import { BusinessMapModule } from './business-map/business-map.module';
 import { InspectionsModule } from './inspections/inspections.module';
 import { ClarificationsModule } from './clarifications/clarifications.module';
 import { OfficerModule } from './officer/officer.module';
+import { GrievancesModule } from './grievances/grievances.module';
 import { RegulatoryChangesModule } from './regulatory-changes/regulatory-changes.module';
 import { RecoveryModule } from './recovery/recovery.module';
 import { RiskModule } from './risk/risk.module';
@@ -23,11 +24,14 @@ import { AuditModule } from './audit/audit.module';
 import { TimeCostModule } from './time-cost/time-cost.module';
 import { MarketModule } from './market/market.module';
 import { AssistantModule } from './assistant/assistant.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv, envFilePath: ['.env', '../../.env'] }),
     PrismaModule,
+    EventsModule,
     HealthModule,
     AuthModule,
     EvaluationsModule,
@@ -42,6 +46,7 @@ import { AssistantModule } from './assistant/assistant.module';
     InspectionsModule,
     ClarificationsModule,
     OfficerModule,
+    GrievancesModule,
     RegulatoryChangesModule,
     RecoveryModule,
     RiskModule,
@@ -49,6 +54,7 @@ import { AssistantModule } from './assistant/assistant.module';
     TimeCostModule,
     MarketModule,
     AssistantModule,
+    IntegrationsModule,
   ],
 })
 export class AppModule {}

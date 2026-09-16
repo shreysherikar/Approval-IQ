@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n';
 import {
   ApiError,
   inspectionsApi,
@@ -13,7 +14,8 @@ import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
 
 export function JointInspectionsPage(): JSX.Element {
   const { id: projectId } = useParams<{ id: string }>();
-  const { accessToken } = useAuth();
+  const { accessToken, isRestoring } = useAuth();
+  const { t } = useLanguage();
 
   const [inspections, setInspections] = useState<JointInspectionView[]>([]);
   const [candidateData, setCandidateData] =
@@ -247,6 +249,11 @@ export function JointInspectionsPage(): JSX.Element {
 
   const loadData = async (): Promise<void> => {
     if (!projectId) return;
+    if (isRestoring) return;
+    if (!accessToken) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -274,8 +281,10 @@ export function JointInspectionsPage(): JSX.Element {
   };
 
   useEffect(() => {
-    void loadData();
-  }, [projectId]);
+    if (!isRestoring && accessToken && projectId) {
+      void loadData();
+    }
+  }, [projectId, accessToken, isRestoring]);
 
   const initInspectionState = (inspection: JointInspectionView) => {
     const dateStr = inspection.scheduledDate
@@ -494,14 +503,17 @@ export function JointInspectionsPage(): JSX.Element {
         <div>
           <div className="flex items-center gap-2">
             <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800">
-              SIH Feature #7
+              {t('inspections.sih_feature', 'SIH Feature #7')}
             </span>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-              Joint Inspection Planner
+              {t('inspections.title', 'Joint Inspection Planner')}
             </h1>
           </div>
           <p className="mt-1 text-sm text-gray-500">
-            Unified physical site verification across MPCB, Fire Services, Labour (DISH), and State Excise.
+            {t(
+              'inspections.subtitle',
+              'Unified physical site verification across MPCB, Fire Services, Labour (DISH), and State Excise.',
+            )}
           </p>
         </div>
 
@@ -511,23 +523,35 @@ export function JointInspectionsPage(): JSX.Element {
             to={`/projects/${projectId}/profile`}
             className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
           >
-            Profile
+            {t('nav.profile', 'Profile')}
           </Link>
           <Link
             to={`/projects/${projectId}/approvals`}
             className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
           >
-            Approvals
+            {t('inspections.approvals_tab', 'Approvals')}
           </Link>
           <Link
             to={`/projects/${projectId}/roadmap`}
             className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
           >
-            Roadmap
+            {t('nav.roadmap', 'Roadmap')}
+          </Link>
+          <Link
+            to={`/projects/${projectId}/schemes`}
+            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+          >
+            <span>💰 {t('nav.schemes', 'Schemes')}</span>
           </Link>
           <span className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm">
-            Joint Inspections
+            {t('nav.inspections', 'Joint Inspections')}
           </span>
+          <Link
+            to={`/projects/${projectId}/grievances`}
+            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+          >
+            <span>⚖️ {t('nav.grievances', 'Grievances')}</span>
+          </Link>
         </div>
       </div>
 

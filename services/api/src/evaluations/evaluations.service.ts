@@ -24,11 +24,16 @@ type DbApproval = {
   id: string;
   code: string;
   name: string;
+  shortName: string | null;
+  ruleKind: string;
+  jurisdiction: string | null;
   whyRequired: string;
   officialApplicationUrl: string | null;
   lastVerifiedDate: Date;
   applicabilityConditions: unknown;
-  source: { url: string } | null;
+  exclusionConditions: unknown;
+  exclusionReason: string | null;
+  source: { url: string; title?: string } | null;
   requirements: Array<{ documentDefinition: { code: string; name: string } }>;
 };
 
@@ -219,16 +224,22 @@ export class EvaluationsService {
     });
     if (!release) throw new NotFoundException('No draft KnowledgeRelease found');
     const dbApprovals = (await this.prisma.approvalDefinition.findMany({
-      where: { releaseId: release.id, industry: { code: industryCode } },
+      where: {
+        releaseId: release.id,
+        OR: [
+          { industry: { code: industryCode }, ruleKind: 'approval' },
+          { ruleKind: 'incentive' },
+        ],
+      },
       include: {
         requirements: { include: { documentDefinition: true } },
-        source: { select: { url: true } },
+        source: { select: { url: true, title: true } },
       },
       orderBy: { code: 'asc' },
     })) as unknown as DbApproval[];
     if (dbApprovals.length === 0) {
       throw new NotFoundException(
-        `No approvals for industry '${industryCode}' in draft release '${release.version}'`,
+        `No approvals or incentive rules found for industry '${industryCode}' in draft release '${release.version}'`,
       );
     }
     // Display-only metadata (description, provenance) rides on the definition
@@ -238,10 +249,17 @@ export class EvaluationsService {
     const engineDefs = dbApprovals.map((a) => ({
       id: a.code,
       name: a.name,
+      shortName: a.shortName ?? undefined,
+      ruleKind: (a.ruleKind as 'approval' | 'incentive') ?? 'approval',
+      jurisdiction: a.jurisdiction ?? undefined,
       description: a.whyRequired,
+      sourceTitle: a.source?.title ?? undefined,
       sourceUrl: a.officialApplicationUrl ?? a.source?.url ?? undefined,
+      verificationDate: a.lastVerifiedDate ? new Date(a.lastVerifiedDate).toISOString() : undefined,
       lastVerifiedDate: a.lastVerifiedDate ? new Date(a.lastVerifiedDate).toISOString() : undefined,
       condition: toEngineCondition(a.applicabilityConditions),
+      exclusionConditions: toEngineCondition(a.exclusionConditions),
+      exclusionReason: a.exclusionReason ?? undefined,
       requiredDocuments: a.requirements.map((r) => ({
         id: r.documentDefinition.code,
         name: r.documentDefinition.name,
@@ -306,6 +324,74 @@ export class EvaluationsService {
       createdAt: run.createdAt,
       profileSnapshot: run.profileSnapshot,
       ...(run.resultSnapshot as Record<string, unknown>),
+    };
+  }
+
+  async simulateWhatIf(body: unknown): Promise<Record<string, unknown>> {
+    const payload = body as Record<string, unknown>;
+    const profile = (payload.profile ?? payload) as Record<string, unknown>;
+    const industryCode = typeof payload.industryCode === 'string'
+      ? payload.industryCode
+      : typeof (profile.industry as KnownField)?.value === 'string'
+      ? (profile.industry as KnownField).value
+      : 'brewery';
+
+    const release = await this.prisma.knowledgeRelease.findFirst({
+      where: { status: 'draft' },
+      orderBy: { version: 'desc' },
+    });
+    if (!release) throw new NotFoundException('No draft KnowledgeRelease found');
+
+    const dbApprovals = (await this.prisma.approvalDefinition.findMany({
+      where: {
+        releaseId: release.id,
+        OR: [
+          { industry: { code: industryCode }, ruleKind: 'approval' },
+          { ruleKind: 'incentive' },
+        ],
+      },
+      include: {
+        requirements: { include: { documentDefinition: true } },
+        source: { select: { url: true, title: true } },
+      },
+      orderBy: { code: 'asc' },
+    })) as unknown as DbApproval[];
+
+    const engineDefs = dbApprovals.map((a) => ({
+      id: a.code,
+      name: a.name,
+      shortName: a.shortName ?? undefined,
+      ruleKind: (a.ruleKind as 'approval' | 'incentive') ?? 'approval',
+      jurisdiction: a.jurisdiction ?? undefined,
+      description: a.whyRequired,
+      sourceTitle: a.source?.title ?? undefined,
+      sourceUrl: a.officialApplicationUrl ?? a.source?.url ?? undefined,
+      verificationDate: a.lastVerifiedDate ? new Date(a.lastVerifiedDate).toISOString() : undefined,
+      lastVerifiedDate: a.lastVerifiedDate ? new Date(a.lastVerifiedDate).toISOString() : undefined,
+      condition: toEngineCondition(a.applicabilityConditions),
+      exclusionConditions: toEngineCondition(a.exclusionConditions),
+      exclusionReason: a.exclusionReason ?? undefined,
+      requiredDocuments: a.requirements.map((r) => ({
+        id: r.documentDefinition.code,
+        name: r.documentDefinition.name,
+      })),
+    }));
+
+    const engine = (await import(
+      '@approvaliq/approval-engine' as string
+    )) as unknown as { evaluate: EngineEvaluateFn };
+    const { evaluate } = engine;
+    const result = evaluate(
+      profile as never,
+      engineDefs as never,
+      [] as never,
+    ) as Record<string, unknown>;
+
+    return {
+      sandbox: true,
+      engineVersion: ENGINE_VERSION,
+      simulatedAt: new Date().toISOString(),
+      ...result,
     };
   }
 }

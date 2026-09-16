@@ -246,6 +246,16 @@ export const evaluationsApi = {
   get(id: string, token?: string): Promise<EvaluationResponse> {
     return get(`/evaluations/${id}`, { token });
   },
+  /**
+   * POST /evaluations/what-if — server-side What-If sandbox evaluation run
+   * over dynamic transient business profile parameters without mutating DB state.
+   */
+  simulateWhatIf(
+    body: { industryCode?: string; profile: Record<string, unknown> },
+    token?: string,
+  ): Promise<Record<string, unknown>> {
+    return post('/evaluations/what-if', body, { token });
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -264,6 +274,21 @@ export interface RoadmapNode {
   approvalDefinitionId: string;
   approvalCode: string;
   approvalName: string;
+  shortName?: string | null;
+  whyRequired?: string | null;
+  inspectionRequired?: boolean | null;
+  renewalRequired?: boolean | null;
+  slaDays?: number | null;
+  slaBasis?: string | null;
+  ambiguityNotes?: string | null;
+  authority?: { id: string; code: string; name: string } | null;
+  source?: {
+    id: string;
+    name: string;
+    citation: string;
+    url?: string | null;
+    verificationStatus: string;
+  } | null;
   evaluationResultId: string;
   outcome: EvaluationOutcome;
   /** Derived at read time from the pinned evaluation (not_evaluable). */
@@ -273,6 +298,8 @@ export interface RoadmapNode {
   status: ApprovalInstanceStatus;
   sourceUrl: string | null;
   lastVerifiedDate: string | null;
+  releaseId?: string | null;
+  releaseVersion?: string | null;
   unlockedAt: string | null;
   updatedAt: string | null;
 }
@@ -290,17 +317,87 @@ export interface RoadmapEdge {
   gates: boolean;
 }
 
+export type SchemeOutcome =
+  | 'potentially_eligible'
+  | 'excluded'
+  | 'not_eligible'
+  | 'needs_information'
+  | 'unknown'
+  | 'not_evaluable';
+
+export interface SchemeEvaluationInfo {
+  scheme: {
+    id: string;
+    name: string;
+    shortName?: string;
+    description?: string;
+    jurisdiction?: string;
+    sourceTitle?: string;
+    sourceUrl?: string;
+    verificationDate?: string;
+    exclusionReason?: string;
+  };
+  outcome: SchemeOutcome;
+  matchedConditions?: string[];
+  matchedExclusions?: string[];
+  factsUsed?: Record<string, unknown>;
+  neededInformation: MissingFieldInfo[];
+  explanation: string;
+}
+
 export interface RoadmapResponse {
   projectId: string;
+  releaseVersion?: string;
   nodes: RoadmapNode[];
   edges: RoadmapEdge[];
   /** Engine-computed parallel layers over the gating graph (instance ids). */
   parallelGroups: string[][];
+  /** Government schemes and incentives evaluated for the project's profile. */
+  schemes?: SchemeEvaluationInfo[];
 }
 
 export interface UpdateStatusResponse extends RoadmapNode {
   /** Present when marking done: instances the server flipped to available. */
   unlockedDependentIds?: string[];
+}
+
+export interface AiSchemeAnalysisResponse {
+  projectId: string;
+  businessContext: {
+    legalName: string;
+    industry: string;
+    activity: string;
+    state: string;
+    district: string;
+    investmentAmountInr: number;
+    investmentCr: string;
+    builtUpAreaSqft: number;
+    workforceHeadcount: number;
+    fuelType: string;
+  };
+  aiReadinessScore: number;
+  totalPotentialFiscalBenefit: string;
+  strategicSummary: string;
+  recommendations: Array<{
+    id: string;
+    title: string;
+    domain: string;
+    impact: string;
+    estimatedSavings: string;
+    action: string;
+  }>;
+  generatedAt: string;
+  aiModel: string;
+}
+
+export interface AiSchemeChatResponse {
+  query: string;
+  answer: string;
+  relevantSchemes: string[];
+  actionableSteps: string[];
+  confidenceScore: number;
+  sourceAttribution: string;
+  timestamp: string;
 }
 
 /**
@@ -326,6 +423,58 @@ export const roadmapApi = {
     return patch(
       `/projects/${projectId}/approval-instances/${instanceId}/status`,
       { status },
+      { token },
+    );
+  },
+  /** GET /projects/:projectId/schemes/ai-analysis — dynamic AI analysis & readiness score */
+  getAiSchemeAnalysis(projectId: string, token?: string): Promise<AiSchemeAnalysisResponse> {
+    return get(`/projects/${projectId}/schemes/ai-analysis`, { token });
+  },
+  /** POST /projects/:projectId/schemes/ai-chat — interactive AI scheme & tax copilot */
+  queryAiSchemeAdvisor(
+    projectId: string,
+    query: string,
+    history?: Array<{ sender: 'user' | 'ai'; text: string }>,
+    apiKey?: string,
+    model?: string,
+    baseUrl?: string,
+    token?: string,
+  ): Promise<AiSchemeChatResponse> {
+    return post(
+      `/projects/${projectId}/schemes/ai-chat`,
+      { query, history, apiKey, model, baseUrl },
+      { token },
+    );
+  },
+  /** PATCH /projects/:projectId/roadmap/batch-status — atomic single-transaction batch update */
+  batchUpdateStatus(
+    projectId: string,
+    instanceIds: string[],
+    status: Exclude<ApprovalInstanceStatus, 'blocked' | 'available'>,
+    token?: string,
+  ): Promise<{ success: boolean; updatedCount: number; nextStatus: string }> {
+    return patch(
+      `/projects/${projectId}/roadmap/batch-status`,
+      { instanceIds, status },
+      { token },
+    );
+  },
+  /** POST /projects/:projectId/rules/discrepancies — version-controlled rule discrepancy ticket creation */
+  reportRuleDiscrepancy(
+    projectId: string,
+    payload: {
+      approvalCode: string;
+      releaseVersion: string;
+      category: string;
+      description: string;
+      approvalDefinitionId?: string;
+      evaluationResultId?: string;
+    },
+    token?: string,
+  ): Promise<{ success: boolean; issueRef: string; releaseVersion: string; commitHash: string }> {
+    return post(
+      `/projects/${projectId}/rules/discrepancies`,
+      payload,
       { token },
     );
   },
@@ -652,6 +801,10 @@ export const officerApi = {
     token?: string,
   ): Promise<ClarificationView> {
     return post(`/officer/clarifications/${clarificationId}/cancel`, body, { token });
+  },
+  /** Construct direct download URL for officer document version */
+  documentDownloadUrl(instanceId: string, documentId: string, versionId: string): string {
+    return `${API_BASE_URL}/officer/applications/${instanceId}/documents/${documentId}/versions/${versionId}/download`;
   },
 };
 
@@ -1229,7 +1382,206 @@ export const inspectionsApi = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Feature #9: Grievance Escalation & Statutory RTS Act Escalation API Client
+// ---------------------------------------------------------------------------
+
+export type GrievanceType =
+  | 'sla_breach_delay'
+  | 'unjustified_clarification'
+  | 'arbitrary_rejection'
+  | 'inspection_harassment'
+  | 'fee_overcharge'
+  | 'other';
+
+export type GrievanceTier =
+  | 'tier_1_nodal_officer'
+  | 'tier_2_appellate_authority'
+  | 'tier_3_rts_commission';
+
+export type GrievanceStatus =
+  | 'submitted'
+  | 'under_investigation'
+  | 'escalated'
+  | 'redressed'
+  | 'rejected'
+  | 'withdrawn';
+
+export interface GrievanceDocumentItem {
+  id: string;
+  documentId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface GrievanceActionItem {
+  id: string;
+  actionType: string;
+  fromStatus: string | null;
+  toStatus: string;
+  fromTier: string | null;
+  toTier: string | null;
+  remarks: string;
+  orderNumber: string | null;
+  metadata: unknown;
+  actor: { id: string; email: string; role: string } | null;
+  actorRole: string;
+  createdAt: string;
+}
+
+export interface GrievanceView {
+  id: string;
+  grievanceNumber: string;
+  projectId: string;
+  type: GrievanceType;
+  tier: GrievanceTier;
+  status: GrievanceStatus;
+  subject: string;
+  description: string;
+  statutorySlaDays: number;
+  targetResolutionDate: string;
+  daysRemaining: number;
+  isOverdue: boolean;
+  slaBreachDetectedAt: string | null;
+  autoEscalatedAt: string | null;
+  resolvedAt: string | null;
+  resolutionSummary: string | null;
+  rectificationAction: string | null;
+  authority: { id: string; code: string; name: string; department: string | null } | null;
+  approval: { id: string; code: string; name: string; slaDays: number | null } | null;
+  submittedBy: { id: string; email: string; role: string };
+  resolvedBy: { id: string; email: string; role: string } | null;
+  documents: GrievanceDocumentItem[];
+  actions: GrievanceActionItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateGrievancePayload {
+  type: GrievanceType;
+  subject: string;
+  description: string;
+  approvalInstanceId?: string;
+  authorityId?: string;
+  statutorySlaDays?: number;
+  documentIds?: string[];
+}
+
+export interface EscalateGrievancePayload {
+  remarks: string;
+  targetTier?: 'tier_2_appellate_authority' | 'tier_3_rts_commission';
+  documentIds?: string[];
+}
+
+export interface InvestigateGrievancePayload {
+  remarks: string;
+  hearingScheduledAt?: string;
+  assignedInvestigator?: string;
+}
+
+export interface ResolveGrievancePayload {
+  outcome: 'redressed' | 'rejected';
+  resolutionSummary: string;
+  rectificationAction?: string;
+  orderNumber?: string;
+}
+
+export const grievancesApi = {
+  /** List project grievances */
+  list(
+    projectId: string,
+    params?: {
+      status?: string | undefined;
+      tier?: string | undefined;
+      type?: string | undefined;
+      approvalInstanceId?: string | undefined;
+    },
+    token?: string,
+  ): Promise<{ grievances: GrievanceView[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.tier) qs.set('tier', params.tier);
+    if (params?.type) qs.set('type', params.type);
+    if (params?.approvalInstanceId) qs.set('approvalInstanceId', params.approvalInstanceId);
+    const query = qs.toString();
+    return get<{ grievances: GrievanceView[]; total: number }>(
+      `/projects/${projectId}/grievances${query ? `?${query}` : ''}`,
+      { token },
+    );
+  },
+
+  /** Get single grievance details and audit timeline */
+  get(projectId: string, grievanceId: string, token?: string): Promise<GrievanceView> {
+    return get<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}`, { token });
+  },
+
+  /** Lodge statutory grievance */
+  create(projectId: string, payload: CreateGrievancePayload, token?: string): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances`, payload, { token });
+  },
+
+  /** Escalate grievance to next tier */
+  escalate(
+    projectId: string,
+    grievanceId: string,
+    payload: EscalateGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}/escalate`, payload, {
+      token,
+    });
+  },
+
+  /** Withdraw grievance */
+  withdraw(
+    projectId: string,
+    grievanceId: string,
+    payload: { reason: string },
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}/withdraw`, payload, {
+      token,
+    });
+  },
+
+  /** Officer queue */
+  listForOfficer(
+    params?: { status?: string | undefined; tier?: string | undefined; type?: string | undefined },
+    token?: string,
+  ): Promise<{ grievances: GrievanceView[]; total: number }> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.tier) qs.set('tier', params.tier);
+    if (params?.type) qs.set('type', params.type);
+    const query = qs.toString();
+    return get<{ grievances: GrievanceView[]; total: number }>(
+      `/officer/grievances${query ? `?${query}` : ''}`,
+      { token },
+    );
+  },
+
+  /** Officer investigate / schedule hearing */
+  officerInvestigate(
+    grievanceId: string,
+    payload: InvestigateGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/officer/grievances/${grievanceId}/investigate`, payload, { token });
+  },
+
+  /** Officer/Appellate resolve or reject order */
+  officerResolve(
+    grievanceId: string,
+    payload: ResolveGrievancePayload,
+    token?: string,
+  ): Promise<GrievanceView> {
+    return post<GrievanceView>(`/officer/grievances/${grievanceId}/resolve`, payload, { token });
+  },
+};
+
 export type { LoginRequest, LoginResponse, RegisterRequest, RegisteredUser };
+
 
 // ---------------------------------------------------------------------------
 // Feature 1: Regulatory Change Impact Engine API
@@ -1406,6 +1758,52 @@ export const officerActionsApi = {
 };
 
 // ---------------------------------------------------------------------------
-// Projects API (create)
+// Government Single-Window & DigiLocker Interoperability Gateway API
 // ---------------------------------------------------------------------------
 
+export interface ExternalPortalAdapter {
+  portalCode: 'maitri' | 'nsws' | 'digilocker' | 'apisetu';
+  portalName: string;
+  jurisdiction: string;
+  status: 'connected' | 'mock_ready' | 'sandbox_active';
+  syncDirection: 'inbound_push' | 'bidirectional' | 'pull_query';
+  supportedEntities: string[];
+}
+
+export const integrationsApi = {
+  getAdapters(token?: string): Promise<ExternalPortalAdapter[]> {
+    return get('/integrations/adapters', { token });
+  },
+  exportPacket(
+    body: { portalCode: 'maitri' | 'nsws'; projectId: string; approvalCode: string; packetId: string },
+    token?: string,
+  ): Promise<{
+    success: boolean;
+    remoteTransactionId: string;
+    targetPortal: string;
+    acknowledgedAt: string;
+    portalReceiptUrl: string;
+  }> {
+    return post('/integrations/export-packet', body, { token });
+  },
+  fetchDigiLocker(
+    body: { docType: string; docNumber: string },
+    token?: string,
+  ): Promise<{
+    verified: boolean;
+    issuer: string;
+    docType: string;
+    digiLockerDocId: string;
+    digitalSignature: {
+      signedBy: string;
+      algorithm: string;
+      valid: boolean;
+    };
+  }> {
+    return post('/integrations/digilocker/fetch', body, { token });
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Projects API (create)
+// ---------------------------------------------------------------------------

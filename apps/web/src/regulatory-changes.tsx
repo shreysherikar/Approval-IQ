@@ -9,6 +9,7 @@ import {
   type RegulatoryImpactView,
 } from './api-client';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n';
 import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,7 @@ function ChangeCard({ change }: { change: RegulatoryChangeView }): JSX.Element {
 
 export function RegulatoryChangesListPage(): JSX.Element {
   const { accessToken, isRestoring, user } = useAuth();
+  const { t } = useLanguage();
   const [showCreate, setShowCreate] = useState(false);
 
   const changesQuery = useQuery({
@@ -76,10 +78,18 @@ export function RegulatoryChangesListPage(): JSX.Element {
   });
 
   if (changesQuery.isLoading || isRestoring) {
-    return <LoadingSpinner label="Loading regulatory changes…" />;
+    return (
+      <LoadingSpinner
+        label={t('regulatory.loading', 'Loading regulatory changes…')}
+      />
+    );
   }
   if (accessToken === null) {
-    return <ErrorBanner message="Please log in to view regulatory changes." />;
+    return (
+      <ErrorBanner
+        message={t('regulatory.login_required', 'Please log in to view regulatory changes.')}
+      />
+    );
   }
 
   const changes = changesQuery.data ?? [];
@@ -89,18 +99,22 @@ export function RegulatoryChangesListPage(): JSX.Element {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Regulatory Change Impact Engine</h1>
+          <h1 className="text-2xl font-semibold">
+            {t('regulatory.title', 'Regulatory Change Impact Engine')}
+          </h1>
           <p className="text-sm text-gray-600">
-            Simulate regulatory rule changes and analyze their impact on existing businesses.
+            {t('regulatory.subtitle', 'Simulate regulatory rule changes and analyze their impact on existing businesses.')}
           </p>
         </div>
         {isAdmin && (
           <button
             type="button"
             onClick={() => setShowCreate(!showCreate)}
-            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 font-medium cursor-pointer"
           >
-            {showCreate ? 'Cancel' : '+ New Regulatory Change'}
+            {showCreate
+              ? t('regulatory.cancel', 'Cancel')
+              : t('regulatory.new_change', '+ New Regulatory Change')}
           </button>
         )}
       </div>
@@ -109,8 +123,8 @@ export function RegulatoryChangesListPage(): JSX.Element {
 
       {changes.length === 0 ? (
         <EmptyState
-          title="No regulatory changes yet"
-          description="Create a regulatory change to analyze its impact on existing businesses."
+          title={t('regulatory.empty_title', 'No regulatory changes yet')}
+          description={t('regulatory.empty_desc', 'Create a regulatory change to analyze its impact on existing businesses.')}
         />
       ) : (
         <div className="space-y-3">
@@ -259,8 +273,9 @@ function CreateChangeForm({ onCreated }: { onCreated: () => void }): JSX.Element
 
 export function RegulatoryChangeDetailPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
-  const { accessToken, isRestoring } = useAuth();
+  const { accessToken, isRestoring, user } = useAuth();
   const queryClient = useQueryClient();
+  const isAdmin = user?.role === 'admin' || user?.role === 'officer';
 
   const changeQuery = useQuery({
     queryKey: ['regulatory-change', id, accessToken],
@@ -308,38 +323,146 @@ export function RegulatoryChangeDetailPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="rounded-md border border-gray-200 bg-white p-4">
-        <h2 className="text-lg font-semibold">Old vs New Conditions</h2>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between border-b pb-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Old Rule</p>
-            <pre className="mt-1 rounded bg-gray-50 p-3 text-xs overflow-x-auto">{JSON.stringify(change.oldConditions, null, 2)}</pre>
+            <h2 className="text-lg font-bold text-gray-900">Statutory Applicability Rule Comparison</h2>
+            <p className="text-xs text-gray-500">
+              Deterministic evaluation logic compared by the Cascade Impact Engine.
+            </p>
           </div>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">New Rule</p>
-            <pre className="mt-1 rounded bg-gray-50 p-3 text-xs overflow-x-auto">{JSON.stringify(change.newConditions, null, 2)}</pre>
+          <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200">
+            Rule Diff Logic
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-6 sm:grid-cols-2">
+          {/* Old Rule Card */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-gray-400" />
+                Previous Rule (Pre-Notification)
+              </span>
+              <span className="text-[11px] font-mono text-gray-500">Version 1.0</span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="rounded border border-gray-200 bg-white p-2.5 shadow-xs">
+                <span className="text-gray-500 font-medium">Target Industry: </span>
+                <span className="font-semibold text-gray-900 capitalize">
+                  {typeof change.oldConditions === 'object' && change.oldConditions && 'all' in change.oldConditions
+                    ? String(((change.oldConditions as any).all?.find((c: any) => c.field === 'industry')?.value) ?? 'Commercial Manufacturing')
+                    : 'All Industries'}
+                </span>
+              </div>
+
+              <div className="rounded border border-gray-200 bg-white p-2.5 shadow-xs">
+                <span className="text-gray-500 font-medium">Investment / Scale Criteria: </span>
+                <span className="font-semibold text-gray-900">
+                  {typeof change.oldConditions === 'object' && change.oldConditions && 'all' in change.oldConditions
+                    ? (() => {
+                        const rangeCond = (change.oldConditions as any).all?.find((c: any) => c.field === 'investmentAmountInr' || c.field === 'areaSqft');
+                        if (rangeCond?.field === 'investmentAmountInr' && rangeCond?.min) {
+                          return `Capital Investment ≥ ₹${(rangeCond.min / 10000000).toLocaleString('en-IN')} Crore (Total Project Cost)`;
+                        }
+                        if (rangeCond?.field === 'areaSqft') {
+                          return `Facility Footprint ≥ ${(rangeCond.min ?? rangeCond.value ?? 0).toLocaleString()} sq ft`;
+                        }
+                        return 'Standard baseline statutory conditions';
+                      })()
+                    : 'Standard baseline conditions'}
+                </span>
+              </div>
+            </div>
+
+            <details className="text-xs text-gray-500">
+              <summary className="cursor-pointer font-medium hover:text-gray-700">
+                🔍 View Raw Rule AST (JSON)
+              </summary>
+              <pre className="mt-2 rounded border bg-slate-900 text-emerald-400 p-2.5 text-[11px] overflow-x-auto font-mono">
+                {JSON.stringify(change.oldConditions, null, 2)}
+              </pre>
+            </details>
+          </div>
+
+          {/* New Rule Card */}
+          <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
+                Amended Rule (Gazette Effective)
+              </span>
+              <span className="text-[11px] font-mono text-indigo-700 font-semibold">Amended Criteria</span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="rounded border border-indigo-100 bg-white p-2.5 shadow-xs">
+                <span className="text-gray-500 font-medium">Target Industry: </span>
+                <span className="font-semibold text-gray-900 capitalize">
+                  {typeof change.newConditions === 'object' && change.newConditions && 'all' in change.newConditions
+                    ? String(((change.newConditions as any).all?.find((c: any) => c.field === 'industry')?.value) ?? 'Commercial Manufacturing')
+                    : 'All Industries'}
+                </span>
+              </div>
+
+              <div className="rounded border border-indigo-100 bg-white p-2.5 shadow-xs">
+                <span className="text-gray-500 font-medium">Amended Scale Threshold: </span>
+                <span className="font-bold text-indigo-900">
+                  {typeof change.newConditions === 'object' && change.newConditions && 'all' in change.newConditions
+                    ? (() => {
+                        const rangeCond = (change.newConditions as any).all?.find((c: any) => c.field === 'investmentAmountInr' || c.field === 'areaSqft');
+                        if (rangeCond?.field === 'investmentAmountInr' && rangeCond?.min) {
+                          return `Capital Investment ≥ ₹${(rangeCond.min / 10000000).toLocaleString('en-IN')} Crore (Expanded Scope)`;
+                        }
+                        if (rangeCond?.field === 'areaSqft') {
+                          return `Facility Footprint ≥ ${(rangeCond.min ?? rangeCond.value ?? 0).toLocaleString()} sq ft (Lowered Threshold)`;
+                        }
+                        return 'Updated statutory criteria';
+                      })()
+                    : 'Updated statutory criteria'}
+                </span>
+              </div>
+            </div>
+
+            <details className="text-xs text-gray-500">
+              <summary className="cursor-pointer font-medium text-indigo-600 hover:text-indigo-800">
+                🔍 View Raw Rule AST (JSON)
+              </summary>
+              <pre className="mt-2 rounded border bg-slate-900 text-emerald-400 p-2.5 text-[11px] overflow-x-auto font-mono">
+                {JSON.stringify(change.newConditions, null, 2)}
+              </pre>
+            </details>
           </div>
         </div>
       </section>
 
-      <div className="flex gap-3">
-        <button
-          type="button"
-          disabled={analyzeMutation.isPending}
-          onClick={() => analyzeMutation.mutate()}
-          className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {analyzeMutation.isPending ? 'Analyzing…' : 'Analyze Impact'}
-        </button>
+      <div className="flex flex-wrap items-center gap-3">
+        {isAdmin && (
+          <button
+            type="button"
+            disabled={analyzeMutation.isPending}
+            onClick={() => analyzeMutation.mutate()}
+            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 shadow-xs"
+          >
+            {analyzeMutation.isPending ? 'Simulating Cascade Impact…' : '⚡ Re-run Cascade Impact Simulation'}
+          </button>
+        )}
         {change.status === 'analyzed' && (
           <Link
             to={`/regulatory-changes/${id}/impacts`}
-            className="rounded border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className="rounded border border-indigo-600 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 shadow-xs"
           >
-            View Impact Dashboard →
+            View Live Impact Dashboard →
           </Link>
         )}
       </div>
+
+      {!isAdmin && (
+        <p className="text-xs text-gray-500 italic">
+          ℹ️ Impact simulation triggers are managed by Regulatory Officers and Administrators. As an applicant, you can view the live cascade impact results on your business via the Impact Dashboard above.
+        </p>
+      )}
 
       {analyzeMutation.isError && (
         <ErrorBanner message={analyzeMutation.error instanceof Error ? analyzeMutation.error.message : 'Analysis failed'} />
@@ -492,59 +615,120 @@ function ImpactCard({
   impactTypeColors: Record<string, string>;
   priorityColors: Record<string, string>;
 }): JSX.Element {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   return (
-    <article className="rounded-md border border-gray-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-2">
+    <article className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs transition hover:shadow-md">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-100 pb-3">
         <div>
-          <p className="font-semibold text-gray-900">{impact.project.name}</p>
-          <p className="text-sm text-gray-600">
-            {impact.project.industry} · {impact.project.businessId}
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-gray-900">{impact.project.name}</h3>
+            <span className="rounded bg-gray-100 px-2 py-0.5 text-[11px] font-mono text-gray-600 border border-gray-200">
+              {impact.project.businessId}
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-gray-500 capitalize">
+            Industry Classification: <span className="font-semibold text-gray-700">{impact.project.industry}</span>
           </p>
         </div>
-        <div className="flex gap-2">
-          <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-semibold ${impactTypeColors[impact.impactType] ?? ''}`}>
+
+        {/* Status Badges */}
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${impactTypeColors[impact.impactType] ?? ''}`}>
             {impact.impactType.replace(/_/g, ' ')}
           </span>
-          <span className={`shrink-0 rounded border px-2 py-0.5 text-xs font-semibold ${priorityColors[impact.priority] ?? ''}`}>
-            {impact.priority}
+          <span className={`rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${priorityColors[impact.priority] ?? ''}`}>
+            Priority: {impact.priority}
           </span>
         </div>
       </div>
 
-      <p className="mt-2 text-sm text-gray-800">{impact.explanation}</p>
-
-      {impact.requiredAction && (
-        <p className="mt-1 text-sm font-medium text-blue-800">
-          Action required: {impact.requiredAction}
-        </p>
-      )}
-
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="mt-2 text-xs text-blue-600 hover:underline"
-      >
-        {expanded ? 'Hide details' : 'Show details'}
-      </button>
-
-      {expanded && (
-        <div className="mt-2 rounded border border-gray-100 bg-gray-50 p-3 text-xs space-y-1">
-          <p><span className="font-medium">Old Applicability:</span> {impact.oldApplicability}</p>
-          <p><span className="font-medium">New Applicability:</span> {impact.newApplicability}</p>
-          {impact.changedCondition && <p><span className="font-medium">Changed Condition:</span> {impact.changedCondition}</p>}
-          <p><span className="font-medium">Confidence:</span> {impact.confidence}</p>
+      {/* Main Impact Narrative */}
+      <div className="mt-3.5 space-y-3">
+        <div className="rounded-lg bg-slate-50 border border-slate-200 p-3.5 text-xs text-slate-800 leading-relaxed">
+          <span className="font-bold text-slate-900 block mb-1">⚖️ Statutory Cascade Finding:</span>
+          {impact.explanation}
         </div>
-      )}
 
-      <div className="mt-2">
-        <Link
-          to={`/projects/${impact.projectId}/profile`}
-          className="text-xs text-blue-600 hover:underline"
+        {/* Action Required Callout */}
+        {impact.requiredAction && (
+          <div className="rounded-lg bg-amber-50/80 border border-amber-200 p-3.5 text-xs text-amber-950 flex items-start gap-2.5 shadow-xs">
+            <span className="text-base leading-none">⚡</span>
+            <div>
+              <span className="font-bold text-amber-900 block mb-0.5">Mandatory Compliance Action Required:</span>
+              <p className="text-amber-800 leading-relaxed">{impact.requiredAction}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Accordion / Details Toggle */}
+      <div className="mt-4 pt-3 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center justify-between w-full text-xs font-bold text-gray-700 hover:text-indigo-600 transition"
         >
-          View business profile →
-        </Link>
+          <span className="flex items-center gap-1.5">
+            <span>{expanded ? '▼' : '►'}</span>
+            <span>Comparative Applicability & Rule Evaluation Details</span>
+          </span>
+          <span className="text-[11px] text-gray-400 font-normal">
+            {expanded ? 'Click to collapse' : 'Click to expand'}
+          </span>
+        </button>
+
+        {expanded && (
+          <div className="mt-3 space-y-3">
+            {/* Side by side comparison cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Previous Status */}
+              <div className="rounded-lg border border-gray-200 bg-gray-50/60 p-3 text-xs space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Previous Statutory Status (Old Rule)
+                </span>
+                <p className="font-semibold text-gray-900">{impact.oldApplicability}</p>
+              </div>
+
+              {/* New Status */}
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 text-xs space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 block">
+                  New Statutory Status (Amended Rule)
+                </span>
+                <p className="font-bold text-indigo-950">{impact.newApplicability}</p>
+              </div>
+            </div>
+
+            {/* Changed Condition Diff & Confidence */}
+            <div className="rounded-lg border border-gray-200 bg-white p-3 text-xs space-y-2">
+              {impact.changedCondition && (
+                <div>
+                  <span className="text-[11px] font-bold text-gray-600 block">Evaluated Condition Criteria:</span>
+                  <p className="font-mono text-[11px] text-slate-700 bg-gray-50 p-2 rounded border border-gray-200 mt-1">
+                    {impact.changedCondition}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between pt-1 text-[11px] text-gray-500">
+                <div className="flex items-center gap-1.5">
+                  <span>Engine Confidence Score:</span>
+                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase tracking-wider">
+                    ✓ {impact.confidence} Confidence (Deterministic Match)
+                  </span>
+                </div>
+                <Link
+                  to={`/projects/${impact.projectId}/profile`}
+                  className="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
+                >
+                  <span>Open Business Dossier</span>
+                  <span>→</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </article>
   );

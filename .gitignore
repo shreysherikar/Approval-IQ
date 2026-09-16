@@ -3,5 +3,10 @@ dist
 coverage
 *.log
 .env
-data/storage
+**/data/storage
+target
+.gradle
+**/build
+*.apk
+*.timestamp-*.mjs
 Astra.txt
