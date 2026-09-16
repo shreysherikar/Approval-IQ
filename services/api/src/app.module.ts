@@ -22,11 +22,13 @@ import { RecoveryModule } from './recovery/recovery.module';
 import { RiskModule } from './risk/risk.module';
 import { AuditModule } from './audit/audit.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv, envFilePath: ['.env', '../../.env'] }),
     PrismaModule,
+    EventsModule,
     HealthModule,
     AuthModule,
     EvaluationsModule,

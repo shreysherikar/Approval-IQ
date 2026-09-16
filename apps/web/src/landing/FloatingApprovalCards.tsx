@@ -1,7 +1,10 @@
 import React from 'react';
 import { Globe2, Check } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 export const FloatingApprovalCards: React.FC = () => {
+  const { t } = useLanguage();
+
   return (
     <>
       {/* 1. Main Floating Workflow Status Glass Card */}
@@ -12,11 +15,11 @@ export const FloatingApprovalCards: React.FC = () => {
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-brand-primary-500 animate-pulse" />
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Live Regulatory Engine
+                {t('hero.card_engine', 'Live Regulatory Engine')}
               </span>
             </div>
             <span className="text-[11px] font-medium text-brand-primary-700 bg-brand-primary-50 border border-brand-primary-200/60 px-2 py-0.5 rounded-full">
-              Single Window
+              {t('hero.card_single_window', 'Single Window')}
             </span>
           </div>
 
@@ -31,13 +34,17 @@ export const FloatingApprovalCards: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-900">Business Profile</div>
-                  <div className="text-[10px] text-slate-500">Industry, Location & Scale</div>
+                  <div className="text-xs font-semibold text-slate-900">
+                    {t('hero.card_profile', 'Business Profile')}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {t('hero.card_profile_sub', 'Industry, Location & Scale')}
+                  </div>
                 </div>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50/90 border border-emerald-200/80 px-2.5 py-0.5 rounded-full shadow-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                Completed
+                {t('hero.card_completed', 'Completed')}
               </span>
             </div>
 
@@ -50,13 +57,17 @@ export const FloatingApprovalCards: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-900">Applicable Norms</div>
-                  <div className="text-[10px] text-slate-500">Central & State Frameworks</div>
+                  <div className="text-xs font-semibold text-slate-900">
+                    {t('hero.card_norms', 'Applicable Norms')}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {t('hero.card_norms_sub', 'Central & State Frameworks')}
+                  </div>
                 </div>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50/90 border border-indigo-200/80 px-2.5 py-0.5 rounded-full shadow-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                Identified
+                {t('hero.card_identified', 'Identified')}
               </span>
             </div>
 
@@ -69,13 +80,17 @@ export const FloatingApprovalCards: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-slate-900">Documents & Filings</div>
-                  <div className="text-[10px] text-slate-500">Pre-validated & Indexed</div>
+                  <div className="text-xs font-semibold text-slate-900">
+                    {t('hero.card_docs', 'Documents & Filings')}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {t('hero.card_docs_sub', 'Pre-validated & Indexed')}
+                  </div>
                 </div>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-700 bg-blue-50/90 border border-blue-200/80 px-2.5 py-0.5 rounded-full shadow-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                Verified
+                {t('hero.card_verified', 'Verified')}
               </span>
             </div>
 
@@ -89,13 +104,17 @@ export const FloatingApprovalCards: React.FC = () => {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-amber-950">Authority Review</div>
-                  <div className="text-[10px] text-amber-700 font-medium">Single-Window Portal</div>
+                  <div className="text-xs font-semibold text-amber-950">
+                    {t('hero.card_review', 'Authority Review')}
+                  </div>
+                  <div className="text-[10px] text-amber-700 font-medium">
+                    {t('hero.card_review_sub', 'Single-Window Portal')}
+                  </div>
                 </div>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full shadow-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                In Progress
+                {t('hero.card_in_progress', 'In Progress')}
               </span>
             </div>
           </div>
@@ -104,9 +123,15 @@ export const FloatingApprovalCards: React.FC = () => {
         {/* 2. Handwritten Callout on the right/top of card */}
         <div className="hidden sm:block absolute -top-8 -right-28 transform rotate-3 pointer-events-none z-30">
           <div className="font-handwriting text-indigo-900 text-lg sm:text-xl font-bold tracking-wide drop-shadow-sm flex flex-col items-start">
-            <span className="text-indigo-800">Your idea.</span>
-            <span className="text-brand-primary-800 ml-2">Our guidance.</span>
-            <span className="text-indigo-950 ml-4">Real progress.</span>
+            <span className="text-indigo-800">
+              {t('hero.callout_idea', 'Your idea.')}
+            </span>
+            <span className="text-brand-primary-800 ml-2">
+              {t('hero.callout_guidance', 'Our guidance.')}
+            </span>
+            <span className="text-indigo-950 ml-4">
+              {t('hero.callout_progress', 'Real progress.')}
+            </span>
             <svg className="w-16 h-8 text-indigo-600 -mt-1 ml-4" viewBox="0 0 100 40" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M10 5 Q 50 35, 85 15" />
               <path d="M75 10 L 85 15 L 80 25" />
@@ -120,12 +145,15 @@ export const FloatingApprovalCards: React.FC = () => {
         <div className="bg-white/85 backdrop-blur-md rounded-xl p-3.5 border border-white/80 shadow-lg text-slate-800 transition-all hover:bg-white/95">
           <div className="text-brand-primary-600 text-2xl font-serif leading-none mb-1">“</div>
           <p className="text-xs font-medium text-slate-700 leading-snug">
-            A more transparent, efficient, and entrepreneur-friendly India.
+            {t(
+              'hero.quote_text',
+              'A more transparent, efficient, and entrepreneur-friendly India.',
+            )}
           </p>
           <div className="mt-2 text-[10px] font-semibold text-slate-500 flex items-center justify-between">
-            <span>— ApprovalIQ Mission</span>
+            <span>{t('hero.quote_author', '— ApprovalIQ Mission')}</span>
             <span className="text-emerald-600 flex items-center gap-1 font-bold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {t('hero.quote_active', 'Active')}
             </span>
           </div>
         </div>
@@ -140,14 +168,14 @@ export const FloatingApprovalCards: React.FC = () => {
             </svg>
           </div>
           <div className="text-xs font-bold text-slate-900 leading-tight">
-            Building a Compliant Tomorrow
+            {t('hero.tomorrow_title', 'Building a Compliant Tomorrow')}
           </div>
           <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-center gap-1.5">
-            <span>Stronger & Safer</span>
+            <span>{t('hero.tomorrow_sub', 'Stronger & Safer')}</span>
             <Globe2 className="w-3.5 h-3.5 text-slate-400" />
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 font-handwriting text-xs text-indigo-700 font-semibold">
-            Bharat Builds Better Together
+            {t('hero.tomorrow_badge', 'Bharat Builds Better Together')}
           </div>
         </div>
       </div>
@@ -158,18 +186,18 @@ export const FloatingApprovalCards: React.FC = () => {
           <div className="flex items-center justify-between text-[10px] text-slate-400 mb-1.5">
             <span className="flex items-center gap-1.5 text-blue-400 font-bold">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
-              AI PROCESSING
+              {t('hero.ai_processing', 'AI PROCESSING')}
             </span>
-            <span className="text-emerald-400">96% match</span>
+            <span className="text-emerald-400">{t('hero.ai_match', '96% match')}</span>
           </div>
           <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-1.5">
             <div className="bg-gradient-to-r from-blue-500 to-emerald-400 h-full w-[96%] animate-pulse" />
           </div>
           <div className="text-[10px] text-slate-300 flex items-center justify-between">
-            <span>Statutory extraction</span>
+            <span>{t('hero.ai_statutory', 'Statutory extraction')}</span>
             <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
               <Check className="w-3 h-3 text-emerald-400" />
-              <span>Verified</span>
+              <span>{t('hero.ai_verified', 'Verified')}</span>
             </span>
           </div>
         </div>

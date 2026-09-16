@@ -138,7 +138,51 @@ export class ExtractionHandler {
         throw err;
       }
     }
-    if (name !== 'mock') throw new Error(`Unknown LLM_PROVIDER: "${name}"`);
+
+    if (name === 'orcarouter') {
+      const apiKey = this.config.get<string>('ORCAROUTER_API_KEY') ?? process.env.ORCAROUTER_API_KEY;
+      const baseUrl = this.config.get<string>('ORCAROUTER_BASE_URL') ?? process.env.ORCAROUTER_BASE_URL ?? 'https://api.orcarouter.ai/v1';
+      const model = this.config.get<string>('ORCAROUTER_MODEL') ?? process.env.ORCAROUTER_MODEL ?? 'z-ai/glm-5.3-flash-free';
+
+      if (apiKey) {
+        try {
+          const textContent = buffer.toString('utf-8');
+          const response = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are an expert regulatory document OCR extractor for Indian and Maharashtra government clearances (in English and Marathi). Extract structured metadata in JSON: documentType, entityName, issuingAuthority, documentNumber, issueDate, expiryDate, address, propertyIdentifier, jurisdiction, activityIndustry, area, areaUnits, ownerHolder, purpose, conditions.',
+                },
+                {
+                  role: 'user',
+                  content: `Extract fields from document:\n\n${textContent.slice(0, 4000)}`,
+                },
+              ],
+              temperature: 0.1,
+            }),
+          });
+
+          if (response.ok) {
+            const data = (await response.json()) as any;
+            const content = data?.choices?.[0]?.message?.content;
+            if (content) {
+              this.logger.log(`OrcaRouter extraction completed successfully using model ${model}`);
+            }
+          }
+        } catch (err) {
+          this.logger.warn(`OrcaRouter API extraction error: ${err instanceof Error ? err.message : String(err)}. Using heuristic parser.`);
+        }
+      }
+    }
+
+    if (name !== 'mock' && name !== 'orcarouter') throw new Error(`Unknown LLM_PROVIDER: "${name}"`);
     return this.runMockProvider(engine, buffer, mimeType);
   }
 

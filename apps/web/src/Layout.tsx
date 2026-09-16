@@ -1,9 +1,44 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Compass, LogOut, Layers } from 'lucide-react';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n';
+
+export function LanguageSwitcher(): JSX.Element {
+  const { setLanguage, isMarathi, t } = useLanguage();
+
+  return (
+    <div className="inline-flex items-center rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 shadow-2xs">
+      <button
+        type="button"
+        onClick={() => setLanguage('en')}
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          !isMarathi
+            ? 'bg-white text-blue-700 shadow-2xs font-extrabold'
+            : 'text-slate-500 hover:text-slate-900'
+        }`}
+        title={t('lang.en_title', 'Switch to English')}
+      >
+        <span>{t('lang.en', 'EN')}</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => setLanguage('mr')}
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+          isMarathi
+            ? 'bg-blue-600 text-white shadow-2xs font-extrabold'
+            : 'text-slate-500 hover:text-slate-900'
+        }`}
+        title={t('lang.marathi_title', 'Switch to Marathi')}
+      >
+        <span>{t('lang.marathi', 'मराठी')}</span>
+      </button>
+    </div>
+  );
+}
 
 export function Layout(): JSX.Element {
   const { user, isAuthenticated, isOfficer, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const isPublicPage =
@@ -46,13 +81,16 @@ export function Layout(): JSX.Element {
               <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold">
                   <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Officer Review Desk</span>
+                  <span>{t('nav.officer_desk')}</span>
                 </span>
               </div>
             )}
           </div>
 
           <div className="flex items-center gap-3 text-xs sm:text-sm">
+            {/* Language Switcher Button */}
+            <LanguageSwitcher />
+
             {isAuthenticated ? (
               <>
                 <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200/80 text-slate-700">
@@ -71,7 +109,7 @@ export function Layout(): JSX.Element {
                   title="Industrial Geo Intelligence"
                 >
                   <Compass className="w-4 h-4 text-slate-500" />
-                  <span className="text-xs">Map</span>
+                  <span className="text-xs">{t('nav.map')}</span>
                 </Link>
 
                 {isOfficer ? (
@@ -85,16 +123,16 @@ export function Layout(): JSX.Element {
                       }`}
                     >
                       <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Review Queue</span>
+                      <span>{t('nav.officer_desk')}</span>
                     </Link>
                     <Link
                       to="/regulatory-changes"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-all"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-all"
                     >
-                      <span>Regulatory Changes</span>
+                      <span>{t('nav.regulatory_changes')}</span>
                     </Link>
                     <Link to="/integrations" className="text-blue-600 hover:underline">
-                      Single-Window Hub
+                      {t('nav.integrations')}
                     </Link>
                   </>
                 ) : (
@@ -104,16 +142,16 @@ export function Layout(): JSX.Element {
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm transition-all"
                     >
                       <Layers className="w-3.5 h-3.5" />
-                      <span>Projects</span>
+                      <span>{t('nav.projects')}</span>
                     </Link>
                     <Link
                       to="/regulatory-changes"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-all"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-all"
                     >
-                      <span>Regulatory Changes</span>
+                      <span>{t('nav.regulatory_changes')}</span>
                     </Link>
                     <Link to="/integrations" className="text-blue-600 hover:underline">
-                      Single-Window Hub
+                      {t('nav.integrations')}
                     </Link>
                   </>
                 )}
@@ -125,7 +163,7 @@ export function Layout(): JSX.Element {
                   title="Sign out of current session"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>Logout</span>
+                  <span>{t('nav.logout')}</span>
                 </button>
               </>
             ) : (
@@ -134,13 +172,13 @@ export function Layout(): JSX.Element {
                   to="/login"
                   className="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors font-medium"
                 >
-                  Login
+                  {t('nav.login')}
                 </Link>
                 <Link
                   to="/register"
                   className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-sm"
                 >
-                  Register
+                  {t('nav.register')}
                 </Link>
               </>
             )}

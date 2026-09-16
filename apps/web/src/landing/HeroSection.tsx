@@ -4,6 +4,7 @@ import { HeroImageCarousel } from './HeroImageCarousel';
 import { FloatingApprovalCards } from './FloatingApprovalCards';
 import { SystemStatusIndicator } from './SystemStatusIndicator';
 import { HeroGlowBackground } from './HeroGlowBackground';
+import { useLanguage } from '../i18n';
 
 interface HeroSectionProps {
   onOpenDemo: () => void;
@@ -11,6 +12,8 @@ interface HeroSectionProps {
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenCommandPalette }) => {
+  const { t } = useLanguage();
+
   return (
     <section className="relative pt-24 pb-12 lg:pt-28 lg:pb-16 overflow-hidden">
       {/* Interactive Mouse-Following Radial Glow and Grid Mesh */}
@@ -26,7 +29,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenComm
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 shadow-xs">
                 <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                 <span className="text-xs font-semibold text-blue-900 tracking-wide">
-                  Simplifying Compliance
+                  {t('hero.simplifying', 'Simplifying Compliance')}
                 </span>
               </div>
               <SystemStatusIndicator />
@@ -34,15 +37,18 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenComm
 
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[44px] xl:text-[50px] font-extrabold text-slate-900 tracking-tight leading-[1.15]">
-              From Regulations to Approvals —{' '}
+              {t('hero.headline_part1', 'From Regulations to Approvals — ')}
               <span className="text-gradient-primary block sm:inline mt-1 sm:mt-0">
-                Smarter, Faster, Together.
+                {t('hero.headline_part2', 'Smarter, Faster, Together.')}
               </span>
             </h1>
 
             {/* Supporting Copy */}
             <p className="mt-5 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl">
-              AI-powered guidance for permits, licenses, and regulatory approvals — so you can focus on building what matters.
+              {t(
+                'hero.subheading',
+                'AI-powered guidance for permits, licenses, and regulatory approvals — so you can focus on building what matters.'
+              )}
             </p>
 
             {/* CTA Group */}
@@ -51,7 +57,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenComm
                 to="/register"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0"
               >
-                <span>Get Started</span>
+                <span>{t('hero.get_started', 'Get Started')}</span>
                 <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -60,27 +66,27 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenComm
               <button
                 type="button"
                 onClick={onOpenDemo}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-white/90 hover:bg-white text-slate-700 hover:text-blue-600 font-semibold text-base border border-slate-200/90 shadow-sm transition-all duration-200 hover:border-blue-300"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-white/90 hover:bg-white text-slate-700 hover:text-blue-600 font-semibold text-base border border-slate-200/90 shadow-sm transition-all duration-200 hover:border-blue-300 cursor-pointer"
               >
                 <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                   <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </div>
-                <span>Watch Demo</span>
+                <span>{t('hero.watch_demo', 'Watch Demo')}</span>
               </button>
 
               {onOpenCommandPalette && (
                 <button
                   type="button"
                   onClick={onOpenCommandPalette}
-                  className="hidden xl:inline-flex items-center gap-2 px-4 py-3.5 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-xs font-medium border border-slate-200/80 transition-all"
+                  className="hidden xl:inline-flex items-center gap-2 px-4 py-3.5 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-xs font-medium border border-slate-200/80 transition-all cursor-pointer"
                   title="Search regulations & clearances"
                 >
                   <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span>Search</span>
+                  <span>{t('hero.search', 'Search')}</span>
                   <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-mono shadow-2xs">
                     ⌘K
                   </kbd>
@@ -97,8 +103,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenComm
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-800 leading-tight">AI-Powered</div>
-                  <div className="text-[11px] text-slate-500">Guidance</div>
+                  <div className="text-xs font-bold text-slate-800 leading-tight">{t('hero.feature_ai', 'AI-Powered')}</div>
+                  <div className="text-[11px] text-slate-500">{t('hero.feature_ai_sub', 'Guidance')}</div>
                 </div>
               </div>
 
@@ -109,8 +115,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenComm
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-800 leading-tight">Real-Time</div>
-                  <div className="text-[11px] text-slate-500">Norms Mapping</div>
+                  <div className="text-xs font-bold text-slate-800 leading-tight">{t('hero.feature_rts', 'RTS Aligned')}</div>
+                  <div className="text-[11px] text-slate-500">{t('hero.feature_rts_sub', 'Zero Arbitrary SLAs')}</div>
                 </div>
               </div>
 
@@ -121,8 +127,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenComm
                   </svg>
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-800 leading-tight">End-to-End</div>
-                  <div className="text-[11px] text-slate-500">Track Approvals</div>
+                  <div className="text-xs font-bold text-slate-800 leading-tight">{t('hero.feature_docs', 'Zero Redundancy')}</div>
+                  <div className="text-[11px] text-slate-500">{t('hero.feature_docs_sub', 'Auto Reuse')}</div>
                 </div>
               </div>
             </div>

@@ -9,6 +9,7 @@ import {
   type RegulatoryImpactView,
 } from './api-client';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n';
 import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,7 @@ function ChangeCard({ change }: { change: RegulatoryChangeView }): JSX.Element {
 
 export function RegulatoryChangesListPage(): JSX.Element {
   const { accessToken, isRestoring, user } = useAuth();
+  const { t } = useLanguage();
   const [showCreate, setShowCreate] = useState(false);
 
   const changesQuery = useQuery({
@@ -76,10 +78,18 @@ export function RegulatoryChangesListPage(): JSX.Element {
   });
 
   if (changesQuery.isLoading || isRestoring) {
-    return <LoadingSpinner label="Loading regulatory changes…" />;
+    return (
+      <LoadingSpinner
+        label={t('regulatory.loading', 'Loading regulatory changes…')}
+      />
+    );
   }
   if (accessToken === null) {
-    return <ErrorBanner message="Please log in to view regulatory changes." />;
+    return (
+      <ErrorBanner
+        message={t('regulatory.login_required', 'Please log in to view regulatory changes.')}
+      />
+    );
   }
 
   const changes = changesQuery.data ?? [];
@@ -89,18 +99,22 @@ export function RegulatoryChangesListPage(): JSX.Element {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Regulatory Change Impact Engine</h1>
+          <h1 className="text-2xl font-semibold">
+            {t('regulatory.title', 'Regulatory Change Impact Engine')}
+          </h1>
           <p className="text-sm text-gray-600">
-            Simulate regulatory rule changes and analyze their impact on existing businesses.
+            {t('regulatory.subtitle', 'Simulate regulatory rule changes and analyze their impact on existing businesses.')}
           </p>
         </div>
         {isAdmin && (
           <button
             type="button"
             onClick={() => setShowCreate(!showCreate)}
-            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 font-medium cursor-pointer"
           >
-            {showCreate ? 'Cancel' : '+ New Regulatory Change'}
+            {showCreate
+              ? t('regulatory.cancel', 'Cancel')
+              : t('regulatory.new_change', '+ New Regulatory Change')}
           </button>
         )}
       </div>
@@ -109,8 +123,8 @@ export function RegulatoryChangesListPage(): JSX.Element {
 
       {changes.length === 0 ? (
         <EmptyState
-          title="No regulatory changes yet"
-          description="Create a regulatory change to analyze its impact on existing businesses."
+          title={t('regulatory.empty_title', 'No regulatory changes yet')}
+          description={t('regulatory.empty_desc', 'Create a regulatory change to analyze its impact on existing businesses.')}
         />
       ) : (
         <div className="space-y-3">

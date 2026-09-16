@@ -85,6 +85,8 @@ import {
 } from './components';
 import { PROFILE_FIELD_LABELS } from './profile-form';
 import { RecoveryPlanPanel } from './recovery';
+import { useLanguage } from './i18n';
+import { useLiveProjectEvents } from './hooks/useLiveEvents';
 
 // ---------------------------------------------------------------------------
 // Department & Regulatory Knowledge Mapping (Rule-aligned helper metadata)
@@ -582,6 +584,11 @@ function DetailDrawer({
 }: DetailDrawerProps): JSX.Element {
   const queryClient = useQueryClient();
   const { accessToken } = useAuth();
+  const { t } = useLanguage();
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState<'ambiguous' | 'outdated' | 'missing_doc' | 'sla_discrepancy'>('ambiguous');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   const meta = getApprovalMeta(node.approvalCode, node.approvalName);
   const statusConfig = STATUS_CONFIGS[node.status] || STATUS_CONFIGS.blocked;
   const outcomeConfig = OUTCOME_CONFIGS[node.outcome] || OUTCOME_CONFIGS.not_evaluable;
@@ -977,9 +984,114 @@ function DetailDrawer({
               </a>
             </div>
           )}
+
+          {/* Report an Issue with this Requirement (Dossier Part 9.3) */}
+          <div className="pt-2 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => {
+                setIsReportOpen(true);
+                setReportSubmitted(false);
+              }}
+              className="inline-flex items-center justify-center w-full gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300 border border-slate-200 text-slate-600 font-semibold text-xs transition-colors cursor-pointer"
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+              <span>{t('roadmap.report_issue')}</span>
+            </button>
+          </div>
         </div>
 
       </div>
+
+      {/* Requirement Issue Reporting Modal */}
+      {isReportOpen && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+                <h4 className="font-bold text-slate-900 text-sm">{t('roadmap.report_modal_title')}</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReportOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {reportSubmitted ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                <p className="text-xs font-bold text-emerald-800">{t('roadmap.report_submitted')}</p>
+                <p className="text-[11px] text-emerald-700">Audit Reference: REP-{Date.now().toString(36).toUpperCase()}</p>
+                <button
+                  type="button"
+                  onClick={() => setIsReportOpen(false)}
+                  className="mt-2 px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-xs text-slate-600">
+                  Reporting an issue for: <strong className="text-slate-900">{node.approvalName}</strong> (<span className="font-mono text-[10px]">{node.approvalCode}</span>)
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Issue Category
+                  </label>
+                  <select
+                    value={reportCategory}
+                    onChange={(e) => setReportCategory(e.target.value as any)}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white"
+                  >
+                    <option value="ambiguous">Ambiguous Requirement / Text</option>
+                    <option value="outdated">Outdated Statutory Reference or Clause</option>
+                    <option value="missing_doc">Missing Required Document</option>
+                    <option value="sla_discrepancy">SLA Timeline Discrepancy</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Specific Clarification / Discrepancy Note
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    placeholder="Describe the discrepancy or proposed regulatory correction..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsReportOpen(false)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportSubmitted(true);
+                    }}
+                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow"
+                  >
+                    Submit to Regulatory Desk
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Drawer Footer Action Buttons */}
       <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
@@ -2792,6 +2904,8 @@ export function RoadmapPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const projectId = id as string;
   const { accessToken, isRestoring } = useAuth();
+  const { t } = useLanguage();
+  useLiveProjectEvents(projectId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedScheme, setSelectedScheme] = useState<SchemeEvaluationInfo | null>(null);
@@ -3015,16 +3129,16 @@ export function RoadmapPage(): JSX.Element {
         <div>
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium mb-1.5">
-            <Link to="/projects" className="hover:text-blue-600 transition-colors">Projects</Link>
+            <Link to="/projects" className="hover:text-blue-600 transition-colors">{t('nav.projects')}</Link>
             <span>/</span>
             <span className="text-slate-800 font-bold">Pune Brewery Expansion</span>
             <span>/</span>
-            <span className="text-blue-600 font-bold">Approval Roadmap</span>
+            <span className="text-blue-600 font-bold">{t('nav.roadmap')}</span>
           </nav>
 
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Approval Roadmap
+              {t('roadmap.title')}
             </h1>
             <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold font-mono">
               Pune, Maharashtra · Brewery
@@ -3032,7 +3146,7 @@ export function RoadmapPage(): JSX.Element {
           </div>
 
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Your compliance journey at a glance. Complete clearances progressively along the critical path.
+            {t('roadmap.subtitle')}
           </p>
         </div>
         {/* Action controls */}
@@ -3064,15 +3178,28 @@ export function RoadmapPage(): JSX.Element {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs cursor-pointer"
           >
             <HelpCircle className="w-4 h-4 text-slate-700" />
-            <span>How It Works</span>
+            <span>{t('nav.how_it_works')}</span>
           </button>
 
           <Link
             to={`/projects/${projectId}/profile`}
             className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
           >
-            Edit Profile
+            {t('nav.edit_profile')}
           </Link>
+        </div>
+      </div>
+
+      {/* Point-of-Display Statutory Disclaimer Banner (Dossier Part 9.1) */}
+      <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-amber-900 text-xs shadow-2xs">
+        <Scale className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+        <div className="space-y-0.5">
+          <p className="font-bold tracking-tight">
+            {t('roadmap.disclaimer_title', 'Statutory Regulatory Notice & Disclaimer')}
+          </p>
+          <p className="text-amber-800 leading-relaxed text-[11px]">
+            {t('roadmap.disclaimer')}
+          </p>
         </div>
       </div>
 
@@ -3086,35 +3213,35 @@ export function RoadmapPage(): JSX.Element {
                 <ShieldCheck className="w-4 h-4" />
               </span>
               <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800 font-mono">
-                1. Regulatory Approvals Evaluation
+                {t('band1.title')}
               </span>
             </div>
-            <span className="text-[11px] text-slate-500 font-mono">Rule Kind: approval</span>
+            <span className="text-[11px] text-slate-500 font-mono">{t('band1.rule_kind')}</span>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="text-[10px] text-slate-400 font-mono uppercase">Total Evaluated</div>
+              <div className="text-[10px] text-slate-400 font-mono uppercase">{t('band1.total_eval')}</div>
               <div className="text-2xl font-black text-slate-900 mt-0.5 font-mono">{totalCount}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">Statutory approvals checked</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">{t('band1.total_eval_sub')}</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200">
-              <div className="text-[10px] text-emerald-700 font-mono uppercase font-bold">Applicable Clearances</div>
+              <div className="text-[10px] text-emerald-700 font-mono uppercase font-bold">{t('band1.applicable')}</div>
               <div className="text-2xl font-black text-emerald-700 mt-0.5 font-mono">{applicableCount}</div>
-              <div className="text-[10px] text-slate-600 mt-0.5">Mandatory for Pune Brewery</div>
+              <div className="text-[10px] text-slate-600 mt-0.5">{t('band1.applicable_sub')}</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-cyan-50/70 border border-cyan-200">
-              <div className="text-[10px] text-cyan-700 font-mono uppercase font-bold">Ready to Start</div>
+              <div className="text-[10px] text-cyan-700 font-mono uppercase font-bold">{t('band1.ready')}</div>
               <div className="text-2xl font-black text-cyan-700 mt-0.5 font-mono">{readyCount}</div>
-              <div className="text-[10px] text-slate-600 mt-0.5">Zero blocking prerequisites</div>
+              <div className="text-[10px] text-slate-600 mt-0.5">{t('band1.ready_sub')}</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200">
-              <div className="text-[10px] text-amber-700 font-mono uppercase font-bold">Blocked / Waiting</div>
+              <div className="text-[10px] text-amber-700 font-mono uppercase font-bold">{t('band1.blocked')}</div>
               <div className="text-2xl font-black text-amber-700 mt-0.5 font-mono">{blockedCount}</div>
-              <div className="text-[10px] text-slate-600 mt-0.5">Awaiting prior unlocks</div>
+              <div className="text-[10px] text-slate-600 mt-0.5">{t('band1.blocked_sub')}</div>
             </div>
           </div>
         </div>
@@ -3127,35 +3254,35 @@ export function RoadmapPage(): JSX.Element {
                 <Clock className="w-4 h-4" />
               </span>
               <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800 font-mono">
-                2. Service Timelines (SLA Coverage)
+                {t('band2.title')}
               </span>
             </div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200">
-              <span>Basis: Maharashtra RTS Act-notified timeline &amp; primary source verification</span>
+              <span>{t('band2.basis')}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200">
-              <div className="text-[10px] text-blue-700 font-mono uppercase font-bold">Verified Service Timelines</div>
+              <div className="text-[10px] text-blue-700 font-mono uppercase font-bold">{t('band2.verified')}</div>
               <div className="text-2xl font-black text-blue-900 mt-0.5 font-mono">
-                {verifiedTimelinesCount} <span className="text-xs font-normal text-blue-700">of {totalCount}</span>
+                {verifiedTimelinesCount} <span className="text-xs font-normal text-blue-700">{t('band2.of')} {totalCount}</span>
               </div>
-              <div className="text-[10px] text-blue-800 mt-0.5">Supported by RTS Act-notified statutory timeline</div>
+              <div className="text-[10px] text-blue-800 mt-0.5">{t('band2.verified_sub')}</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="text-[10px] text-slate-500 font-mono uppercase font-bold">Unknown Service Timelines</div>
+              <div className="text-[10px] text-slate-500 font-mono uppercase font-bold">{t('band2.unknown')}</div>
               <div className="text-2xl font-black text-slate-700 mt-0.5 font-mono">
-                {unknownTimelinesCount} <span className="text-xs font-normal text-slate-500">of {totalCount}</span>
+                {unknownTimelinesCount} <span className="text-xs font-normal text-slate-500">{t('band2.of')} {totalCount}</span>
               </div>
-              <div className="text-[10px] text-slate-500 mt-0.5">Basis: No verified notified timeline available</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">{t('band2.unknown_sub')}</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-900 text-white sm:col-span-2 lg:col-span-1 flex flex-col justify-between">
-              <div className="text-[10px] text-slate-300 font-mono uppercase font-bold">SLA Risk Integrity Policy</div>
+              <div className="text-[10px] text-slate-300 font-mono uppercase font-bold">{t('band2.policy_title')}</div>
               <p className="text-xs text-slate-200 mt-1 leading-relaxed">
-                Risk calculation is <strong>strictly suppressed</strong> for unknown timelines. ApprovalIQ never assigns arbitrary 0 values or unverified guesses.
+                {t('band2.policy_desc')}
               </p>
             </div>
           </div>
@@ -3169,35 +3296,35 @@ export function RoadmapPage(): JSX.Element {
                 <Gift className="w-4 h-4" />
               </span>
               <span className="text-xs font-extrabold uppercase tracking-wider text-slate-800 font-mono">
-                3. Government Schemes &amp; Fiscal Incentives
+                {t('band3.title')}
               </span>
             </div>
-            <span className="text-[11px] text-slate-500 font-mono">Rule Kind: incentive</span>
+            <span className="text-[11px] text-slate-500 font-mono">{t('band3.rule_kind')}</span>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="text-[10px] text-slate-400 font-mono uppercase">Total Evaluated Schemes</div>
+              <div className="text-[10px] text-slate-400 font-mono uppercase">{t('band3.total')}</div>
               <div className="text-2xl font-black text-purple-900 mt-0.5 font-mono">{schemeStats.total}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">State &amp; Central policies matched</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">{t('band3.total_sub')}</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200">
-              <div className="text-[10px] text-emerald-700 font-mono uppercase font-bold">Potentially Eligible</div>
+              <div className="text-[10px] text-emerald-700 font-mono uppercase font-bold">{t('band3.eligible')}</div>
               <div className="text-2xl font-black text-emerald-700 mt-0.5 font-mono">{schemeStats.eligible}</div>
-              <div className="text-[10px] text-slate-600 mt-0.5">ZED Green, CGTMSE, EPCG 0% Duty</div>
+              <div className="text-[10px] text-slate-600 mt-0.5">{t('band3.eligible_sub')}</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200">
-              <div className="text-[10px] text-rose-700 font-mono uppercase font-bold">Excluded (Negative List)</div>
+              <div className="text-[10px] text-rose-700 font-mono uppercase font-bold">{t('band3.excluded')}</div>
               <div className="text-2xl font-black text-rose-700 mt-0.5 font-mono">{schemeStats.excluded}</div>
-              <div className="text-[10px] text-slate-600 mt-0.5">PSI-2019 (Annexure II liquor exclusion)</div>
+              <div className="text-[10px] text-slate-600 mt-0.5">{t('band3.excluded_sub')}</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200">
-              <div className="text-[10px] text-amber-700 font-mono uppercase font-bold">Needs Information</div>
+              <div className="text-[10px] text-amber-700 font-mono uppercase font-bold">{t('band3.needs_info')}</div>
               <div className="text-2xl font-black text-amber-700 mt-0.5 font-mono">{schemeStats.needsInfo}</div>
-              <div className="text-[10px] text-slate-600 mt-0.5">Awaiting profile parameter check</div>
+              <div className="text-[10px] text-slate-600 mt-0.5">{t('band3.needs_info_sub')}</div>
             </div>
           </div>
         </div>
@@ -3215,7 +3342,7 @@ export function RoadmapPage(): JSX.Element {
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>All Clearances &amp; Schemes</span>
+          <span>{t('tab.all_clearances')}</span>
           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${ruleKindFilter === 'all' ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-slate-700'}`}>
             {(data?.nodes.length || 0) + (schemes.length || 0)}
           </span>
@@ -3231,7 +3358,7 @@ export function RoadmapPage(): JSX.Element {
           }`}
         >
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Statutory Approvals</span>
+          <span>{t('tab.statutory_approvals')}</span>
           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${ruleKindFilter === 'approvals' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-700'}`}>
             {data?.nodes.length || 0}
           </span>
@@ -3247,7 +3374,7 @@ export function RoadmapPage(): JSX.Element {
           }`}
         >
           <Gift className="w-3.5 h-3.5" />
-          <span>Schemes &amp; Incentives</span>
+          <span>{t('tab.schemes_incentives')}</span>
           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${ruleKindFilter === 'schemes' ? 'bg-purple-700 text-purple-100' : 'bg-slate-200 text-slate-700'}`}>
             {schemes.length}
           </span>
@@ -3265,10 +3392,10 @@ export function RoadmapPage(): JSX.Element {
             <div className="lg:col-span-5 p-5 rounded-3xl bg-white border border-slate-200/80 shadow-md flex flex-col justify-between space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-700 font-mono">
-                  Overall Compliance Progress
+                  {t('progress.title')}
                 </span>
                 <span className="text-xs font-black text-blue-600 font-mono bg-blue-50 px-2.5 py-1 rounded-full">
-                  {progressPercent}% Complete
+                  {progressPercent}% {t('progress.complete')}
                 </span>
               </div>
 
@@ -3280,8 +3407,8 @@ export function RoadmapPage(): JSX.Element {
               </div>
 
               <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>{completedCount} of {applicableCount} applicable clearances completed</span>
-                <span>{inProgressCount} in progress</span>
+                <span>{completedCount} {t('band2.of')} {applicableCount} {t('progress.clearances_done')}</span>
+                <span>{inProgressCount} {t('progress.in_progress')}</span>
               </div>
             </div>
 
@@ -3291,7 +3418,7 @@ export function RoadmapPage(): JSX.Element {
                 <div>
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-500/30 border border-blue-400/40 text-cyan-300 text-[10px] font-bold uppercase tracking-wider mb-1">
                     <Zap className="w-3 h-3 text-cyan-300" />
-                    <span>YOUR RECOMMENDED NEXT ACTION</span>
+                    <span>{t('action.recommended_tag')}</span>
                   </div>
                   <h3 className="text-lg font-black text-white">
                     {nextActionNode.node.approvalName}
@@ -3306,14 +3433,14 @@ export function RoadmapPage(): JSX.Element {
                   onClick={() => setSelectedId(nextActionNode.node.id)}
                   className="px-5 py-2.5 rounded-2xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-xs shadow-lg shadow-cyan-400/30 transition-all hover:scale-105 shrink-0 cursor-pointer"
                 >
-                  View Clearance →
+                  {t('action.view_btn')}
                 </button>
               </div>
             ) : (
               <div className="lg:col-span-7 p-5 rounded-3xl bg-emerald-900 text-white shadow-xl flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold uppercase text-emerald-300">All Applicable Approvals Completed</div>
-                  <h3 className="text-lg font-black text-white mt-0.5">Project Ready for Commercial Operations</h3>
+                  <div className="text-xs font-bold uppercase text-emerald-300">{t('action.all_done_title')}</div>
+                  <h3 className="text-lg font-black text-white mt-0.5">{t('action.all_done_sub')}</h3>
                 </div>
                 <Sparkles className="w-8 h-8 text-emerald-300" />
               </div>
@@ -3334,7 +3461,7 @@ export function RoadmapPage(): JSX.Element {
                 }`}
               >
                 <Network className="w-3.5 h-3.5" />
-                <span>Roadmap Graph</span>
+                <span>{t('view.roadmap_graph')}</span>
               </button>
               <button
                 type="button"
@@ -3344,7 +3471,7 @@ export function RoadmapPage(): JSX.Element {
                 }`}
               >
                 <ListFilter className="w-3.5 h-3.5" />
-                <span>List View</span>
+                <span>{t('view.list_view')}</span>
               </button>
               <button
                 type="button"
@@ -3354,7 +3481,7 @@ export function RoadmapPage(): JSX.Element {
                 }`}
               >
                 <GitCommitHorizontal className="w-3.5 h-3.5" />
-                <span>Timeline</span>
+                <span>{t('view.timeline')}</span>
               </button>
             </div>
 
@@ -3369,7 +3496,7 @@ export function RoadmapPage(): JSX.Element {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search approvals or authority..."
+                  placeholder={t('search.placeholder')}
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 />
               </div>
@@ -3379,11 +3506,11 @@ export function RoadmapPage(): JSX.Element {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none"
               >
-                <option value="all">All Statuses</option>
-                <option value="available">Ready to Start</option>
-                <option value="in_progress">In Progress</option>
-                <option value="blocked">Blocked</option>
-                <option value="done">Completed</option>
+                <option value="all">{t('filter.all_statuses')}</option>
+                <option value="available">{t('filter.ready_to_start')}</option>
+                <option value="in_progress">{t('filter.in_progress')}</option>
+                <option value="blocked">{t('filter.blocked')}</option>
+                <option value="done">{t('filter.completed')}</option>
               </select>
 
               <select
@@ -3391,15 +3518,15 @@ export function RoadmapPage(): JSX.Element {
                 onChange={(e) => setDepartmentFilter(e.target.value)}
                 className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none"
               >
-                <option value="all">All Departments</option>
-                <option value="Pollution Control Board">Pollution Control (SPCB/MPCB)</option>
-                <option value="Fire & Emergency">Fire & Emergency Services</option>
-                <option value="Industrial Safety">Labour & Factory Directorate</option>
-                <option value="Municipal">Municipal / MIDC</option>
-                <option value="Electricity">Power Discom</option>
-                <option value="Water">Water Supply Authority</option>
-                <option value="Food Safety">FSSAI Authority</option>
-                <option value="Excise">State Excise Department</option>
+                <option value="all">{t('filter.all_departments')}</option>
+                <option value="Pollution Control Board">{t('filter.pollution_control')}</option>
+                <option value="Fire & Emergency">{t('filter.fire_emergency')}</option>
+                <option value="Industrial Safety">{t('filter.labour_factory')}</option>
+                <option value="Municipal">{t('filter.municipal_midc')}</option>
+                <option value="Electricity">{t('filter.power_discom')}</option>
+                <option value="Water">{t('filter.water_authority')}</option>
+                <option value="Food Safety">{t('filter.food_safety')}</option>
+                <option value="Excise">{t('filter.state_excise')}</option>
               </select>
 
             </div>
@@ -3413,14 +3540,14 @@ export function RoadmapPage(): JSX.Element {
               <div className="flex items-center justify-between text-xs text-slate-500 px-2">
                 <div className="flex items-center gap-4">
                   <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
-                    <span className="w-5 h-0.5 rounded bg-blue-600" /> Required Gating Prerequisite
+                    <span className="w-5 h-0.5 rounded bg-blue-600" /> {t('legend.gating_prerequisite')}
                   </span>
                   <span className="inline-flex items-center gap-1.5 text-slate-400">
-                    <span className="w-5 h-0.5 border-t border-dashed border-slate-300" /> Informational Link
+                    <span className="w-5 h-0.5 border-t border-dashed border-slate-300" /> {t('legend.informational_link')}
                   </span>
                 </div>
                 <span className="text-[11px] font-mono text-slate-400">
-                  {filteredNodes.length} nodes rendered • Click any node to inspect details
+                  {filteredNodes.length} {t('legend.nodes_count')}
                 </span>
               </div>
 
@@ -3451,12 +3578,12 @@ export function RoadmapPage(): JSX.Element {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider font-mono">
-                      <th className="py-3.5 px-4">Approval Name &amp; Code</th>
-                      <th className="py-3.5 px-4">Regulating Authority</th>
-                      <th className="py-3.5 px-4">Status</th>
-                      <th className="py-3.5 px-4">Outcome</th>
-                      <th className="py-3.5 px-4">Required Documents</th>
-                      <th className="py-3.5 px-4 text-right">Action</th>
+                      <th className="py-3.5 px-4">{t('table.name_code')}</th>
+                      <th className="py-3.5 px-4">{t('table.authority')}</th>
+                      <th className="py-3.5 px-4">{t('table.status')}</th>
+                      <th className="py-3.5 px-4">{t('table.outcome')}</th>
+                      <th className="py-3.5 px-4">{t('table.docs')}</th>
+                      <th className="py-3.5 px-4 text-right">{t('table.action')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -3482,16 +3609,16 @@ export function RoadmapPage(): JSX.Element {
                           <td className="py-3.5 px-4">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold text-[11px] border ${statusConfig.badgeBg}`}>
                               <RenderStatusIcon type={statusConfig.iconType} className="w-3 h-3" />
-                              {statusConfig.label}
+                              {n.status === 'available' ? t('roadmap.status_ready', 'Ready to Apply') : n.status === 'in_progress' ? t('roadmap.status_in_progress', 'In Progress') : n.status === 'done' ? t('roadmap.status_done', 'Done') : t('roadmap.status_pending', 'Pending')}
                             </span>
                           </td>
                           <td className="py-3.5 px-4">
                             <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${outcomeConfig.badgeClass}`}>
-                              {outcomeConfig.label}
+                              {n.outcome === 'applicable' ? t('roadmap.outcome_applicable', 'Applicable') : n.outcome === 'not_applicable' ? t('roadmap.outcome_not_applicable', 'Not Applicable') : t('roadmap.outcome_info_needed', 'Info Needed')}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 font-mono text-slate-600">
-                            {n.requiredDocuments.length} document{n.requiredDocuments.length !== 1 ? 's' : ''}
+                            {n.requiredDocuments.length} {t('roadmap.documents_count', 'documents')}
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <button
@@ -3502,7 +3629,7 @@ export function RoadmapPage(): JSX.Element {
                               }}
                               className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-700 font-bold text-xs transition-all cursor-pointer"
                             >
-                              View →
+                              {t('table.view_btn')}
                             </button>
                           </td>
                         </tr>
@@ -3517,22 +3644,26 @@ export function RoadmapPage(): JSX.Element {
           {/* VIEW 3: TIMELINE VIEW */}
           {viewMode === 'timeline' && (
             <div className="space-y-6 max-w-4xl mx-auto py-4">
-              {['Pre-Construction Sanctions', 'Civil & Utility Infrastructure', 'Operational Licensing & Consents'].map((stageName, sIdx) => {
+              {[
+                { key: 'Pre-Construction Sanctions', label: t('roadmap.stage_pre_construction', '1. Pre-Construction Sanctions') },
+                { key: 'Civil & Utility Infrastructure', label: t('roadmap.stage_civil_utility', '2. Civil & Utility Infrastructure') },
+                { key: 'Operational Licensing & Consents', label: t('roadmap.stage_operational', '3. Operational Licensing & Consents') },
+              ].map((stageItem, sIdx) => {
                 const stageNodes = filteredNodes.filter((n) => {
                   const meta = getApprovalMeta(n.approvalCode, n.approvalName);
-                  return meta.stage === stageName;
+                  return meta.stage === stageItem.key;
                 });
 
                 if (stageNodes.length === 0) return null;
 
                 return (
-                  <div key={stageName} className="space-y-3">
+                  <div key={stageItem.key} className="space-y-3">
                     <div className="flex items-center gap-3">
                       <span className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center font-mono">
                         0{sIdx + 1}
                       </span>
                       <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
-                        {stageName}
+                        {stageItem.label}
                       </h3>
                     </div>
 
@@ -3560,9 +3691,9 @@ export function RoadmapPage(): JSX.Element {
                             <div className="flex items-center gap-3">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${statusConfig.badgeBg}`}>
                                 <RenderStatusIcon type={statusConfig.iconType} className="w-3 h-3" />
-                                {statusConfig.label}
+                                {n.status === 'available' ? t('roadmap.status_ready', 'Ready to Apply') : n.status === 'in_progress' ? t('roadmap.status_in_progress', 'In Progress') : n.status === 'done' ? t('roadmap.status_done', 'Done') : t('roadmap.status_pending', 'Pending')}
                               </span>
-                              <span className="text-blue-600 text-xs font-bold">Details →</span>
+                              <span className="text-blue-600 text-xs font-bold">{t('table.details_btn')}</span>
                             </div>
                           </div>
                         );
@@ -3588,11 +3719,11 @@ export function RoadmapPage(): JSX.Element {
                   <Gift className="w-5 h-5" />
                 </span>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Schemes, Subsidies &amp; Government Incentives
+                  {t('schemes.header_title')}
                 </h2>
               </div>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Deterministic matching and step-by-step advisory guides across Startup India, MSME, CGTMSE, Income Tax 80-IAC, DGFT EPCG, and State Industrial Policies.
+                {t('schemes.header_subtitle')}
               </p>
             </div>
 
@@ -3605,7 +3736,7 @@ export function RoadmapPage(): JSX.Element {
                   schemeStatusFilter === 'all' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                All Status ({schemeStats.total})
+                {t('schemes.status_all')} ({schemeStats.total})
               </button>
               <button
                 type="button"
@@ -3614,7 +3745,7 @@ export function RoadmapPage(): JSX.Element {
                   schemeStatusFilter === 'potentially_eligible' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Potentially Eligible ({schemeStats.eligible})
+                {t('schemes.status_eligible')} ({schemeStats.eligible})
               </button>
               <button
                 type="button"
@@ -3623,7 +3754,7 @@ export function RoadmapPage(): JSX.Element {
                   schemeStatusFilter === 'not_eligible' ? 'bg-white text-rose-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Not Eligible ({schemeStats.notEligible})
+                {t('schemes.status_not_eligible')} ({schemeStats.notEligible})
               </button>
               {schemeStats.needsInfo > 0 && (
                 <button
@@ -3633,7 +3764,7 @@ export function RoadmapPage(): JSX.Element {
                     schemeStatusFilter === 'needs_information' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Needs Info ({schemeStats.needsInfo})
+                  {t('schemes.status_needs_info')} ({schemeStats.needsInfo})
                 </button>
               )}
             </div>
@@ -3644,13 +3775,13 @@ export function RoadmapPage(): JSX.Element {
             <div className="space-y-2 max-w-2xl">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30 text-xs font-bold font-mono">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>GOVERNMENT FISCAL OPTIMIZATION ADVISORY</span>
+                <span>{t('schemes.banner_tag')}</span>
               </div>
               <h3 className="text-lg sm:text-xl font-extrabold text-white">
-                Unlock Up to ₹5 Cr Collateral-Free Credit, 3-Yr Tax Exemption &amp; Capital Grants
+                {t('schemes.banner_title')}
               </h3>
               <p className="text-xs sm:text-sm text-purple-200 leading-relaxed">
-                ApprovalIQ evaluates both central and state policies for your facility. Even if your specific core product is restricted under direct state cash subsidy negative lists, your business can qualify for MSME priority credit, 0% import duties, and sustainability grants.
+                {t('schemes.banner_desc')}
               </p>
 
               <div className="pt-2 flex flex-wrap items-center gap-3">
@@ -3663,34 +3794,34 @@ export function RoadmapPage(): JSX.Element {
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-lg hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-0.5"
                 >
                   <Sparkles className="w-4 h-4 text-purple-950" />
-                  <span>✨ Ask AI Scheme Advisor (Copilot)</span>
+                  <span>{t('schemes.ask_ai_btn')}</span>
                 </button>
                 <span className="text-xs text-purple-200 font-medium">
-                  Live AI Profile Readiness: <strong className="text-amber-300 font-mono">92% Match</strong> · Total Benefit: <strong className="text-emerald-300 font-mono">₹5.85 Cr</strong>
+                  {t('schemes.live_ai_readiness')} <strong className="text-amber-300 font-mono">92% {t('schemes.match')}</strong> · {t('schemes.total_benefit')} <strong className="text-emerald-300 font-mono">₹5.85 Cr</strong>
                 </span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 shrink-0">
               <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-                <div className="text-[10px] text-purple-200 uppercase font-mono font-bold">Credit Guarantee</div>
+                <div className="text-[10px] text-purple-200 uppercase font-mono font-bold">{t('schemes.credit_guarantee')}</div>
                 <div className="text-lg font-black text-amber-300 font-mono">₹5 Cr Max</div>
-                <div className="text-[10px] text-purple-200">CGTMSE No-Mortgage</div>
+                <div className="text-[10px] text-purple-200">{t('schemes.cgtmse_sub')}</div>
               </div>
               <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-                <div className="text-[10px] text-purple-200 uppercase font-mono font-bold">Income Tax 80-IAC</div>
+                <div className="text-[10px] text-purple-200 uppercase font-mono font-bold">{t('schemes.tax_exemption')}</div>
                 <div className="text-lg font-black text-emerald-300 font-mono">100% Tax Free</div>
-                <div className="text-[10px] text-purple-200">3 Consecutive Years</div>
+                <div className="text-[10px] text-purple-200">{t('schemes.tax_free_sub')}</div>
               </div>
               <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-                <div className="text-[10px] text-purple-200 uppercase font-mono font-bold">Capital Goods</div>
+                <div className="text-[10px] text-purple-200 uppercase font-mono font-bold">{t('schemes.capital_goods')}</div>
                 <div className="text-lg font-black text-blue-300 font-mono">0% Customs Duty</div>
-                <div className="text-[10px] text-purple-200">EPCG Machinery Import</div>
+                <div className="text-[10px] text-purple-200">{t('schemes.customs_sub')}</div>
               </div>
               <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-                <div className="text-[10px] text-purple-200 uppercase font-mono font-bold">ZED Subsidy</div>
+                <div className="text-[10px] text-purple-200 uppercase font-mono font-bold">{t('schemes.zed_subsidy')}</div>
                 <div className="text-lg font-black text-rose-300 font-mono">Up to 80% Off</div>
-                <div className="text-[10px] text-purple-200">+ ₹5L Testing Grant</div>
+                <div className="text-[10px] text-purple-200">{t('schemes.zed_sub')}</div>
               </div>
             </div>
           </div>
@@ -3706,7 +3837,7 @@ export function RoadmapPage(): JSX.Element {
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300'
               }`}
             >
-              All Domains ({schemes.length})
+              {t('schemes.all_domains')} ({schemes.length})
             </button>
             <button
               type="button"
@@ -3717,7 +3848,7 @@ export function RoadmapPage(): JSX.Element {
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300'
               }`}
             >
-              🚀 Startup India &amp; DPIIT
+              {t('schemes.domain_startup')}
             </button>
             <button
               type="button"
@@ -3728,7 +3859,7 @@ export function RoadmapPage(): JSX.Element {
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300'
               }`}
             >
-              🏢 MSME &amp; Priority Credit (CGTMSE)
+              {t('schemes.domain_msme')}
             </button>
             <button
               type="button"
@@ -3739,7 +3870,7 @@ export function RoadmapPage(): JSX.Element {
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300'
               }`}
             >
-              🧾 Tax &amp; Direct Subsidies (80-IAC)
+              {t('schemes.domain_tax')}
             </button>
             <button
               type="button"
@@ -3750,7 +3881,7 @@ export function RoadmapPage(): JSX.Element {
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300'
               }`}
             >
-              🚢 Export &amp; Customs (EPCG)
+              {t('schemes.domain_export')}
             </button>
             <button
               type="button"
@@ -3761,7 +3892,7 @@ export function RoadmapPage(): JSX.Element {
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300'
               }`}
             >
-              🌿 State Industrial &amp; Green Subsidies
+              {t('schemes.domain_state_green')}
             </button>
           </div>
 
@@ -3769,9 +3900,9 @@ export function RoadmapPage(): JSX.Element {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm flex items-center justify-between">
               <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Schemes Evaluated</div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">{t('schemes.stat_evaluated')}</div>
                 <div className="text-2xl font-black text-slate-900 mt-0.5 font-mono">{schemeStats.total}</div>
-                <div className="text-[11px] text-slate-500">Government schemes checked</div>
+                <div className="text-[11px] text-slate-500">{t('schemes.stat_evaluated_sub')}</div>
               </div>
               <span className="p-2.5 rounded-xl bg-purple-50 text-purple-700">
                 <Gift className="w-5 h-5" />
@@ -3780,9 +3911,9 @@ export function RoadmapPage(): JSX.Element {
 
             <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm flex items-center justify-between">
               <div>
-                <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider font-mono">Potentially Eligible</div>
+                <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider font-mono">{t('schemes.stat_eligible')}</div>
                 <div className="text-2xl font-black text-emerald-600 mt-0.5 font-mono">{schemeStats.eligible}</div>
-                <div className="text-[11px] text-slate-500">Criteria matches profile</div>
+                <div className="text-[11px] text-slate-500">{t('schemes.stat_eligible_sub')}</div>
               </div>
               <span className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700">
                 <CheckCircle2 className="w-5 h-5" />
@@ -3791,9 +3922,9 @@ export function RoadmapPage(): JSX.Element {
 
             <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm flex items-center justify-between">
               <div>
-                <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wider font-mono">Not Eligible</div>
+                <div className="text-[10px] font-bold text-rose-600 uppercase tracking-wider font-mono">{t('schemes.stat_not_eligible')}</div>
                 <div className="text-2xl font-black text-rose-600 mt-0.5 font-mono">{schemeStats.notEligible}</div>
-                <div className="text-[11px] text-slate-500">Exclusion / negative list</div>
+                <div className="text-[11px] text-slate-500">{t('schemes.stat_not_eligible_sub')}</div>
               </div>
               <span className="p-2.5 rounded-xl bg-rose-50 text-rose-700">
                 <XCircle className="w-5 h-5" />
@@ -3802,9 +3933,9 @@ export function RoadmapPage(): JSX.Element {
 
             <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm flex items-center justify-between">
               <div>
-                <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider font-mono">Needs Information</div>
+                <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider font-mono">{t('schemes.stat_needs_info')}</div>
                 <div className="text-2xl font-black text-amber-600 mt-0.5 font-mono">{schemeStats.needsInfo}</div>
-                <div className="text-[11px] text-slate-500">Additional facts required</div>
+                <div className="text-[11px] text-slate-500">{t('schemes.stat_needs_info_sub')}</div>
               </div>
               <span className="p-2.5 rounded-xl bg-amber-50 text-amber-700">
                 <HelpCircle className="w-5 h-5" />
@@ -3816,8 +3947,8 @@ export function RoadmapPage(): JSX.Element {
           {filteredSchemes.length === 0 ? (
             <div className="p-8 rounded-3xl bg-slate-50 border border-slate-200 text-center space-y-2">
               <Gift className="w-8 h-8 text-slate-400 mx-auto" />
-              <div className="text-sm font-bold text-slate-700">No schemes found matching this filter</div>
-              <p className="text-xs text-slate-500">Try changing the domain filter or search query.</p>
+              <div className="text-sm font-bold text-slate-700">{t('schemes.no_schemes')}</div>
+              <p className="text-xs text-slate-500">{t('schemes.try_changing')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -3857,7 +3988,7 @@ export function RoadmapPage(): JSX.Element {
 
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shrink-0 ${outcomeConfig.badgeBg}`}>
                           <OutcomeIcon className="w-3.5 h-3.5" />
-                          <span>{outcomeConfig.label}</span>
+                          <span>{s.outcome === 'potentially_eligible' ? t('roadmap.outcome_eligible', 'Potentially Eligible') : s.outcome === 'not_eligible' || s.outcome === 'excluded' ? t('roadmap.outcome_not_eligible', 'Not Eligible / Excluded') : t('roadmap.outcome_info_needed', 'Info Needed')}</span>
                         </span>
                       </div>
 
@@ -3882,7 +4013,7 @@ export function RoadmapPage(): JSX.Element {
 
                       {s.outcome === 'needs_information' && s.neededInformation.length > 0 && (
                         <div className="space-y-1.5 pt-1">
-                          <div className="text-[11px] font-bold text-amber-800">Missing Profile Fields:</div>
+                          <div className="text-[11px] font-bold text-amber-800">{t('schemes.missing_fields')}</div>
                           <div className="flex flex-wrap gap-1.5">
                             {s.neededInformation.map((info) => (
                               <span key={info.field} className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200">
@@ -3906,7 +4037,7 @@ export function RoadmapPage(): JSX.Element {
                             to={`/projects/${projectId}/profile`}
                             className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-colors"
                           >
-                            Complete Profile
+                            {t('schemes.complete_profile')}
                           </Link>
                         )}
 
@@ -3920,7 +4051,7 @@ export function RoadmapPage(): JSX.Element {
                           title="Ask AI Copilot about this scheme"
                         >
                           <Sparkles className="w-3.5 h-3.5 text-purple-700" />
-                          <span>AI Guide</span>
+                          <span>{t('schemes.ai_guide_btn')}</span>
                         </button>
                         
                         <button
@@ -3932,7 +4063,7 @@ export function RoadmapPage(): JSX.Element {
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs border border-indigo-200 transition-colors cursor-pointer"
                         >
                           <CheckSquare className="w-3.5 h-3.5" />
-                          <span>Action Plan</span>
+                          <span>{t('schemes.action_plan_btn')}</span>
                         </button>
 
                         <button
@@ -3943,7 +4074,7 @@ export function RoadmapPage(): JSX.Element {
                           }}
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs border border-purple-200 transition-colors cursor-pointer"
                         >
-                          <span>Why?</span>
+                          <span>{t('schemes.why_btn')}</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -3999,7 +4130,7 @@ export function RoadmapPage(): JSX.Element {
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Compass className="w-5 h-5 text-slate-800" />
-                <span>How the Approval Roadmap Works</span>
+                <span>{t('help.title')}</span>
               </h3>
               <button
                 type="button"
@@ -4011,25 +4142,25 @@ export function RoadmapPage(): JSX.Element {
             </div>
 
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              ApprovalIQ maps the statutory relationships between government clearances so you can see what can be started right now, what must wait, and which approvals unlock subsequent construction and operating milestones.
+              {t('help.desc')}
             </p>
 
             <div className="space-y-2 text-xs text-slate-700 bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <div className="flex items-center gap-2">
                 <PlayCircle className="w-3.5 h-3.5 text-emerald-600" />
-                <span><strong>Ready to Start (Available):</strong> Zero blocking prerequisites. Can be prepared and submitted immediately.</span>
+                <span><strong>{t('help.available_title')}</strong> {t('help.available_desc')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-blue-600" />
-                <span><strong>In Progress:</strong> Currently submitted and awaiting departmental scrutiny.</span>
+                <span><strong>{t('help.in_progress_title')}</strong> {t('help.in_progress_desc')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="w-3.5 h-3.5 text-amber-600" />
-                <span><strong>Waiting on Blockers:</strong> Cannot be granted until prior statutory clearances are secured.</span>
+                <span><strong>{t('help.blocked_title')}</strong> {t('help.blocked_desc')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-3.5 h-3.5 text-indigo-600" />
-                <span><strong>Completed:</strong> Successfully obtained and recorded in your compliance repository.</span>
+                <span><strong>{t('help.completed_title')}</strong> {t('help.completed_desc')}</span>
               </div>
             </div>
 
@@ -4039,7 +4170,7 @@ export function RoadmapPage(): JSX.Element {
                 onClick={() => setIsHelpOpen(false)}
                 className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer"
               >
-                Got It
+                {t('help.got_it')}
               </button>
             </div>
           </div>

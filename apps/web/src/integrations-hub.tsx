@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n';
 import { integrationsApi, type ExternalPortalAdapter } from './api-client';
 import { LoadingSpinner, ErrorBanner } from './components';
 
 export function IntegrationsHubPage(): JSX.Element {
   const { accessToken } = useAuth();
+  const { t } = useLanguage();
   const [selectedAdapter, setSelectedAdapter] = useState<ExternalPortalAdapter | null>(null);
   const [docType, setDocType] = useState('DOC-PAN');
   const [docNumber, setDocNumber] = useState('AAACP1234F');
@@ -40,11 +42,19 @@ export function IntegrationsHubPage(): JSX.Element {
   });
 
   if (adaptersQuery.isLoading) {
-    return <LoadingSpinner label="Connecting to National & State Gateway Adapters…" />;
+    return (
+      <LoadingSpinner
+        label={t('hub.connecting', 'Connecting to National & State Gateway Adapters…')}
+      />
+    );
   }
 
   if (adaptersQuery.isError) {
-    return <ErrorBanner message="Could not load integration gateway adapters." />;
+    return (
+      <ErrorBanner
+        message={t('hub.error_loading', 'Could not load integration gateway adapters.')}
+      />
+    );
   }
 
   const adapters = adaptersQuery.data ?? [];
@@ -53,15 +63,15 @@ export function IntegrationsHubPage(): JSX.Element {
     <div className="space-y-6">
       <div className="border-b border-gray-200 pb-4">
         <div className="flex items-center gap-2 text-xs font-mono text-blue-600 font-bold uppercase tracking-wider">
-          <span>Interoperability Layer</span>
+          <span>{t('hub.interoperability_layer', 'Interoperability Layer')}</span>
           <span>•</span>
           <span>API Setu &amp; National Single Window</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">
-          State &amp; National Gateway Hub
+          {t('hub.title', 'State & National Gateway Hub')}
         </h1>
         <p className="text-sm text-gray-600 mt-1 max-w-2xl">
-          ApprovalIQ acts as an intelligent orchestration engine feeding bi-directionally into State Single Windows (MAITRI), the National Single Window System (NSWS), and DigiLocker.
+          {t('hub.subtitle', 'ApprovalIQ acts as an intelligent orchestration engine feeding bi-directionally into State Single Windows (MAITRI), the National Single Window System (NSWS), and DigiLocker.')}
         </p>
       </div>
 

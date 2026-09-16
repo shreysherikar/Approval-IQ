@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { businessProfileDraftSchema } from '@approvaliq/contracts';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n';
 import { ApiError, profilesApi } from './api-client';
 import type { KnownFieldValue, ProfileVersion } from './api-client';
 import { ErrorBanner, LoadingSpinner } from './components';
@@ -213,10 +214,7 @@ function loadCachedValues(projectId: string): ProfileFormState | null {
 
 export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Element {
   const navigate = useNavigate();
-  // Authorization is enforced server-side on every profiles route (JwtAuthGuard
-  // + ProjectMemberGuard), so the in-memory access token must travel with each
-  // save/confirm call — otherwise the API answers 401 and the draft is never
-  // persisted. The token lives only in React state (never web storage).
+  const { t } = useLanguage();
   const { accessToken, isRestoring } = useAuth();
   const [form, setForm] = useState<ProfileFormState>(EMPTY_FORM);
   const [draft, setDraft] = useState<StoredDraftPointer | null>(null);
@@ -388,9 +386,8 @@ export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Ele
 
   return (
     <form onSubmit={onSubmit} className="space-y-6" noValidate>
-      <p className="rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-        Fill in what you know — anything left blank counts as &ldquo;not known yet&rdquo;, and after
-        confirming you will see exactly which approvals need more information.
+      <p className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+        {t('profile.banner_info', 'Fill in what you know — anything left blank counts as "not known yet", and after confirming you will see exactly which approvals need more information.')}
       </p>
 
       {formErrors.length > 0 && <ErrorBanner message={formErrors.join('; ')} />}
@@ -400,23 +397,23 @@ export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Ele
       <fieldset className="space-y-4" disabled={busy}>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
-            <span className="text-sm font-medium text-gray-700">Industry</span>
+            <span className="text-sm font-medium text-gray-700">{t('profile.industry', 'Industry')}</span>
             <select
               value={form.industry}
               onChange={(e) => set('industry')(e.target.value)}
               className={`${inputClass}${fieldErrors.industry ? invalidClass : ''}`}
             >
-              <option value="brewery">Brewery & Fermentation</option>
-              <option value="solar_manufacturing">Solar PV & Clean Tech Equipment Manufacturing</option>
+              <option value="brewery">{t('industries.brewery', 'Brewery & Fermentation')}</option>
+              <option value="solar_manufacturing">{t('industries.solar', 'Solar PV & Clean Tech Equipment Manufacturing')}</option>
             </select>
             {fieldErrors.industry && <p className={errorTextClass}>{fieldErrors.industry}</p>}
             <p className="mt-1 text-xs text-gray-500">
-              Regulatory catalogs available for Brewery and Solar PV Clean Tech Manufacturing (with RTS Act SLAs).
+              {t('profile.catalogs_info', 'Regulatory catalogs available for Brewery and Solar PV Clean Tech Manufacturing (with RTS Act SLAs).')}
             </p>
           </label>
-          {textField('state', 'State', { placeholder: 'e.g. Maharashtra' })}
-          {textField('district', 'District', { placeholder: 'e.g. Pune' })}
-          {textField('activityType', 'Activity type', { placeholder: 'e.g. beer-manufacturing' })}
+          {textField('state', t('onboarding.state_label', 'State'), { placeholder: 'e.g. Maharashtra' })}
+          {textField('district', t('onboarding.district_label', 'District'), { placeholder: 'e.g. Pune' })}
+          {textField('activityType', t('profile.activity_type', 'Activity type'), { placeholder: 'e.g. beer-manufacturing' })}
         </div>
 
         <div>
@@ -508,30 +505,29 @@ export function ProfileIntakeForm({ projectId }: { projectId: string }): JSX.Ele
           type="button"
           disabled={busy}
           onClick={() => void saveDraft()}
-          className="rounded border border-blue-600 px-4 py-2 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+          className="rounded-xl border border-blue-600 px-4 py-2 text-blue-700 hover:bg-blue-50 disabled:opacity-50 cursor-pointer font-medium"
         >
-          {saving ? 'Saving…' : 'Save draft'}
+          {saving ? t('profile.saving', 'Saving…') : t('profile.save_draft', 'Save draft')}
         </button>
         <button
           type="submit"
           disabled={busy}
-          className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 font-bold shadow-sm cursor-pointer"
         >
-          {confirming ? 'Confirming…' : 'Confirm and see my approvals'}
+          {confirming ? t('profile.confirming', 'Confirming…') : t('profile.confirm_btn', 'Confirm & Evaluate Regulatory Roadmap')}
         </button>
         {(saving || confirming) && (
-          <LoadingSpinner label={confirming ? 'Evaluating your profile…' : 'Saving draft…'} />
+          <LoadingSpinner label={confirming ? t('onboarding.generating', 'Evaluating statutory rules…') : t('profile.saving', 'Saving draft…')} />
         )}
       </div>
       <p className="text-sm text-gray-600">
         {draft
           ? `Draft version ${draft.versionNumber} is open — saving updates it in place.`
-          : 'No draft saved yet — “Save draft” creates version 1.'}
+          : 'No draft saved yet — "Save draft" creates version 1.'}
         {lastSavedAt && ` Last saved at ${lastSavedAt}.`}
       </p>
       <p className="text-xs text-gray-500">
-        Confirming locks this profile version (it can no longer be edited) and automatically checks
-        it against the current regulatory rule set. Later changes create a new version.
+        {t('profile.confirm_note', 'Confirming locks this profile version and automatically checks it against the current regulatory rule set. Later changes create a new version.')}
       </p>
     </form>
   );
