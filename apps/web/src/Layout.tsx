@@ -23,13 +23,18 @@ export function Layout(): JSX.Element {
 
   // Public marketing pages (home, about, contact) have their own dedicated sticky navbar and footer
   if (isPublicPage) {
-    return <Outlet />;
+    return (
+      <>
+        <Outlet />
+        <AssistantPanel />
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      {/* Floating project assistant — authenticated app pages only. */}
-      {isAuthenticated && <AssistantPanel />}
+      {/* Floating project assistant */}
+      <AssistantPanel />
       <header className="border-b bg-white">
         <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-xl font-bold text-blue-700">
