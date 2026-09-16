@@ -535,7 +535,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
       promptVersion: string;
     };
 
-    if (isRealExtractionConfigured) {
+    if (isRealExtractionConfigured && anthropicApiKey) {
       console.log('  ⚡ LLM_PROVIDER=anthropic detected with API key. Executing real extraction via Anthropic API...');
       try {
         const { AnthropicExtractionProvider } = (await import('@approvaliq/document-engine')) as {
@@ -557,27 +557,17 @@ APPROVALIQ_DEMO_TRADE_LICENCE
       } catch (err) {
         console.warn(`  ⚠️ Real extraction failed (${err instanceof Error ? err.message : String(err)}). Falling back to mock extraction.`);
         doc1ExtractionOutput = {
-          fields: [
-            { name: 'applicantName', value: 'Pune Craft Brewery Pvt Ltd', confidence: 0.98, evidenceLocation: 'Header > Licensee Name' },
-            { name: 'premisesAddress', value: 'Plot 42, Hadapsar Industrial Area, Pune 411028', confidence: 0.95, evidenceLocation: 'Schedule A > Location' },
-            { name: 'coveredAreaSqft', value: '5000', confidence: 0.92, evidenceLocation: 'Schedule B > Total Sanctioned Floor Area' },
-            { name: 'validityExpiryDate', value: '2028-03-31', confidence: 0.99, evidenceLocation: 'Validity Period > Expiry Date' },
-          ],
+          fields: doc1MockExtractionFields,
           modelProvider: 'mock',
-          modelVersion: 'mock-v1',
+          modelVersion: 'mock-1.0.0',
           promptVersion: '1.0.0',
         };
       }
     } else {
       doc1ExtractionOutput = {
-        fields: [
-          { name: 'applicantName', value: 'Pune Craft Brewery Pvt Ltd', confidence: 0.98, evidenceLocation: 'Header > Licensee Name' },
-          { name: 'premisesAddress', value: 'Plot 42, Hadapsar Industrial Area, Pune 411028', confidence: 0.95, evidenceLocation: 'Schedule A > Location' },
-          { name: 'coveredAreaSqft', value: '5000', confidence: 0.92, evidenceLocation: 'Schedule B > Total Sanctioned Floor Area' },
-          { name: 'validityExpiryDate', value: '2028-03-31', confidence: 0.99, evidenceLocation: 'Validity Period > Expiry Date' },
-        ],
+        fields: doc1MockExtractionFields,
         modelProvider: 'mock',
-        modelVersion: 'mock-v1',
+        modelVersion: 'mock-1.0.0',
         promptVersion: '1.0.0',
       };
     }
