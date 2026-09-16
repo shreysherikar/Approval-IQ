@@ -104,6 +104,29 @@ model ApprovalDefinition {
   inspectionRequired      Boolean                       @map("inspection_required")
   renewalRequired         Boolean                       @map("renewal_required")
   slaDays                 Int?                          @map("sla_days")
+  // ----------------------------------------------------------------------
+  // Business Intelligence (Feature: Regulatory Time & Cost Prediction).
+  // All optional + evidence-tracked: NULL means "unknown", and every value
+  // carries a status (verified | configured | estimated | needs_review) so
+  // the UI never presents an estimate as an official figure.
+  // ----------------------------------------------------------------------
+  processingTimeMinDays   Int?                          @map("processing_time_min_days")
+  processingTimeMaxDays   Int?                          @map("processing_time_max_days")
+  timeBasis               String?                       @map("time_basis")
+  timeStatus              String?                       @map("time_status")
+  timeSourceNote          String?                       @map("time_source_note")
+  govtFeeMinInr           Int?                          @map("govt_fee_min_inr")
+  govtFeeMaxInr           Int?                          @map("govt_fee_max_inr")
+  registrationFeeMinInr   Int?                          @map("registration_fee_min_inr")
+  registrationFeeMaxInr   Int?                          @map("registration_fee_max_inr")
+  inspectionFeeMinInr     Int?                          @map("inspection_fee_min_inr")
+  inspectionFeeMaxInr     Int?                          @map("inspection_fee_max_inr")
+  documentationCostMinInr Int?                          @map("documentation_cost_min_inr")
+  documentationCostMaxInr Int?                          @map("documentation_cost_max_inr")
+  otherCostMinInr         Int?                          @map("other_cost_min_inr")
+  otherCostMaxInr         Int?                          @map("other_cost_max_inr")
+  costStatus              String?                       @map("cost_status")
+  costSourceNote          String?                       @map("cost_source_note")
   officialApplicationUrl  String?                       @map("official_application_url")
   ambiguityNotes          String?                       @db.Text
   // Verification state is INHERITED via sourceId -> Source

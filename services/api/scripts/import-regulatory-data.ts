@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
@@ -109,7 +110,12 @@ const REUSES: string[] = ['reusable', 'conditional', 'fresh_required', 'unknown'
 type VStatus = 'research_verified' | 'production_verified';
 interface AuthRec { line: number; code: string; name: string; dept: string | null; jur: string | null; url: string | null; }
 interface SrcRec { line: number; key: string; url: string; title: string; dept: string | null; pub: Date | null; ret: Date; ver: Date; by: string; notes: string | null; reviewed: Date | null; status: VStatus; stale: boolean; }
-interface ApprRec { line: number; code: string; name: string; shortName: string | null; ruleKind: string; jurisdiction: string | null; industry: string; auth: string; why: string; cond: string | null; exclCond: string | null; exclReason: string | null; notes: string | null; docs: string[]; insp: boolean; renew: boolean; sla: number | null; url: string | null; src: string; verified: Date; }
+interface ApprRec { line: number; code: string; name: string; shortName: string | null; ruleKind: string; jurisdiction: string | null; industry: string; auth: string; why: string; cond: string | null; exclCond: string | null; exclReason: string | null; notes: string | null; docs: string[]; insp: boolean; renew: boolean; sla: number | null; url: string | null; src: string; verified: Date;
+  // Business Intelligence (time & cost prediction) — optional, evidence-tracked.
+  tMin: number | null; tMax: number | null; timeBasis: string | null; timeStatus: string | null; timeNote: string | null;
+  govtMin: number | null; govtMax: number | null; regMin: number | null; regMax: number | null;
+  inspFeeMin: number | null; inspFeeMax: number | null; docMin: number | null; docMax: number | null;
+  othMin: number | null; othMax: number | null; costStatus: string | null; costNote: string | null; }
 interface DocRec { line: number; code: string; name: string; dtype: string; issuer: string | null; validity: string; reuse: Reuse; recond: string; vmethod: string; }
 interface DepRec { line: number; from: string; to: string; rel: Rel; cond: string | null; rationale: string; }
 function findCycle(nodes: string[], edges: Map<string, string[]>): string[] | null {
@@ -202,6 +208,13 @@ async function main(): Promise<void> {
     docs.set(code, { line, code, name: cell(row, 'document_name', 'name') || code, dtype: cell(row, 'document_type') || 'certificate', issuer: cell(row, 'issuing_authority_id', 'issuing_authority') || null, validity: cell(row, 'validity', 'validity_rule') || 'no expiry', reuse, recond: cell(row, 'reuse_conditions') || '', vmethod: cell(row, 'verification_method') || 'manual review' });
   }
 
+function toIntOrNull(raw: string): number | null {
+  const v = raw.trim();
+  if (v === '') return null;
+  const n = Number.parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
   const apprs = new Map<string, ApprRec>();
   for (let i = 0; i < apprCsv.rows.length; i++) {
     const row = apprCsv.rows[i] as CsvRow;
@@ -221,7 +234,24 @@ async function main(): Promise<void> {
     const jurisdiction = cell(row, 'jurisdiction').trim() || null;
     const verified = toDateOrNull(cell(row, 'last_verified'));
     if (!verified) errors.push(`approvals.csv:${line}: missing last_verified`);
-    apprs.set(code, { line, code, name: cell(row, 'approval_name', 'name') || code, shortName, ruleKind, jurisdiction, industry: cell(row, 'industry') || opts.industry, auth: cell(row, 'authority_id', 'authority'), why: cell(row, 'why_required'), cond, exclCond, exclReason, notes: cell(row, 'notes').trim() || null, docs: splitCodes(cell(row, 'required_documents')), insp: toBool(cell(row, 'inspection_required'), false), renew: toBool(cell(row, 'renewal'), false), sla, url: cell(row, 'official_url') || null, src: cell(row, 'source_id', 'source'), verified: verified ?? new Date(0) });
+    apprs.set(code, { line, code, name: cell(row, 'approval_name', 'name') || code, shortName, ruleKind, jurisdiction, industry: cell(row, 'industry') || opts.industry, auth: cell(row, 'authority_id', 'authority'), why: cell(row, 'why_required'), cond, exclCond, exclReason, notes: cell(row, 'notes').trim() || null, docs: splitCodes(cell(row, 'required_documents')), insp: toBool(cell(row, 'inspection_required'), false), renew: toBool(cell(row, 'renewal'), false), sla, url: cell(row, 'official_url') || null, src: cell(row, 'source_id', 'source'), verified: verified ?? new Date(0),
+      tMin: toIntOrNull(cell(row, 'processing_time_min_days')),
+      tMax: toIntOrNull(cell(row, 'processing_time_max_days')),
+      timeBasis: cell(row, 'time_basis').trim() || null,
+      timeStatus: cell(row, 'time_status').trim() || null,
+      timeNote: cell(row, 'time_source_note').trim() || null,
+      govtMin: toIntOrNull(cell(row, 'govt_fee_min_inr')),
+      govtMax: toIntOrNull(cell(row, 'govt_fee_max_inr')),
+      regMin: toIntOrNull(cell(row, 'registration_fee_min_inr')),
+      regMax: toIntOrNull(cell(row, 'registration_fee_max_inr')),
+      inspFeeMin: toIntOrNull(cell(row, 'inspection_fee_min_inr')),
+      inspFeeMax: toIntOrNull(cell(row, 'inspection_fee_max_inr')),
+      docMin: toIntOrNull(cell(row, 'documentation_cost_min_inr')),
+      docMax: toIntOrNull(cell(row, 'documentation_cost_max_inr')),
+      othMin: toIntOrNull(cell(row, 'other_cost_min_inr')),
+      othMax: toIntOrNull(cell(row, 'other_cost_max_inr')),
+      costStatus: cell(row, 'cost_status').trim() || null,
+      costNote: cell(row, 'cost_source_note').trim() || null });
   }
   const deps: DepRec[] = [];
   for (let i = 0; i < depCsv.rows.length; i++) {
@@ -360,6 +390,8 @@ async function main(): Promise<void> {
         if (!indId) throw new Error(`missing industry for "${a.code}"`);
         const conds = toConditionJson(a.cond);
         const exclConds = toConditionJson(a.exclCond);
+        const biTime = { processingTimeMinDays: a.tMin, processingTimeMaxDays: a.tMax, timeBasis: a.timeBasis, timeStatus: a.timeStatus, timeSourceNote: a.timeNote };
+        const biCost = { govtFeeMinInr: a.govtMin, govtFeeMaxInr: a.govtMax, registrationFeeMinInr: a.regMin, registrationFeeMaxInr: a.regMax, inspectionFeeMinInr: a.inspFeeMin, inspectionFeeMaxInr: a.inspFeeMax, documentationCostMinInr: a.docMin, documentationCostMaxInr: a.docMax, otherCostMinInr: a.othMin, otherCostMaxInr: a.othMax, costStatus: a.costStatus, costSourceNote: a.costNote };
         const r = await tx.approvalDefinition.upsert({
           where: { code: a.code },
           update: {
@@ -381,6 +413,8 @@ async function main(): Promise<void> {
             sourceId: sid,
             lastVerifiedDate: a.verified,
             releaseId: release.id,
+            ...biTime,
+            ...biCost,
           },
           create: {
             code: a.code,
@@ -402,6 +436,8 @@ async function main(): Promise<void> {
             sourceId: sid,
             lastVerifiedDate: a.verified,
             releaseId: release.id,
+            ...biTime,
+            ...biCost,
           },
         });
         apprIds.set(a.code, r.id);

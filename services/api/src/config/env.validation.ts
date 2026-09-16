@@ -22,6 +22,9 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().default('http://localhost:3001/auth/google/callback'),
+  // Feature 2 (Market & Competitor Intelligence): server-side Google Maps
+  // Platform key for Places API (New). Never exposed to the client.
+  GOOGLE_MAPS_API_KEY: z.string().optional(),
   // OrcaRouter AI LLM Configuration (https://orcarouter.ai)
   ORCAROUTER_API_KEY: z.string().optional(),
   ORCAROUTER_BASE_URL: z.string().default('https://api.orcarouter.ai/v1'),
