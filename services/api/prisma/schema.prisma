@@ -89,12 +89,17 @@ model ApprovalDefinition {
   id                      String                        @id @default(uuid())
   code                    String                        @unique
   name                    String
+  shortName               String?                       @map("short_name")
+  ruleKind                String                        @default("approval") @map("rule_kind")
+  jurisdiction            String?
   industryId              String                        @map("industry_id")
   industry                Industry                      @relation(fields: [industryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   authorityId             String                        @map("authority_id")
   authority               Authority                     @relation(fields: [authorityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   whyRequired             String                        @map("why_required") @db.Text
   applicabilityConditions Json?                         @map("applicability_conditions") @db.JsonB
+  exclusionConditions     Json?                         @map("exclusion_conditions") @db.JsonB
+  exclusionReason         String?                       @map("exclusion_reason") @db.Text
   inspectionRequired      Boolean                       @map("inspection_required")
   renewalRequired         Boolean                       @map("renewal_required")
   slaDays                 Int?                          @map("sla_days")

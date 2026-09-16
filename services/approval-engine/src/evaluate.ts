@@ -23,11 +23,13 @@ import type {
 } from './types.ts';
 
 /** Reads a known string field, normalising a literal `"unknown"` to unknown. */
-function stringValue(profile: BusinessProfile, field: StringProfileField): string | undefined {
-  const raw = valueOf(profile[field]);
+function stringValue(profile: BusinessProfile, field: string): string | undefined {
+  const profileRecord = profile as unknown as Record<string, unknown>;
+  const rawField = profileRecord[field] ?? (field === 'activity' ? profile.activityType : undefined);
+  const raw = valueOf(rawField as any);
   if (raw === undefined) return undefined;
   if (field === 'areaType' && raw === 'unknown') return undefined;
-  return raw;
+  return String(raw);
 }
 
 /**
@@ -205,7 +207,7 @@ function evalCondition(cond: Condition, profile: BusinessProfile, ctx: EvalConte
       return r.truth === 'pass' ? fail() : pass();
     }
     case 'eq': {
-      if (!(cond.field in profile)) return notEvaluable();
+      if (!(cond.field in profile) && !(cond.field === 'activity' && 'activityType' in profile)) return notEvaluable();
       const v = stringValue(profile, cond.field);
       if (v === undefined) return needsInfo(missing(cond.field, 'unknown'));
       if (v === cond.value) {
@@ -216,7 +218,7 @@ function evalCondition(cond: Condition, profile: BusinessProfile, ctx: EvalConte
       return fail();
     }
     case 'in': {
-      if (!(cond.field in profile)) return notEvaluable();
+      if (!(cond.field in profile) && !(cond.field === 'activity' && 'activityType' in profile)) return notEvaluable();
       const v = stringValue(profile, cond.field);
       if (v === undefined) return needsInfo(missing(cond.field, 'unknown'));
       if (cond.values.includes(v)) {
@@ -233,19 +235,57 @@ function evalCondition(cond: Condition, profile: BusinessProfile, ctx: EvalConte
   }
 }
 
-/** Per-approval condition verdict before dependency ordering is applied. */
-interface ApprovalVerdict {
+/** Per-rule condition verdict before dependency ordering is applied. */
+interface RuleVerdict {
   def: ApprovalDefinition;
-  outcome: 'applicable' | 'not_applicable' | 'needs_information' | 'not_evaluable';
+  outcome: EvaluationOutcome;
+  reason?: string;
+  exclusionMatched?: boolean;
   matched: readonly Condition[];
   failed: readonly Condition[];
   needed: readonly MissingField[];
 }
 
-function evaluateApproval(def: ApprovalDefinition, profile: BusinessProfile): ApprovalVerdict {
-  if (def.condition === undefined) {
-    return { def, outcome: 'applicable', matched: [], failed: [], needed: [] };
+function evaluateRule(def: ApprovalDefinition, profile: BusinessProfile): RuleVerdict {
+  const isScheme = def.ruleKind === 'incentive';
+
+  // 1. For incentive schemes, evaluate exclusion conditions first if defined
+  if (isScheme && def.exclusionConditions !== undefined) {
+    const exclCtx: EvalContext = { matched: [], failed: [] };
+    let exclResult: CondEval;
+    try {
+      exclResult = evalCondition(def.exclusionConditions, profile, exclCtx);
+    } catch {
+      exclResult = notEvaluable();
+    }
+
+    if (exclResult.truth === 'pass') {
+      // Matched an explicit exclusion!
+      return {
+        def,
+        outcome: 'excluded',
+        reason: def.exclusionReason || 'Beer and liquor manufacturing industries are excluded under the cited scheme.',
+        exclusionMatched: true,
+        matched: exclCtx.matched,
+        failed: exclCtx.failed,
+        needed: [],
+      };
+    }
   }
+
+  // 2. Evaluate general applicability / eligibility condition
+  if (def.condition === undefined) {
+    const defaultOutcome: EvaluationOutcome = isScheme ? 'potentially_eligible' : 'applicable';
+    return {
+      def,
+      outcome: defaultOutcome,
+      reason: isScheme ? (def.description || 'Meets preliminary scheme criteria.') : undefined,
+      matched: [],
+      failed: [],
+      needed: [],
+    };
+  }
+
   const ctx: EvalContext = { matched: [], failed: [] };
   let r: CondEval;
   try {
@@ -253,13 +293,22 @@ function evaluateApproval(def: ApprovalDefinition, profile: BusinessProfile): Ap
   } catch {
     return { def, outcome: 'not_evaluable', matched: ctx.matched, failed: ctx.failed, needed: [] };
   }
+
   switch (r.truth) {
     case 'pass':
-      return { def, outcome: 'applicable', matched: ctx.matched, failed: ctx.failed, needed: [] };
+      return {
+        def,
+        outcome: isScheme ? 'potentially_eligible' : 'applicable',
+        reason: isScheme ? (def.description || 'Meets preliminary scheme criteria.') : undefined,
+        matched: ctx.matched,
+        failed: ctx.failed,
+        needed: [],
+      };
     case 'fail':
       return {
         def,
-        outcome: 'not_applicable',
+        outcome: isScheme ? 'not_eligible' : 'not_applicable',
+        reason: isScheme ? 'Your business does not meet this scheme’s current eligibility conditions.' : undefined,
         matched: ctx.matched,
         failed: ctx.failed,
         needed: [],
@@ -268,6 +317,7 @@ function evaluateApproval(def: ApprovalDefinition, profile: BusinessProfile): Ap
       return {
         def,
         outcome: 'needs_information',
+        reason: isScheme ? 'We need additional business information before eligibility can be determined.' : undefined,
         matched: ctx.matched,
         failed: ctx.failed,
         needed: dedupeFields(r.fields),
@@ -360,8 +410,8 @@ function orderApplicable(
 }
 
 /**
- * Evaluate every approval against the profile, then order the applicable ones
- * according to the gating (`depends_on`) dependencies.
+ * Evaluate every approval and scheme against the profile, then order the applicable
+ * approvals according to the gating (`depends_on`) dependencies.
  *
  * Deterministic and side-effect free: no I/O, no randomness, no time source.
  */
@@ -370,33 +420,67 @@ export function evaluate(
   approvalDefinitions: readonly ApprovalDefinition[],
   dependencies: readonly Dependency[],
 ): EvaluationResult {
-  const verdicts = approvalDefinitions.map((def) => evaluateApproval(def, profile));
+  const verdicts = approvalDefinitions.map((def) => evaluateRule(def, profile));
 
-  const applicableIds = new Set<string>();
-  for (const v of verdicts) if (v.outcome === 'applicable') applicableIds.add(v.def.id);
+  // Only statutory approvals (ruleKind !== 'incentive') participate in dependency graphs
+  const applicableApprovalIds = new Set<string>();
+  for (const v of verdicts) {
+    if (v.def.ruleKind !== 'incentive' && v.outcome === 'applicable') {
+      applicableApprovalIds.add(v.def.id);
+    }
+  }
 
-  const { ordered, cyclicIds, layers } = orderApplicable(applicableIds, dependencies);
+  const { ordered, cyclicIds, layers } = orderApplicable(applicableApprovalIds, dependencies);
   const cyclic = new Set<string>(cyclicIds);
 
-  // --- Per-approval results -------------------------------------------------
+  // --- Per-rule evaluations -------------------------------------------------
   const approvals: ApprovalEvaluation[] = [];
+  const schemes: SchemeEvaluation[] = [];
+
   for (const v of verdicts) {
-    const outcome = cyclic.has(v.def.id) ? 'not_evaluable' : v.outcome;
-    approvals.push({
-      approval: v.def,
-      outcome,
-      matchedConditions: v.matched,
-      failedConditions: v.failed,
-      neededInformation: outcome === 'needs_information' ? v.needed : [],
-    });
+    const isScheme = v.def.ruleKind === 'incentive';
+    const outcome = (!isScheme && cyclic.has(v.def.id)) ? 'not_evaluable' : v.outcome;
+    
+    if (isScheme) {
+      const schemeEval: SchemeEvaluation = {
+        scheme: v.def,
+        outcome: (outcome as IncentiveOutcome) || 'not_eligible',
+        explanation: v.reason || (outcome === 'not_eligible' ? 'Business does not meet scheme criteria.' : 'Potentially eligible based on current profile.'),
+        exclusionMatched: v.exclusionMatched,
+        factsUsed: {
+          industry: valueOf(profile.industry),
+          state: valueOf(profile.state),
+          district: valueOf(profile.district),
+          activity: valueOf(profile.activityType),
+          areaSqft: valueOf(profile.areaSqft),
+          investmentAmountInr: valueOf(profile.investmentAmountInr),
+        },
+        matchedConditions: v.matched,
+        matchedExclusions: v.exclusionMatched ? v.matched : [],
+        neededInformation: outcome === 'needs_information' ? v.needed : [],
+      };
+      schemes.push(schemeEval);
+    } else {
+      const evalItem: ApprovalEvaluation = {
+        approval: v.def,
+        outcome,
+        reason: v.reason,
+        exclusionMatched: v.exclusionMatched,
+        matchedConditions: v.matched,
+        failedConditions: v.failed,
+        neededInformation: outcome === 'needs_information' ? v.needed : [],
+      };
+      approvals.push(evalItem);
+    }
   }
 
   // --- Deduplicated required documents across applicable approvals ---------
   const seenDocs = new Set<string>();
   const requiredDocuments: DocumentRequirement[] = [];
   for (const v of verdicts) {
+    if (v.def.ruleKind === 'incentive') continue;
     if (v.outcome !== 'applicable' || cyclic.has(v.def.id)) continue;
-    for (const doc of v.def.requiredDocuments) {
+    for (const doc of v.def.requiredDocuments ?? []) {
       if (seenDocs.has(doc.id)) continue;
       seenDocs.add(doc.id);
       requiredDocuments.push(doc);
@@ -414,6 +498,7 @@ export function evaluate(
 
   return {
     approvals,
+    schemes,
     requiredDocuments,
     orderedApprovalIds: ordered,
     parallelGroups: layers,

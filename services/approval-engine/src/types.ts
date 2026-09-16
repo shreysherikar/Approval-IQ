@@ -114,6 +114,8 @@ export type Condition =
   | RangeOnArea
   | RangeOnInvestment
   | RangeOnEmployees;
+export type RuleKind = 'approval' | 'incentive';
+
 /** A document the business must provide as part of an approval. */
 export interface DocumentRequirement {
   id: string;
@@ -122,18 +124,34 @@ export interface DocumentRequirement {
 }
 
 /**
- * A single approval (permit / licence / compliance gate) whose applicability
- * is described by an optional condition and which can require documents.
+ * A single approval (permit / licence / compliance gate) or incentive scheme
+ * whose applicability / eligibility is described by typed conditions.
  */
 export interface ApprovalDefinition {
   id: string;
   name: string;
+  shortName?: string;
   description?: string;
+  /** Rule kind: "approval" (statutory requirement) or "incentive" (government scheme). Defaults to "approval". */
+  ruleKind?: RuleKind;
+  /** Geographical or governmental jurisdiction (e.g. "Maharashtra", "National"). */
+  jurisdiction?: string;
   /**
-   * Gate condition. When omitted the approval is assumed applicable — the
-   * engine reports it as `applicable` with no conditions to match.
+   * Gate / applicability condition. When omitted, the rule is assumed applicable
+   * or potentially eligible if not excluded.
    */
   condition?: Condition;
+  /**
+   * Explicit exclusion conditions. For incentives, matching any exclusion
+   * immediately produces `not_eligible`.
+   */
+  exclusionConditions?: Condition;
+  /** Specific reason text associated with the exclusion or eligibility. */
+  exclusionReason?: string;
+  /** Authoritative source metadata for explainability. */
+  sourceUrl?: string;
+  sourceTitle?: string;
+  verificationDate?: string;
   requiredDocuments: readonly DocumentRequirement[];
 }
 
@@ -160,9 +178,22 @@ export interface Dependency {
 }
 
 export type ApprovalOutcome =
-  'applicable' | 'not_applicable' | 'needs_information' | 'not_evaluable';
+  | 'applicable'
+  | 'not_applicable'
+  | 'needs_information'
+  | 'not_evaluable';
 
-/** A specific profile field that blocked evaluation of an approval. */
+export type IncentiveOutcome =
+  | 'potentially_eligible'
+  | 'excluded'
+  | 'not_eligible'
+  | 'needs_information'
+  | 'unknown'
+  | 'not_evaluable';
+
+export type EvaluationOutcome = ApprovalOutcome | IncentiveOutcome;
+
+/** A specific profile field that blocked evaluation of an approval or scheme. */
 export interface MissingField {
   field: ProfileFieldName;
   /** `unknown` — the field was never provided; `type_mismatch` — wrong definition. */
@@ -172,22 +203,36 @@ export interface MissingField {
 
 export interface ApprovalEvaluation {
   approval: ApprovalDefinition;
-  outcome: ApprovalOutcome;
+  outcome: EvaluationOutcome;
+  /** Explanatory reason (e.g. why excluded or why eligible). */
+  reason?: string;
+  /** True if the result was produced by an exclusion condition match. */
+  exclusionMatched?: boolean;
   /** Leaf conditions whose comparison passed against the profile. */
   matchedConditions: readonly Condition[];
   /** Leaf conditions whose comparison failed against the profile. */
   failedConditions: readonly Condition[];
   /**
    * When `outcome === "needs_information"`, the exact fields that are missing
-   * (or mismatched) and therefore must be collected before the approval can be
+   * (or mismatched) and therefore must be collected before the rule can be
    * decided. Empty for every other outcome.
    */
+export interface SchemeEvaluation {
+  scheme: ApprovalDefinition;
+  outcome: IncentiveOutcome;
+  explanation: string;
+  exclusionMatched?: boolean;
+  factsUsed?: Record<string, unknown>;
+  matchedConditions?: readonly Condition[];
+  matchedExclusions?: readonly Condition[];
   neededInformation: readonly MissingField[];
 }
 
 export interface EvaluationResult {
-  /** One entry per `ApprovalDefinition`, in the same order as provided. */
+  /** One entry per statutory `ApprovalDefinition`, in the same order as provided. */
   approvals: readonly ApprovalEvaluation[];
+  /** Filtered view of incentive schemes evaluated. */
+  schemes: readonly SchemeEvaluation[];
   /**
    * Deduplicated list of required documents across all *applicable* approvals
    * (first-seen order wins).

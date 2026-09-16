@@ -21,6 +21,7 @@ import {
   Lightbulb,
   FolderClosed,
   Check,
+  ShieldCheck,
   X
 } from 'lucide-react';
 import { useAuth } from '../auth';
@@ -261,7 +262,7 @@ function saveStoredProject(project: ProjectHistoryItem): void {
 
 export const ProjectsOnboardingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, accessToken, logout } = useAuth();
+  const { user, isOfficer, accessToken, logout } = useAuth();
 
   // Wizard Steps: 1 = Business, 2 = Location, 3 = Project Details, 4 = Review
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -434,6 +435,16 @@ export const ProjectsOnboardingPage: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{user.email}</span>
             </div>
+          )}
+
+          {isOfficer && (
+            <Link
+              to="/officer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 text-white" />
+              <span>Officer Queue</span>
+            </Link>
           )}
 
           <Link

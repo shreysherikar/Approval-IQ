@@ -30,7 +30,7 @@ interface AuthContextValue {
    */
   isRestoring: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => void;
   refreshSession: () => Promise<void>;
 }
@@ -94,13 +94,15 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   // restore effect below is already running. Cleared in its finally.
   const [isRestoring, setIsRestoring] = useState(true);
 
-  const login = useCallback(async (email: string, password: string): Promise<void> => {
+  const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
     setIsLoading(true);
     setError(null);
     try {
       const res = await authApi.login({ email, password });
+      const authUser = authUserFromToken(res.accessToken, email);
       setAccessToken(res.accessToken);
-      setUser(authUserFromToken(res.accessToken, email));
+      setUser(authUser);
+      return authUser;
     } catch (err) {
       setAccessToken(null);
       setUser(null);
