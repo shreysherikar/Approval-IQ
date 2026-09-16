@@ -17,6 +17,10 @@ import { InspectionsModule } from './inspections/inspections.module';
 import { ClarificationsModule } from './clarifications/clarifications.module';
 import { OfficerModule } from './officer/officer.module';
 import { GrievancesModule } from './grievances/grievances.module';
+import { RegulatoryChangesModule } from './regulatory-changes/regulatory-changes.module';
+import { RecoveryModule } from './recovery/recovery.module';
+import { RiskModule } from './risk/risk.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -37,6 +41,10 @@ import { GrievancesModule } from './grievances/grievances.module';
     ClarificationsModule,
     OfficerModule,
     GrievancesModule,
+    RegulatoryChangesModule,
+    RecoveryModule,
+    RiskModule,
+    AuditModule,
   ],
 })
 export class AppModule {}

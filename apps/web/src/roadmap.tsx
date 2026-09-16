@@ -66,6 +66,7 @@ import {
   DocumentUploadControl,
 } from './components';
 import { PROFILE_FIELD_LABELS } from './profile-form';
+import { RecoveryPlanPanel } from './recovery';
 
 // ---------------------------------------------------------------------------
 // Department & Regulatory Knowledge Mapping (Rule-aligned helper metadata)
@@ -1481,6 +1482,11 @@ export function RoadmapPage(): JSX.Element {
 
         </div>
       )}
+
+      {/* 5.5 Compliance Recovery Plan */}
+      <div className="mt-4">
+        <RecoveryPlanPanel projectId={projectId} />
+      </div>
 
       {/* 6. Approval Detail Drawer (Slide-Over Panel) */}
       {selectedNode && (

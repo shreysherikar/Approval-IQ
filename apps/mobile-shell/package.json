@@ -1,0 +1,20 @@
+{
+  "name": "@approvaliq/mobile-shell",
+  "version": "0.0.1",
+  "private": true,
+  "description": "ApprovalIQ mobile shell — Capacitor Android wrapper",
+  "scripts": {
+    "build:web": "pnpm --filter @approvaliq/web build",
+    "cap:sync": "cap sync android",
+    "build:apk": "powershell -ExecutionPolicy Bypass -File ./build-apk.ps1",
+    "typecheck": "echo @approvaliq/mobile-shell: no typescript to typecheck"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.1",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/core": "^7.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.1"
+  }
+}

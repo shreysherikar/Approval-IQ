@@ -9,7 +9,18 @@ export function GoogleSignInButton({
 }: {
   label?: string;
   disabled?: boolean;
-}): JSX.Element {
+}): JSX.Element | null {
+  const isEmbedded =
+    typeof window !== 'undefined' &&
+    ('__TAURI_INTERNALS__' in window ||
+      'Capacitor' in window ||
+      import.meta.env.VITE_DESKTOP === 'true' ||
+      import.meta.env.VITE_MOBILE === 'true');
+
+  if (isEmbedded) {
+    return null;
+  }
+
   const handleGoogleSignIn = () => {
     window.location.href = `${API_BASE_URL}/auth/google`;
   };
