@@ -75,6 +75,18 @@ export class GrievancesController {
     return this.service.get(projectId, grievanceId);
   }
 
+  @Get(':grievanceId/filing-pack')
+  @ApiOperation({
+    summary: 'Generate Statutory Appeal Filing Pack docket for Tier 3 State RTS Commission',
+    description: 'Exports certified printable docket containing full timeline, SLA breach records, and officer correspondence history.',
+  })
+  generateFilingPack(
+    @Param('projectId') projectId: string,
+    @Param('grievanceId') grievanceId: string,
+  ): Promise<Record<string, unknown>> {
+    return this.service.generateFilingPack(projectId, grievanceId);
+  }
+
   @Post(':grievanceId/escalate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

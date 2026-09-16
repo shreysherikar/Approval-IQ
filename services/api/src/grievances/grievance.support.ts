@@ -2,6 +2,7 @@ import type { Grievance, GrievanceAction, GrievanceDocument } from '@prisma/clie
 import type { GrievanceTier, GrievanceStatus, GrievanceType } from './grievance.dto';
 
 export const GRIEVANCE_INCLUDE = {
+  project: { select: { id: true, name: true, applicantName: true, industryType: true, state: true, district: true } },
   authority: { select: { id: true, code: true, name: true, department: true } },
   approvalInstance: {
     select: {
@@ -32,6 +33,7 @@ export const GRIEVANCE_INCLUDE = {
 } as const;
 
 export type GrievanceRow = Grievance & {
+  project?: { id: string; name: string; applicantName?: string | null; industryType?: string | null; state?: string | null; district?: string | null } | null;
   authority?: { id: string; code: string; name: string; department: string | null } | null;
   approvalInstance?: {
     id: string;
@@ -119,6 +121,7 @@ export function serializeGrievance(row: GrievanceRow): SerializedGrievance {
     id: row.id,
     grievanceNumber: row.grievanceNumber,
     projectId: row.projectId,
+    project: row.project ?? null,
     type: row.type as GrievanceType,
     tier: row.tier as GrievanceTier,
     status: row.status as GrievanceStatus,

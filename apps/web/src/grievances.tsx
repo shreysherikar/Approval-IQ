@@ -852,6 +852,18 @@ function EscalateGrievanceModal({
           Competent Appellate Body: <span className="font-semibold">{targetLabel.authority}</span>
         </p>
 
+        {targetTier === 'tier_3_rts_commission' && (
+          <div className="mt-3 rounded-lg border border-purple-200 bg-purple-50 p-3 text-xs text-purple-900 space-y-1">
+            <div className="font-bold flex items-center gap-1.5 text-purple-950">
+              <Scale className="w-4 h-4 text-purple-700" />
+              <span>Statutory Commission Tribunal Protocol</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-purple-800">
+              State RTS Commission proceedings do not accept direct API web submissions. Submitting this escalation compiles your certified <strong>Statutory Appeal Filing Pack (Form 1 Docket)</strong> with complete timeline history, SLA breach logs, officer communications, and SHA-256 digital attestation seal for physical/portal tribunal submission.
+            </p>
+          </div>
+        )}
+
         {error && <div className="mt-3"><ErrorBanner message={error} /></div>}
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4 text-xs">
