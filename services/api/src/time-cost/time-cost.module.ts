@@ -7,5 +7,6 @@ import { TimeCostService } from './time-cost.service';
   imports: [PrismaModule],
   controllers: [TimeCostController],
   providers: [TimeCostService],
+  exports: [TimeCostService],
 })
 export class TimeCostModule {}

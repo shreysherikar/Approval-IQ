@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth';
+import { AssistantPanel } from './assistant-panel';
 import { Clock, MapPinned } from 'lucide-react';
 
 export function Layout(): JSX.Element {
@@ -27,6 +28,8 @@ export function Layout(): JSX.Element {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Floating project assistant — authenticated app pages only. */}
+      {isAuthenticated && <AssistantPanel />}
       <header className="border-b bg-white">
         <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-xl font-bold text-blue-700">
