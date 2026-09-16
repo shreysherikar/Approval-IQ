@@ -1319,21 +1319,17 @@ function RiskScoresPanel({ riskScores }: { riskScores: Record<string, unknown> }
   };
 
   return (
-    <section className="rounded-md border border-gray-200 bg-white p-4">
-      <div className="flex items-center justify-between mb-3">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Explainable Risk-Based Scrutiny</h2>
-          <p className="text-xs text-gray-500">
+          <h2 className="text-base font-bold text-slate-900">Explainable Statutory Risk Scrutiny</h2>
+          <p className="text-xs text-slate-500">
             Calibrated against DPIIT BRAP recommendations &amp; Right to Services (RTS) scrutiny priority guidelines.
           </p>
         </div>
-        <span className="rounded bg-slate-100 border border-slate-300 px-2.5 py-1 text-[11px] font-mono font-semibold text-slate-700">
+        <span className="rounded-md bg-slate-100 border border-slate-300 px-2.5 py-1 text-[11px] font-mono font-semibold text-slate-700">
           Engine v0.0.1
         </span>
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs space-y-4">
-      <div>
-        <h2 className="text-base font-bold text-slate-900">Statutory Risk Assessment</h2>
-        <p className="text-xs text-slate-500">Automated submission risk analysis and regulatory complexity scoring</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

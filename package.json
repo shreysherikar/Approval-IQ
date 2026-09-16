@@ -17,7 +17,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,json,md,yml,yaml}\"",
     "seed:demo": "pnpm --filter api seed:demo",
     "seed:demo:reset": "pnpm --filter api seed:demo:reset",
-    "desktop:build": "pnpm --filter @approvaliq/desktop-shell build",
+    "desktop:build": "pnpm --filter @approvaliq/desktop-shell build:tauri",
     "desktop:dev": "pnpm --filter @approvaliq/desktop-shell dev",
     "mobile:sync": "pnpm --filter @approvaliq/mobile-shell cap:sync",
     "mobile:build": "pnpm --filter @approvaliq/mobile-shell build:apk"
