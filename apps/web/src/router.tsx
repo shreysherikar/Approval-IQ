@@ -18,6 +18,7 @@ const ProjectsPage = lazy(() => import('./project-pages').then((m) => ({ default
 const ProjectProfilePage = lazy(() => import('./project-pages').then((m) => ({ default: m.ProjectProfilePage })));
 const EvaluationResultsPage = lazy(() => import('./evaluation-results').then((m) => ({ default: m.EvaluationResultsPage })));
 const ProjectRoadmapPage = lazy(() => import('./project-pages').then((m) => ({ default: m.ProjectRoadmapPage })));
+const ProjectSchemesPage = lazy(() => import('./project-pages').then((m) => ({ default: m.ProjectSchemesPage })));
 const ProjectInspectionsPage = lazy(() => import('./project-pages').then((m) => ({ default: m.ProjectInspectionsPage })));
 const ProjectClarificationsPage = lazy(() => import('./project-pages').then((m) => ({ default: m.ProjectClarificationsPage })));
 const ProjectGrievancesPage = lazy(() => import('./project-pages').then((m) => ({ default: m.ProjectGrievancesPage })));
@@ -72,6 +73,7 @@ export const router = createRouter([
       { path: 'projects/:id/profile', element: <LazyRoute><ProjectProfilePage /></LazyRoute> },
       { path: 'projects/:id/approvals', element: <LazyRoute><EvaluationResultsPage /></LazyRoute> },
       { path: 'projects/:id/roadmap', element: <LazyRoute><ProjectRoadmapPage /></LazyRoute> },
+      { path: 'projects/:id/schemes', element: <LazyRoute><ProjectSchemesPage /></LazyRoute> },
       { path: 'projects/:id/inspections', element: <LazyRoute><ProjectInspectionsPage /></LazyRoute> },
       { path: 'projects/:id/clarifications', element: <LazyRoute><ProjectClarificationsPage /></LazyRoute> },
       { path: 'projects/:id/grievances', element: <LazyRoute><ProjectGrievancesPage /></LazyRoute> },

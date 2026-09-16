@@ -118,6 +118,12 @@ export function GrievanceCenterPage(): JSX.Element {
           >
             ← {t('nav.roadmap', 'Roadmap')}
           </Link>
+          <Link
+            to={`/projects/${projectId}/schemes`}
+            className="rounded-xl border border-purple-300 bg-purple-50 px-3.5 py-2 text-xs font-medium text-purple-800 shadow-2xs hover:bg-purple-100 flex items-center gap-1"
+          >
+            <span>💰 {t('nav.schemes', 'Schemes')}</span>
+          </Link>
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}

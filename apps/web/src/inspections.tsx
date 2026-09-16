@@ -537,6 +537,12 @@ export function JointInspectionsPage(): JSX.Element {
           >
             {t('nav.roadmap', 'Roadmap')}
           </Link>
+          <Link
+            to={`/projects/${projectId}/schemes`}
+            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+          >
+            <span>💰 {t('nav.schemes', 'Schemes')}</span>
+          </Link>
           <span className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm">
             {t('nav.inspections', 'Joint Inspections')}
           </span>
