@@ -86,6 +86,7 @@ import {
 import { PROFILE_FIELD_LABELS } from './profile-form';
 import { RecoveryPlanPanel } from './recovery';
 import { useLanguage } from './i18n';
+import { useLiveProjectEvents } from './hooks/useLiveEvents';
 
 // ---------------------------------------------------------------------------
 // Department & Regulatory Knowledge Mapping (Rule-aligned helper metadata)
@@ -2904,6 +2905,7 @@ export function RoadmapPage(): JSX.Element {
   const projectId = id as string;
   const { accessToken, isRestoring } = useAuth();
   const { t, language } = useLanguage();
+  useLiveProjectEvents(projectId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedScheme, setSelectedScheme] = useState<SchemeEvaluationInfo | null>(null);
