@@ -446,6 +446,38 @@ export const roadmapApi = {
       { token },
     );
   },
+  /** PATCH /projects/:projectId/roadmap/batch-status — atomic single-transaction batch update */
+  batchUpdateStatus(
+    projectId: string,
+    instanceIds: string[],
+    status: Exclude<ApprovalInstanceStatus, 'blocked' | 'available'>,
+    token?: string,
+  ): Promise<{ success: boolean; updatedCount: number; nextStatus: string }> {
+    return patch(
+      `/projects/${projectId}/roadmap/batch-status`,
+      { instanceIds, status },
+      { token },
+    );
+  },
+  /** POST /projects/:projectId/rules/discrepancies — version-controlled rule discrepancy ticket creation */
+  reportRuleDiscrepancy(
+    projectId: string,
+    payload: {
+      approvalCode: string;
+      releaseVersion: string;
+      category: string;
+      description: string;
+      approvalDefinitionId?: string;
+      evaluationResultId?: string;
+    },
+    token?: string,
+  ): Promise<{ success: boolean; issueRef: string; releaseVersion: string; commitHash: string }> {
+    return post(
+      `/projects/${projectId}/rules/discrepancies`,
+      payload,
+      { token },
+    );
+  },
 };
 
 // ---------------------------------------------------------------------------
