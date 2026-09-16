@@ -93,6 +93,9 @@ export function Layout(): JSX.Element {
                     >
                       <span>Regulatory Changes</span>
                     </Link>
+                    <Link to="/integrations" className="text-blue-600 hover:underline">
+                      Single-Window Hub
+                    </Link>
                   </>
                 ) : (
                   <>
@@ -108,6 +111,9 @@ export function Layout(): JSX.Element {
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-all"
                     >
                       <span>Regulatory Changes</span>
+                    </Link>
+                    <Link to="/integrations" className="text-blue-600 hover:underline">
+                      Single-Window Hub
                     </Link>
                   </>
                 )}

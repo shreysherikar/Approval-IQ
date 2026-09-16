@@ -5,7 +5,8 @@
   "description": "ApprovalIQ desktop shell — Tauri Windows wrapper",
   "scripts": {
     "dev": "tauri dev",
-    "build": "tauri build --no-bundle",
+    "build": "echo @approvaliq/desktop-shell: ready",
+    "build:tauri": "tauri build --no-bundle",
     "build:debug": "tauri build --debug --no-bundle",
     "typecheck": "echo @approvaliq/desktop-shell: no typescript to typecheck"
   },

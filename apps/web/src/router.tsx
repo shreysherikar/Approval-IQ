@@ -18,6 +18,7 @@ import { ContactPage } from './landing/ContactPage';
 import { BusinessMapPage } from './landing/BusinessMapPage';
 import { OfficerApplicationPage, OfficerQueuePage } from './officer-pages';
 import { RegulatoryChangesListPage, RegulatoryChangeDetailPage, ImpactDashboardPage } from './regulatory-changes';
+import { IntegrationsHubPage } from './integrations-hub';
 
 const isEmbedded =
   typeof window !== 'undefined' &&
@@ -38,6 +39,7 @@ export const router = createRouter([
       { path: 'about', element: <AboutPage /> },
       { path: 'contact', element: <ContactPage /> },
       { path: 'business-map', element: <BusinessMapPage /> },
+      { path: 'integrations', element: <IntegrationsHubPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'auth/callback', element: <AuthCallbackPage /> },
