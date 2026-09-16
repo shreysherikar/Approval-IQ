@@ -122,7 +122,7 @@ function RecoveryActionCard({
 
 export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Element {
   const { accessToken, isRestoring } = useAuth();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
 
   const planQuery = useQuery({
@@ -148,7 +148,7 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
   });
 
   if (planQuery.isLoading || isRestoring) {
-    return <LoadingSpinner label={language === 'mr' ? 'सुधारणा आराखडा लोड होत आहे…' : 'Loading recovery plan…'} />;
+    return <LoadingSpinner label={t('recovery.loading', 'Loading recovery plan…')} />;
   }
 
   const plan = planQuery.data;
@@ -160,7 +160,7 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
           <h2 className="text-base sm:text-lg font-black text-slate-900">{t('recovery.title')}</h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             {plan?.planId
-              ? `${plan.totalActions} ${language === 'mr' ? 'कृती' : 'actions'} · ${plan.resolvedActions} ${language === 'mr' ? 'निराकरण झाले' : 'resolved'}`
+              ? `${plan.totalActions} ${t('recovery.actions_label', 'actions')} · ${plan.resolvedActions} ${t('recovery.resolved_label', 'resolved')}`
               : t('recovery.no_plan')}
           </p>
         </div>
@@ -189,7 +189,7 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
 
       {generateMutation.isError && (
         <div className="mt-3">
-          <ErrorBanner message={generateMutation.error instanceof Error ? generateMutation.error.message : (language === 'mr' ? 'आराखडा तयार करण्यात त्रुटी' : 'Generation failed')} />
+          <ErrorBanner message={generateMutation.error instanceof Error ? generateMutation.error.message : t('recovery.error_generation', 'Generation failed')} />
         </div>
       )}
 
@@ -204,7 +204,7 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
       {plan?.planId && plan.totalWarnings > 0 && (
         <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5">
           <p className="text-xs text-amber-800">
-            {plan.totalWarnings} {language === 'mr' ? 'सूचनांचे पुनरावलोकन करणे आवश्यक आहे.' : 'warning(s) should be reviewed.'}
+            {plan.totalWarnings} {t('recovery.warnings_review', 'warning(s) should be reviewed.')}
           </p>
         </div>
       )}
@@ -212,8 +212,8 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
       {!plan?.planId && (
         <div className="mt-4">
           <EmptyState
-            title={language === 'mr' ? 'सुधारणा आराखडा उपलब्ध नाही' : 'No recovery plan'}
-            description={language === 'mr' ? 'अर्ज सादर करण्यापूर्वी पूर्तता त्रुटी तपासण्यासाठी सुधारणा आराखडा तयार करा.' : 'Generate a recovery plan to identify and fix compliance issues before submission.'}
+            title={t('recovery.empty_title', 'No recovery plan')}
+            description={t('recovery.empty_desc', 'Generate a recovery plan to identify and fix compliance issues before submission.')}
           />
         </div>
       )}
@@ -235,7 +235,7 @@ export function RecoveryPlanPanel({ projectId }: { projectId: string }): JSX.Ele
       {plan?.planId && plan.totalActions > 0 && plan.resolvedActions === plan.totalActions && (
         <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-center">
           <p className="text-xs sm:text-sm font-bold text-green-800">
-            {language === 'mr' ? 'सर्व त्रुटींचे यशस्वीरीत्या निराकरण झाले! अर्ज मंजुरीसाठी सादर करण्यास सज्ज आहे.' : 'All issues resolved! The application is ready for submission.'}
+            {t('recovery.all_resolved_banner', 'All issues resolved! The application is ready for submission.')}
           </p>
         </div>
       )}

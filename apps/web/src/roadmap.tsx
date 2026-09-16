@@ -2904,7 +2904,7 @@ export function RoadmapPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const projectId = id as string;
   const { accessToken, isRestoring } = useAuth();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   useLiveProjectEvents(projectId);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -3195,7 +3195,7 @@ export function RoadmapPage(): JSX.Element {
         <Scale className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
         <div className="space-y-0.5">
           <p className="font-bold tracking-tight">
-            {language === 'mr' ? 'वैधानिक अस्वीकरण (Statutory Disclaimer)' : 'Statutory Regulatory Notice & Disclaimer'}
+            {t('roadmap.disclaimer_title', 'Statutory Regulatory Notice & Disclaimer')}
           </p>
           <p className="text-amber-800 leading-relaxed text-[11px]">
             {t('roadmap.disclaimer')}
@@ -3609,16 +3609,16 @@ export function RoadmapPage(): JSX.Element {
                           <td className="py-3.5 px-4">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold text-[11px] border ${statusConfig.badgeBg}`}>
                               <RenderStatusIcon type={statusConfig.iconType} className="w-3 h-3" />
-                              {language === 'mr' ? (n.status === 'available' ? 'अर्ज करण्यास सज्ज' : n.status === 'in_progress' ? 'प्रक्रिया सुरू' : n.status === 'done' ? 'पूर्ण झाले' : 'प्रलंबित') : statusConfig.label}
+                              {n.status === 'available' ? t('roadmap.status_ready', 'Ready to Apply') : n.status === 'in_progress' ? t('roadmap.status_in_progress', 'In Progress') : n.status === 'done' ? t('roadmap.status_done', 'Done') : t('roadmap.status_pending', 'Pending')}
                             </span>
                           </td>
                           <td className="py-3.5 px-4">
                             <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${outcomeConfig.badgeClass}`}>
-                              {language === 'mr' ? (n.outcome === 'applicable' ? 'लागू (Applicable)' : n.outcome === 'not_applicable' ? 'लागू नाही' : 'माहिती आवश्यक') : outcomeConfig.label}
+                              {n.outcome === 'applicable' ? t('roadmap.outcome_applicable', 'Applicable') : n.outcome === 'not_applicable' ? t('roadmap.outcome_not_applicable', 'Not Applicable') : t('roadmap.outcome_info_needed', 'Info Needed')}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 font-mono text-slate-600">
-                            {n.requiredDocuments.length} {language === 'mr' ? 'कागदपत्रे' : `document${n.requiredDocuments.length !== 1 ? 's' : ''}`}
+                            {n.requiredDocuments.length} {t('roadmap.documents_count', 'documents')}
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <button
@@ -3645,9 +3645,9 @@ export function RoadmapPage(): JSX.Element {
           {viewMode === 'timeline' && (
             <div className="space-y-6 max-w-4xl mx-auto py-4">
               {[
-                { key: 'Pre-Construction Sanctions', label: language === 'mr' ? '१. बांधकामपूर्व परवाने व मंजुऱ्या' : 'Pre-Construction Sanctions' },
-                { key: 'Civil & Utility Infrastructure', label: language === 'mr' ? '२. नागरी व पायाभूत सुविधा (वीज / पाणी)' : 'Civil & Utility Infrastructure' },
-                { key: 'Operational Licensing & Consents', label: language === 'mr' ? '३. उत्पादन व व्यावसायिक परवाने' : 'Operational Licensing & Consents' },
+                { key: 'Pre-Construction Sanctions', label: t('roadmap.stage_pre_construction', '1. Pre-Construction Sanctions') },
+                { key: 'Civil & Utility Infrastructure', label: t('roadmap.stage_civil_utility', '2. Civil & Utility Infrastructure') },
+                { key: 'Operational Licensing & Consents', label: t('roadmap.stage_operational', '3. Operational Licensing & Consents') },
               ].map((stageItem, sIdx) => {
                 const stageNodes = filteredNodes.filter((n) => {
                   const meta = getApprovalMeta(n.approvalCode, n.approvalName);
@@ -3691,7 +3691,7 @@ export function RoadmapPage(): JSX.Element {
                             <div className="flex items-center gap-3">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${statusConfig.badgeBg}`}>
                                 <RenderStatusIcon type={statusConfig.iconType} className="w-3 h-3" />
-                                {language === 'mr' ? (n.status === 'available' ? 'अर्ज करण्यास सज्ज' : n.status === 'in_progress' ? 'प्रक्रिया सुरू' : n.status === 'done' ? 'पूर्ण झाले' : 'प्रलंबित') : statusConfig.label}
+                                {n.status === 'available' ? t('roadmap.status_ready', 'Ready to Apply') : n.status === 'in_progress' ? t('roadmap.status_in_progress', 'In Progress') : n.status === 'done' ? t('roadmap.status_done', 'Done') : t('roadmap.status_pending', 'Pending')}
                               </span>
                               <span className="text-blue-600 text-xs font-bold">{t('table.details_btn')}</span>
                             </div>
@@ -3988,7 +3988,7 @@ export function RoadmapPage(): JSX.Element {
 
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shrink-0 ${outcomeConfig.badgeBg}`}>
                           <OutcomeIcon className="w-3.5 h-3.5" />
-                          <span>{language === 'mr' ? (s.outcome === 'potentially_eligible' ? 'पात्रतेची शक्यता' : s.outcome === 'not_eligible' || s.outcome === 'excluded' ? 'अपात्र / वगळलेले' : 'माहिती आवश्यक') : outcomeConfig.label}</span>
+                          <span>{s.outcome === 'potentially_eligible' ? t('roadmap.outcome_eligible', 'Potentially Eligible') : s.outcome === 'not_eligible' || s.outcome === 'excluded' ? t('roadmap.outcome_not_eligible', 'Not Eligible / Excluded') : t('roadmap.outcome_info_needed', 'Info Needed')}</span>
                         </span>
                       </div>
 

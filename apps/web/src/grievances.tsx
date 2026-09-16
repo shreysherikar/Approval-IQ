@@ -63,7 +63,7 @@ export function GrievanceCenterPage(): JSX.Element {
   const urlApprovalInstanceId = searchParams.get('approvalInstanceId') ?? undefined;
 
   const { accessToken, isOfficer } = useAuth();
-  const { t, isMarathi } = useLanguage();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
 
   const [selectedGrievanceId, setSelectedGrievanceId] = useState<string | null>(null);
@@ -134,14 +134,13 @@ export function GrievanceCenterPage(): JSX.Element {
           <span className="text-lg">⚖️</span>
           <div>
             <p className="font-bold">
-              {isMarathi
-                ? 'महाराष्ट्र लोकसेवा हक्क हमी व वैधानिक संरक्षण'
-                : 'Statutory Right to Service Guarantee'}
+              {t('grievances.statutory_title', 'Statutory Right to Service Guarantee')}
             </p>
             <p className="mt-0.5 text-amber-800 leading-relaxed">
-              {isMarathi
-                ? 'महाराष्ट्र लोकसेवा हक्क कायदा २०१५ अंतर्गत प्रत्येक अधिसूचित सेवेसाठी वैधानिक मुदत निश्चित केलेली आहे. कोणत्याही शासकीय विभागाने विहित वेळेत सेवा न दिल्यास किंवा अवाजवी विलंब केल्यास थेट तक्रार दाखल करा.'
-                : 'Under the Maharashtra Right to Public Services Act, every notified clearance carries a mandatory SLA. If an authority fails to issue the sanction or resolve a clarification within the statutory window without reasonable cause, you may file a formal grievance.'}
+              {t(
+                'grievances.statutory_desc',
+                'Under the Maharashtra Right to Public Services Act, every notified clearance carries a mandatory SLA. If an authority fails to issue the sanction or resolve a clarification within the statutory window without reasonable cause, you may file a formal grievance.',
+              )}
             </p>
           </div>
         </div>

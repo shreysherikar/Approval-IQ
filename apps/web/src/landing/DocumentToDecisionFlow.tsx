@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Check } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 export const DocumentToDecisionFlow: React.FC = () => {
+  const { t } = useLanguage();
   const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
@@ -13,27 +15,27 @@ export const DocumentToDecisionFlow: React.FC = () => {
 
   const steps = [
     {
-      title: '1. Ingest Application & Files',
-      desc: 'Raw PDF permits, site maps & statutory forms uploaded.',
-      tag: 'Raw Input',
+      title: t('flow.step1_title', '1. Ingest Application & Files'),
+      desc: t('flow.step1_desc', 'Raw PDF permits, site maps & statutory forms uploaded.'),
+      tag: t('flow.step1_tag', 'Raw Input'),
       color: 'border-blue-500/50 bg-blue-500/10 text-blue-400',
     },
     {
-      title: '2. AI Extraction & Classification',
-      desc: 'OCR & entity parsing extracts 24 key statutory data points.',
-      tag: 'AI Parsing',
+      title: t('flow.step2_title', '2. AI Extraction & Classification'),
+      desc: t('flow.step2_desc', 'OCR & entity parsing extracts 24 key statutory data points.'),
+      tag: t('flow.step2_tag', 'AI Parsing'),
       color: 'border-purple-500/50 bg-purple-500/10 text-purple-400',
     },
     {
-      title: '3. Compliance Graph Validation',
-      desc: 'Mapped against 10,000+ central & state regulatory frameworks.',
-      tag: 'Graph Check',
+      title: t('flow.step3_title', '3. Compliance Graph Validation'),
+      desc: t('flow.step3_desc', 'Mapped against 10,000+ central & state regulatory frameworks.'),
+      tag: t('flow.step3_tag', 'Graph Check'),
       color: 'border-indigo-500/50 bg-indigo-500/10 text-indigo-400',
     },
     {
-      title: '4. Statutory Approval Ready',
-      desc: 'Complete filing pack generated with 98% first-pass accuracy.',
-      tag: 'Submission Ready',
+      title: t('flow.step4_title', '4. Statutory Approval Ready'),
+      desc: t('flow.step4_desc', 'Complete filing pack generated with 98% first-pass accuracy.'),
+      tag: t('flow.step4_tag', 'Submission Ready'),
       color: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400',
     },
   ];
@@ -48,13 +50,13 @@ export const DocumentToDecisionFlow: React.FC = () => {
           </div>
           <div>
             <div className="text-sm font-bold text-white tracking-tight">
-              Document → Decision Lifecycle
+              {t('flow.lifecycle_title', 'Document → Decision Lifecycle')}
             </div>
-            <div className="text-[11px] text-slate-400">Automated Pipeline Simulation</div>
+            <div className="text-[11px] text-slate-400">{t('flow.lifecycle_sub', 'Automated Pipeline Simulation')}</div>
           </div>
         </div>
         <span className="text-[11px] font-mono text-blue-400 bg-blue-950/80 border border-blue-800/60 px-2 py-0.5 rounded-full">
-          Live Cycle
+          {t('flow.live_cycle', 'Live Cycle')}
         </span>
       </div>
 
@@ -82,7 +84,9 @@ export const DocumentToDecisionFlow: React.FC = () => {
           <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${steps[activeStep]!.color}`}>
             {steps[activeStep]!.tag}
           </span>
-          <span className="text-xs font-mono text-slate-500">Step {activeStep + 1} of 4</span>
+          <span className="text-xs font-mono text-slate-500">
+            {t('flow.step_of', `Step ${activeStep + 1} of 4`).replace('{current}', String(activeStep + 1)).replace('{total}', '4')}
+          </span>
         </div>
 
         <h4 className="text-base font-bold text-white mb-1">

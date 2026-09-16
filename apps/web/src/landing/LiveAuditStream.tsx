@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Activity } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 interface AuditEvent {
   id: string;
@@ -19,6 +20,7 @@ const SAMPLE_EVENTS: AuditEvent[] = [
 ];
 
 export const LiveAuditStream: React.FC = () => {
+  const { t } = useLanguage();
   const [eventIndex, setEventIndex] = useState(0);
 
   useEffect(() => {
@@ -43,10 +45,10 @@ export const LiveAuditStream: React.FC = () => {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
           </span>
           <span className="text-xs font-bold text-slate-200 tracking-wider uppercase font-mono">
-            Live Compliance Feed
+            {t('audit.title', 'Live Compliance Feed')}
           </span>
         </div>
-        <span className="text-[10px] text-slate-400 font-mono">Real-time Stream</span>
+        <span className="text-[10px] text-slate-400 font-mono">{t('audit.realtime', 'Real-time Stream')}</span>
       </div>
 
       <div className="space-y-2 font-mono text-xs">
@@ -68,12 +70,12 @@ export const LiveAuditStream: React.FC = () => {
               {evt.status === 'success' ? (
                 <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-1.5 py-0.5 rounded">
                   <Check className="w-3 h-3 text-emerald-400" />
-                  <span>Verified</span>
+                  <span>{t('audit.verified', 'Verified')}</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-[10px] text-blue-400 bg-blue-950/80 border border-blue-800/60 px-1.5 py-0.5 rounded">
                   <Activity className="w-3 h-3 text-blue-400" />
-                  <span>Processed</span>
+                  <span>{t('audit.processed', 'Processed')}</span>
                 </span>
               )}
             </div>

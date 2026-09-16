@@ -15,7 +15,7 @@ import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
 export function JointInspectionsPage(): JSX.Element {
   const { id: projectId } = useParams<{ id: string }>();
   const { accessToken, isRestoring } = useAuth();
-  const { t, isMarathi } = useLanguage();
+  const { t } = useLanguage();
 
   const [inspections, setInspections] = useState<JointInspectionView[]>([]);
   const [candidateData, setCandidateData] =
@@ -503,7 +503,7 @@ export function JointInspectionsPage(): JSX.Element {
         <div>
           <div className="flex items-center gap-2">
             <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800">
-              {isMarathi ? 'SIH वैशिष्ट्य #७' : 'SIH Feature #7'}
+              {t('inspections.sih_feature', 'SIH Feature #7')}
             </span>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
               {t('inspections.title', 'Joint Inspection Planner')}
@@ -529,7 +529,7 @@ export function JointInspectionsPage(): JSX.Element {
             to={`/projects/${projectId}/approvals`}
             className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
           >
-            {isMarathi ? 'परवानग्या' : 'Approvals'}
+            {t('inspections.approvals_tab', 'Approvals')}
           </Link>
           <Link
             to={`/projects/${projectId}/roadmap`}

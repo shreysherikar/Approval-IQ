@@ -4,7 +4,7 @@ import { useAuth } from './auth';
 import { useLanguage } from './i18n';
 
 export function LanguageSwitcher(): JSX.Element {
-  const { setLanguage, isMarathi } = useLanguage();
+  const { setLanguage, isMarathi, t } = useLanguage();
 
   return (
     <div className="inline-flex items-center rounded-xl bg-slate-100 p-0.5 border border-slate-200/90 shadow-2xs">
@@ -16,9 +16,9 @@ export function LanguageSwitcher(): JSX.Element {
             ? 'bg-white text-blue-700 shadow-2xs font-extrabold'
             : 'text-slate-500 hover:text-slate-900'
         }`}
-        title="Switch to English"
+        title={t('lang.en_title', 'Switch to English')}
       >
-        <span>EN</span>
+        <span>{t('lang.en', 'EN')}</span>
       </button>
       <button
         type="button"
@@ -28,9 +28,9 @@ export function LanguageSwitcher(): JSX.Element {
             ? 'bg-blue-600 text-white shadow-2xs font-extrabold'
             : 'text-slate-500 hover:text-slate-900'
         }`}
-        title="मराठी मध्ये बदला"
+        title={t('lang.marathi_title', 'Switch to Marathi')}
       >
-        <span>मराठी</span>
+        <span>{t('lang.marathi', 'मराठी')}</span>
       </button>
     </div>
   );

@@ -415,7 +415,7 @@ const CITY_DISTRIBUTION_WEIGHTS: Record<string, Record<string, number>> = {
 };
 
 export const BusinessMapPage: React.FC = () => {
-  const { isMarathi } = useLanguage();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const initialDomain = searchParams.get('domain') || 'pharma';
 
@@ -438,14 +438,14 @@ export const BusinessMapPage: React.FC = () => {
       const cityWeight = weights[base.id] || 1.0;
       let rawCount = Math.round(180 * baseMult * cityWeight);
       if (statusFilter === 'greenfield') rawCount = Math.round(rawCount * 0.28);
-      if (statusFilter === 'operational') rawCount = Math.round(rawCount * 0.72);
+      else if (statusFilter === 'operational') rawCount = Math.round(rawCount * 0.72);
 
       return {
         ...base,
-        count: rawCount,
+        count: Math.max(12, rawCount),
       };
     });
-  }, [selectedDomainId, activePreset.multiplier, statusFilter]);
+  }, [selectedDomainId, statusFilter, activePreset.multiplier]);
 
   // Total National Business Count
   const totalNationalCount = useMemo(() => {
@@ -486,16 +486,16 @@ export const BusinessMapPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all hover:scale-105 border border-slate-700"
           >
             <span>←</span>
-            <span>{isMarathi ? 'मुख्यपृष्ठावर परत जा' : 'Back to Home'}</span>
+            <span>{t('map.back_home', 'Back to Home')}</span>
           </Link>
 
           <div className="flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-500/50" />
             <div>
               <div className="text-xs font-bold text-white tracking-wide uppercase font-mono flex items-center gap-2">
-                <span>{isMarathi ? 'औद्योगिक नकाशा व जिओ-इंटेलिजन्स' : 'ApprovalIQ Real Business Map'}</span>
+                <span>{t('map.title', 'ApprovalIQ Real Business Map')}</span>
                 <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-blue-900/80 text-blue-300 text-[10px] border border-blue-700">
-                  {isMarathi ? 'थेट नकाशा इंजिन' : 'Live Geospatial Engine'}
+                  {t('map.live_engine', 'Live Geospatial Engine')}
                 </span>
               </div>
             </div>
@@ -508,10 +508,10 @@ export const BusinessMapPage: React.FC = () => {
 
           <div className="hidden md:flex flex-col text-right">
             <span className="text-[10px] uppercase font-mono text-slate-400">
-              {isMarathi ? 'एकूण मॅप केलेली युनिट्स' : 'Total Mapped Units'}
+              {t('map.total_units', 'Total Mapped Units')}
             </span>
             <span className="text-sm font-black text-cyan-400 font-mono tracking-tight">
-              {totalNationalCount.toLocaleString()} {isMarathi ? 'संपूर्ण भारतात' : 'Across India'}
+              {totalNationalCount.toLocaleString()} {t('map.across_india', 'Across India')}
             </span>
           </div>
 
@@ -519,7 +519,7 @@ export const BusinessMapPage: React.FC = () => {
             to={`/register?state=${activeCity.stateCode}&industry=${encodeURIComponent(currentDomainName)}`}
             className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-500/30 transition-all hover:scale-105"
           >
-            {isMarathi ? `${activeCity.name} मध्ये प्रकल्प सुरू करा →` : `Start Project in ${activeCity.name} →`}
+            {t('map.start_in_city', `Start Project in ${activeCity.name} →`).replace('{city}', activeCity.name)}
           </Link>
         </div>
       </header>
