@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Language, TranslationKey, translations } from './translations';
+import { Language, translations } from './translations';
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
-  t: (key: TranslationKey, fallback?: string) => string;
+  t: (key: string, fallback?: string) => string;
   isMarathi: boolean;
 }
 
@@ -32,7 +32,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }): J
     document.documentElement.lang = language;
   }, [language]);
 
-  const t = (key: TranslationKey, fallback?: string): string => {
+  const t = (key: string, fallback?: string): string => {
     const langDict = translations[language] as Record<string, string>;
     const defaultDict = translations.en as Record<string, string>;
     return langDict[key] || defaultDict[key] || fallback || key;

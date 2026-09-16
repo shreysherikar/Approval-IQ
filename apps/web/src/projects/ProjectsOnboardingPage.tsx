@@ -25,6 +25,8 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '../auth';
+import { useLanguage } from '../i18n';
+import { LanguageSwitcher } from '../Layout';
 import { projectsApi, profilesApi, ApiError, KnownFieldValue } from '../api-client';
 
 interface IndustryOption {
@@ -263,6 +265,7 @@ function saveStoredProject(project: ProjectHistoryItem): void {
 export const ProjectsOnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, isOfficer, accessToken, logout } = useAuth();
+  const { t } = useLanguage();
 
   // Wizard Steps: 1 = Business, 2 = Location, 3 = Project Details, 4 = Review
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -425,11 +428,13 @@ export const ProjectsOnboardingPage: React.FC = () => {
           </Link>
           <span className="hidden sm:inline-block text-xs text-slate-300 font-mono">|</span>
           <span className="hidden sm:inline-block text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono">
-            Project Onboarding Desk
+            {t('onboarding.desk_title', 'Project Onboarding Desk')}
           </span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-medium">
+        <div className="flex items-center gap-3 sm:gap-4 text-xs font-medium">
+          <LanguageSwitcher />
+
           {user?.email && (
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200/80 text-slate-700">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -443,7 +448,7 @@ export const ProjectsOnboardingPage: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-sm transition-colors"
             >
               <ShieldCheck className="w-4 h-4 text-white" />
-              <span>Officer Queue</span>
+              <span>{t('nav.officer_queue', 'Officer Queue')}</span>
             </Link>
           )}
 
@@ -452,15 +457,15 @@ export const ProjectsOnboardingPage: React.FC = () => {
             className="hidden sm:inline-flex items-center gap-1.5 text-slate-600 hover:text-blue-600 transition-colors"
           >
             <Compass className="w-4 h-4 text-slate-600" />
-            <span>Business Map</span>
+            <span>{t('nav.business_map', 'Business Map')}</span>
           </Link>
 
           <button
             type="button"
             onClick={() => logout()}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            Logout
+            {t('nav.logout', 'Logout')}
           </button>
         </div>
       </header>
@@ -472,13 +477,13 @@ export const ProjectsOnboardingPage: React.FC = () => {
         <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-12">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold mb-3">
             <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-            <span>Intelligent Regulatory Setup</span>
+            <span>{t('onboarding.badge', 'Intelligent Regulatory Setup')}</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            Let's understand your business.
+            {t('onboarding.hero_title', "Let's understand your business.")}
           </h1>
           <p className="mt-2.5 text-sm sm:text-base text-slate-600 leading-relaxed">
-            Tell ApprovalIQ a little about your project and we'll help identify the statutory approvals, mandatory documents, and clearance timelines that apply.
+            {t('onboarding.hero_subtitle', "Tell ApprovalIQ a little about your project and we'll help identify the statutory approvals, mandatory documents, and clearance timelines that apply.")}
           </p>
         </div>
 
@@ -492,10 +497,10 @@ export const ProjectsOnboardingPage: React.FC = () => {
             <div className="mb-8 pb-6 border-b border-slate-100">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider mb-3">
                 {[
-                  { num: 1, label: 'Business' },
-                  { num: 2, label: 'Location' },
-                  { num: 3, label: 'Project' },
-                  { num: 4, label: 'Review' },
+                  { num: 1, label: t('onboarding.step_business', 'Business') },
+                  { num: 2, label: t('onboarding.step_location', 'Location') },
+                  { num: 3, label: t('onboarding.step_project', 'Project') },
+                  { num: 4, label: t('onboarding.step_review', 'Review') },
                 ].map((step) => {
                   const isDone = currentStep > step.num;
                   const isActive = currentStep === step.num;

@@ -63,6 +63,7 @@ export function GrievanceCenterPage(): JSX.Element {
   const urlApprovalInstanceId = searchParams.get('approvalInstanceId') ?? undefined;
 
   const { accessToken, isOfficer } = useAuth();
+  const { t, isMarathi } = useLanguage();
   const queryClient = useQueryClient();
 
   const [selectedGrievanceId, setSelectedGrievanceId] = useState<string | null>(null);
@@ -100,46 +101,47 @@ export function GrievanceCenterPage(): JSX.Element {
             <span className="inline-flex items-center rounded-md bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
               Maharashtra RTS Act 2015
             </span>
-            <span className="text-xs text-gray-500">Statutory Timelines & Redressal</span>
+            <span className="text-xs text-gray-500">{t('grievances.sla_days', 'Statutory Timelines & Redressal')}</span>
           </div>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900">
-            Grievance Escalation & Redressal Center
+            {t('grievances.title', 'Grievance Escalation & Redressal Center')}
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            Enforce statutory timelines for project <span className="font-mono font-medium">{projectId}</span>.
-            Lodge complaints on delays or arbitrary actions and escalate across 3 statutory tiers.
+            {t('grievances.subtitle', 'Statutory delay escalation ladder under the Maharashtra Right to Public Services Act 2015')}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Link
             to={`/projects/${projectId}/roadmap`}
-            className="rounded-md border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+            className="rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 shadow-2xs hover:bg-gray-50"
           >
-            ← Roadmap
+            ← {t('nav.roadmap', 'Roadmap')}
           </Link>
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-700"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-rose-700 cursor-pointer"
           >
-            + Lodge New Grievance
+            + {t('grievances.file_new', 'Lodge New Grievance')}
           </button>
         </div>
       </div>
 
       {/* Statutory Protection Banner */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 shadow-2xs">
         <div className="flex items-start gap-3">
           <span className="text-lg">⚖️</span>
           <div>
-            <p className="font-semibold">Statutory Right to Service Guarantee</p>
+            <p className="font-bold">
+              {isMarathi
+                ? 'महाराष्ट्र लोकसेवा हक्क हमी व वैधानिक संरक्षण'
+                : 'Statutory Right to Service Guarantee'}
+            </p>
             <p className="mt-0.5 text-amber-800 leading-relaxed">
-              Under the Maharashtra Right to Public Services Act, every notified clearance carries a mandatory SLA. If an
-              authority fails to issue the sanction, conduct inspection, or resolve a clarification within the statutory
-              window without reasonable cause, you may file a formal grievance. Unresolved grievances escalate automatically
-              or via one-click petition to First and Second Appellate Authorities, and finally the RTS Commission with power
-              to levy statutory penalties.
+              {isMarathi
+                ? 'महाराष्ट्र लोकसेवा हक्क कायदा २०१५ अंतर्गत प्रत्येक अधिसूचित सेवेसाठी वैधानिक मुदत निश्चित केलेली आहे. कोणत्याही शासकीय विभागाने विहित वेळेत सेवा न दिल्यास किंवा अवाजवी विलंब केल्यास थेट तक्रार दाखल करा.'
+                : 'Under the Maharashtra Right to Public Services Act, every notified clearance carries a mandatory SLA. If an authority fails to issue the sanction or resolve a clarification within the statutory window without reasonable cause, you may file a formal grievance.'}
             </p>
           </div>
         </div>

@@ -9,6 +9,7 @@ import {
   type RegulatoryImpactView,
 } from './api-client';
 import { useAuth } from './auth';
+import { useLanguage } from './i18n';
 import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,7 @@ function ChangeCard({ change }: { change: RegulatoryChangeView }): JSX.Element {
 
 export function RegulatoryChangesListPage(): JSX.Element {
   const { accessToken, isRestoring, user } = useAuth();
+  const { isMarathi } = useLanguage();
   const [showCreate, setShowCreate] = useState(false);
 
   const changesQuery = useQuery({
@@ -76,10 +78,26 @@ export function RegulatoryChangesListPage(): JSX.Element {
   });
 
   if (changesQuery.isLoading || isRestoring) {
-    return <LoadingSpinner label="Loading regulatory changes…" />;
+    return (
+      <LoadingSpinner
+        label={
+          isMarathi
+            ? 'नियामक बदल लोड होत आहेत…'
+            : 'Loading regulatory changes…'
+        }
+      />
+    );
   }
   if (accessToken === null) {
-    return <ErrorBanner message="Please log in to view regulatory changes." />;
+    return (
+      <ErrorBanner
+        message={
+          isMarathi
+            ? 'नियामक बदल पाहण्यासाठी कृपया लॉग इन करा.'
+            : 'Please log in to view regulatory changes.'
+        }
+      />
+    );
   }
 
   const changes = changesQuery.data ?? [];
@@ -89,18 +107,26 @@ export function RegulatoryChangesListPage(): JSX.Element {
     <div className="space-y-4">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Regulatory Change Impact Engine</h1>
+          <h1 className="text-2xl font-semibold">
+            {isMarathi
+              ? 'नियामक बदल व प्रभाव सिम्युलेशन इंजिन'
+              : 'Regulatory Change Impact Engine'}
+          </h1>
           <p className="text-sm text-gray-600">
-            Simulate regulatory rule changes and analyze their impact on existing businesses.
+            {isMarathi
+              ? 'शासकीय नियमांमधील बदलांचे सिम्युलेशन करा आणि विद्यमान उद्योगांवरील कायदेशीर प्रभाव तपासा.'
+              : 'Simulate regulatory rule changes and analyze their impact on existing businesses.'}
           </p>
         </div>
         {isAdmin && (
           <button
             type="button"
             onClick={() => setShowCreate(!showCreate)}
-            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 font-medium"
           >
-            {showCreate ? 'Cancel' : '+ New Regulatory Change'}
+            {showCreate
+              ? (isMarathi ? 'रद्द करा' : 'Cancel')
+              : (isMarathi ? '+ नवीन नियामक बदल नोंदवा' : '+ New Regulatory Change')}
           </button>
         )}
       </div>
@@ -109,8 +135,12 @@ export function RegulatoryChangesListPage(): JSX.Element {
 
       {changes.length === 0 ? (
         <EmptyState
-          title="No regulatory changes yet"
-          description="Create a regulatory change to analyze its impact on existing businesses."
+          title={isMarathi ? 'कोणतेही नियामक बदल आढळले नाहीत' : 'No regulatory changes yet'}
+          description={
+            isMarathi
+              ? 'विद्यमान उद्योगांवर होणाऱ्या परिणामांचे विश्लेषण करण्यासाठी नवीन बदल नोंदवा.'
+              : 'Create a regulatory change to analyze its impact on existing businesses.'
+          }
         />
       ) : (
         <div className="space-y-3">
