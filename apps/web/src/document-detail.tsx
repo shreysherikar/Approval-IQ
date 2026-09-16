@@ -185,6 +185,19 @@ export function DocumentDetailPage(props: { projectId: string; documentId: strin
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Document detail</h1>
+      {/* Point-of-Display Extraction Statutory Disclaimer Banner (Dossier Part 9.2) */}
+      <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs shadow-2xs">
+        <span className="text-base shrink-0 mt-0.5">⚖️</span>
+        <div className="space-y-0.5">
+          <p className="font-bold tracking-tight">
+            AI Field Extraction Notice &amp; Statutory Disclaimer
+          </p>
+          <p className="text-amber-800 leading-relaxed text-[11px]">
+            Extracted fields and evidence locations are machine-assisted previews based on regulations published as of September 2026. Not formal legal advice. The issuing authority’s official determination governs.
+          </p>
+        </div>
+      </div>
+
       <p className="text-sm text-gray-600">{version.originalFilename} · v{version.versionNumber} · state <span className="font-mono">{version.state}</span></p>
       <ConsistencyBanner checks={consistencyQuery.data ?? []} />
       {statusMsg && <p className="rounded border border-blue-200 bg-blue-50 p-2 text-sm text-blue-800">{statusMsg}</p>}

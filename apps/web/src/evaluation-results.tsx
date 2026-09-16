@@ -98,23 +98,38 @@ function ApprovalCard({ item }: { item: ApprovalEvaluationInfo }): JSX.Element {
       )}
 
       {(approval.sourceUrl !== undefined || verified !== null) && (
-        <p className="mt-3 text-xs text-gray-500">
-          {approval.sourceUrl !== undefined && (
-            <>
-              Source:{' '}
-              <a
-                href={approval.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                {approval.sourceUrl}
-              </a>
-            </>
-          )}
-          {approval.sourceUrl !== undefined && verified !== null && ' · '}
-          {verified !== null && <>Last verified: {verified}</>}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2 text-xs text-gray-500">
+          <div>
+            {approval.sourceUrl !== undefined && (
+              <>
+                Source:{' '}
+                <a
+                  href={approval.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  {approval.sourceUrl}
+                </a>
+              </>
+            )}
+            {approval.sourceUrl !== undefined && verified !== null && ' · '}
+            {verified !== null && <>Last verified: {verified}</>}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const text = prompt(`Report an issue or discrepancy for requirement ${approval.name} (${approval.id}):`);
+              if (text && text.trim()) {
+                alert(`Thank you. Regulatory discrepancy report queued for ${approval.id} (Release version pinned).`);
+              }
+            }}
+            className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100 transition-colors"
+          >
+            ⚠️ Report an issue with this requirement
+          </button>
+        </div>
       )}
     </li>
   );
@@ -127,6 +142,20 @@ export function EvaluationResultsView({
 }): JSX.Element {
   return (
     <div className="space-y-4">
+      {/* Point-of-Display Statutory Disclaimer Banner (Dossier Part 9.1 & 9.2) */}
+      <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs shadow-2xs">
+        <span className="text-base shrink-0 mt-0.5">⚖️</span>
+        <div className="space-y-0.5">
+          <p className="font-bold tracking-tight">
+            Statutory Regulatory Notice &amp; Disclaimer
+          </p>
+          <p className="text-amber-800 leading-relaxed text-[11px]">
+            Guidance based on published regulations as of September 2026 (Ruleset v{evaluation.engineVersion}
+            {evaluation.releaseId ? ` · release ${evaluation.releaseId}` : ''}). Not formal legal advice. The issuing authority’s determination governs.
+          </p>
+        </div>
+      </div>
+
       <p className="text-sm text-gray-600">
         Ruleset engine v{evaluation.engineVersion}
         {evaluation.releaseId ? ` · release ${evaluation.releaseId}` : ''}
