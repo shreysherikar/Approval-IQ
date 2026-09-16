@@ -22,6 +22,12 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CALLBACK_URL: z.string().default('http://localhost:3001/auth/google/callback'),
+  // OrcaRouter AI LLM Configuration (https://orcarouter.ai)
+  ORCAROUTER_API_KEY: z.string().optional(),
+  ORCAROUTER_BASE_URL: z.string().default('https://api.orcarouter.ai/v1'),
+  ORCAROUTER_MODEL: z.string().default('glm-5.3-flash'),
+  GEMINI_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

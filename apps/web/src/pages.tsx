@@ -182,8 +182,12 @@ export function LoginPage(): JSX.Element {
     e.preventDefault();
     setFormError(null);
     try {
-      await login(email, password);
-      void navigate('/projects');
+      const authUser = await login(email, password);
+      if (authUser.role === 'officer' || authUser.role === 'admin') {
+        void navigate('/officer');
+      } else {
+        void navigate('/projects');
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Login failed');
     }

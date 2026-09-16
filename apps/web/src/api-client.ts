@@ -264,6 +264,21 @@ export interface RoadmapNode {
   approvalDefinitionId: string;
   approvalCode: string;
   approvalName: string;
+  shortName?: string | null;
+  whyRequired?: string | null;
+  inspectionRequired?: boolean | null;
+  renewalRequired?: boolean | null;
+  slaDays?: number | null;
+  slaBasis?: string | null;
+  ambiguityNotes?: string | null;
+  authority?: { id: string; code: string; name: string } | null;
+  source?: {
+    id: string;
+    name: string;
+    citation: string;
+    url?: string | null;
+    verificationStatus: string;
+  } | null;
   evaluationResultId: string;
   outcome: EvaluationOutcome;
   /** Derived at read time from the pinned evaluation (not_evaluable). */
@@ -271,9 +286,6 @@ export interface RoadmapNode {
   missingFields: MissingFieldInfo[];
   requiredDocuments: Array<{ id: string; name: string }>;
   status: ApprovalInstanceStatus;
-  slaDays?: number | null;
-  inspectionRequired?: boolean;
-  renewalRequired?: boolean;
   sourceUrl: string | null;
   lastVerifiedDate: string | null;
   unlockedAt: string | null;
@@ -293,17 +305,86 @@ export interface RoadmapEdge {
   gates: boolean;
 }
 
+export type SchemeOutcome =
+  | 'potentially_eligible'
+  | 'excluded'
+  | 'not_eligible'
+  | 'needs_information'
+  | 'unknown'
+  | 'not_evaluable';
+
+export interface SchemeEvaluationInfo {
+  scheme: {
+    id: string;
+    name: string;
+    shortName?: string;
+    description?: string;
+    jurisdiction?: string;
+    sourceTitle?: string;
+    sourceUrl?: string;
+    verificationDate?: string;
+    exclusionReason?: string;
+  };
+  outcome: SchemeOutcome;
+  matchedConditions?: string[];
+  matchedExclusions?: string[];
+  factsUsed?: Record<string, unknown>;
+  neededInformation: MissingFieldInfo[];
+  explanation: string;
+}
+
 export interface RoadmapResponse {
   projectId: string;
   nodes: RoadmapNode[];
   edges: RoadmapEdge[];
   /** Engine-computed parallel layers over the gating graph (instance ids). */
   parallelGroups: string[][];
+  /** Government schemes and incentives evaluated for the project's profile. */
+  schemes?: SchemeEvaluationInfo[];
 }
 
 export interface UpdateStatusResponse extends RoadmapNode {
   /** Present when marking done: instances the server flipped to available. */
   unlockedDependentIds?: string[];
+}
+
+export interface AiSchemeAnalysisResponse {
+  projectId: string;
+  businessContext: {
+    legalName: string;
+    industry: string;
+    activity: string;
+    state: string;
+    district: string;
+    investmentAmountInr: number;
+    investmentCr: string;
+    builtUpAreaSqft: number;
+    workforceHeadcount: number;
+    fuelType: string;
+  };
+  aiReadinessScore: number;
+  totalPotentialFiscalBenefit: string;
+  strategicSummary: string;
+  recommendations: Array<{
+    id: string;
+    title: string;
+    domain: string;
+    impact: string;
+    estimatedSavings: string;
+    action: string;
+  }>;
+  generatedAt: string;
+  aiModel: string;
+}
+
+export interface AiSchemeChatResponse {
+  query: string;
+  answer: string;
+  relevantSchemes: string[];
+  actionableSteps: string[];
+  confidenceScore: number;
+  sourceAttribution: string;
+  timestamp: string;
 }
 
 /**
@@ -329,6 +410,26 @@ export const roadmapApi = {
     return patch(
       `/projects/${projectId}/approval-instances/${instanceId}/status`,
       { status },
+      { token },
+    );
+  },
+  /** GET /projects/:projectId/schemes/ai-analysis — dynamic AI analysis & readiness score */
+  getAiSchemeAnalysis(projectId: string, token?: string): Promise<AiSchemeAnalysisResponse> {
+    return get(`/projects/${projectId}/schemes/ai-analysis`, { token });
+  },
+  /** POST /projects/:projectId/schemes/ai-chat — interactive AI scheme & tax copilot */
+  queryAiSchemeAdvisor(
+    projectId: string,
+    query: string,
+    history?: Array<{ sender: 'user' | 'ai'; text: string }>,
+    apiKey?: string,
+    model?: string,
+    baseUrl?: string,
+    token?: string,
+  ): Promise<AiSchemeChatResponse> {
+    return post(
+      `/projects/${projectId}/schemes/ai-chat`,
+      { query, history, apiKey, model, baseUrl },
       { token },
     );
   },
@@ -655,6 +756,10 @@ export const officerApi = {
     token?: string,
   ): Promise<ClarificationView> {
     return post(`/officer/clarifications/${clarificationId}/cancel`, body, { token });
+  },
+  /** Construct direct download URL for officer document version */
+  documentDownloadUrl(instanceId: string, documentId: string, versionId: string): string {
+    return `${API_BASE_URL}/officer/applications/${instanceId}/documents/${documentId}/versions/${versionId}/download`;
   },
 };
 
