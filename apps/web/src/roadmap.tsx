@@ -621,32 +621,26 @@ function RuleIssueModal({ node, projectId, onClose }: RuleIssueModalProps): JSX.
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [reportRefNumber, setReportRefNumber] = useState<string | null>(null);
 
-  const releaseVer = node.releaseVersion || 'ruleset-v2026.09.1-beta+git7a2f9';
+  const releaseVer = node.releaseVersion || (import.meta.env.VITE_RULESET_VERSION as string | undefined) || 'ruleset-v2026.09.1-beta+git7a2f9';
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const subject = `[Rule Issue Report] ${node.approvalCode} (${releaseVer})`;
-      const description = `Rule Issue Report for ${node.approvalName} (${node.approvalCode}):
-• Ruleset Release: ${releaseVer}
-• Issue Category: ${reportCategory.toUpperCase()}
-• Description / Discrepancy Note: ${reportDetails || 'None provided.'}
-• Pinned Approval Definition ID: ${node.approvalDefinitionId}
-• Evaluation Result ID: ${node.evaluationResultId}`;
-
-      return grievancesApi.create(
+      return roadmapApi.reportRuleDiscrepancy(
         projectId,
         {
-          type: 'arbitrary_rejection',
-          subject,
-          description,
-          statutorySlaDays: 15,
+          approvalCode: node.approvalCode,
+          releaseVersion: releaseVer,
+          category: reportCategory,
+          description: reportDetails,
+          approvalDefinitionId: node.approvalDefinitionId,
+          evaluationResultId: node.evaluationResultId,
         },
         accessToken ?? undefined,
       );
     },
     onSuccess: (data) => {
       setReportSubmitted(true);
-      setReportRefNumber(data.grievanceNumber);
+      setReportRefNumber(data.issueRef);
     },
     onError: () => {
       setReportSubmitted(true);
@@ -3221,6 +3215,7 @@ export function RoadmapPage(): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [batchStartingLayer, setBatchStartingLayer] = useState<number | null>(null);
 
 
   const query = useQuery({
@@ -3320,16 +3315,15 @@ export function RoadmapPage(): JSX.Element {
     return null;
   }, [data]);
 
-  const [batchStartingLayer, setBatchStartingLayer] = useState<number | null>(null);
-
   const handleBatchStartLayer = async (layerIdx: number, nodesToStart: RoadmapNode[]) => {
     if (nodesToStart.length === 0) return;
     setBatchStartingLayer(layerIdx);
     try {
-      await Promise.all(
-        nodesToStart.map((n) =>
-          roadmapApi.updateStatus(projectId, n.id, 'in_progress', accessToken ?? undefined)
-        )
+      await roadmapApi.batchUpdateStatus(
+        projectId,
+        nodesToStart.map((n) => n.id),
+        'in_progress',
+        accessToken ?? undefined,
       );
       await queryClient.invalidateQueries({ queryKey: ['roadmap', projectId] });
     } catch (err) {
@@ -3957,114 +3951,188 @@ export function RoadmapPage(): JSX.Element {
               </div>
 
               {data?.parallelGroups && data.parallelGroups.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {data.parallelGroups.map((group, layerIdx) => {
-                    const layerNodes = data.nodes.filter((n) => group.includes(n.id));
-                    if (layerNodes.length === 0) return null;
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {data.parallelGroups.map((group, layerIdx) => {
+                      // Filter for gating clearances in this layer (exclude standalone non-gating items to preserve critical path focus)
+                      const layerNodes = data.nodes.filter((n) => group.includes(n.id) && !standaloneNodeIds.has(n.id));
+                      if (layerNodes.length === 0) return null;
 
-                    const availableNodes = layerNodes.filter((n) => n.status === 'available');
+                      const availableNodes = layerNodes.filter((n) => n.status === 'available');
 
-                    return (
-                      <div
-                        key={layerIdx}
-                        className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-4 shadow-sm flex flex-col justify-between"
-                      >
-                        <div className="space-y-4">
-                          {/* Header */}
-                          <div className="flex items-center justify-between pb-3 border-b border-slate-200 gap-2 flex-wrap">
-                            <div className="flex items-center gap-2">
-                              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0">
-                                {layerIdx + 1}
-                              </span>
-                              <h4 className="font-extrabold text-slate-900 text-sm">
-                                {layerIdx === 0 ? 'Layer 1: Unblocked Readiness' : `Layer ${layerIdx + 1}: Level ${layerIdx + 1}`}
-                              </h4>
+                      return (
+                        <div
+                          key={layerIdx}
+                          className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-4 shadow-sm flex flex-col justify-between"
+                        >
+                          <div className="space-y-4">
+                            {/* Header */}
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-200 gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                                  {layerIdx + 1}
+                                </span>
+                                <h4 className="font-extrabold text-slate-900 text-sm">
+                                  {layerIdx === 0 ? 'Layer 1: Gating Readiness' : `Layer ${layerIdx + 1}: Level ${layerIdx + 1}`}
+                                </h4>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                {availableNodes.length > 0 && (
+                                  <button
+                                    type="button"
+                                    disabled={batchStartingLayer === layerIdx}
+                                    onClick={() => void handleBatchStartLayer(layerIdx, availableNodes)}
+                                    className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs hover:shadow-xs disabled:opacity-50 shrink-0"
+                                    title={`Set all ${availableNodes.length} available gating approvals in this layer to In Progress`}
+                                  >
+                                    {batchStartingLayer === layerIdx ? (
+                                      <Loader2 className="w-3 h-3 animate-spin text-white" />
+                                    ) : (
+                                      <PlayCircle className="w-3 h-3 text-white" />
+                                    )}
+                                    <span>Batch Start ({availableNodes.length})</span>
+                                  </button>
+                                )}
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
+                                  {layerNodes.length} Gating
+                                </span>
+                              </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                              {availableNodes.length > 0 && (
-                                <button
-                                  type="button"
-                                  disabled={batchStartingLayer === layerIdx}
-                                  onClick={() => void handleBatchStartLayer(layerIdx, availableNodes)}
-                                  className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition-all flex items-center gap-1 cursor-pointer shadow-2xs hover:shadow-xs disabled:opacity-50 shrink-0"
-                                  title={`Set all ${availableNodes.length} available approvals in this layer to In Progress`}
-                                >
-                                  {batchStartingLayer === layerIdx ? (
-                                    <Loader2 className="w-3 h-3 animate-spin text-white" />
-                                  ) : (
-                                    <PlayCircle className="w-3 h-3 text-white" />
-                                  )}
-                                  <span>Batch Start ({availableNodes.length})</span>
-                                </button>
-                              )}
-                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 shrink-0">
-                                {layerNodes.length} Node(s)
-                              </span>
-                            </div>
-                          </div>
+                            {/* Node Cards */}
+                            <div className="space-y-3">
+                              {layerNodes.map((n) => {
+                                const meta = getApprovalMeta(n.approvalCode, n.approvalName);
+                                const statusConfig = STATUS_CONFIGS[n.status] || STATUS_CONFIGS.blocked;
 
-                          {/* Node Cards */}
-                          <div className="space-y-3">
-                            {layerNodes.map((n) => {
-                              const meta = getApprovalMeta(n.approvalCode, n.approvalName);
-                              const statusConfig = STATUS_CONFIGS[n.status] || STATUS_CONFIGS.blocked;
-                              const isStandalone = standaloneNodeIds.has(n.id);
-
-                              return (
-                                <div
-                                  key={n.id}
-                                  onClick={() => setSelectedId(n.id)}
-                                  className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-500 shadow-2xs hover:shadow-md transition-all cursor-pointer space-y-2"
-                                >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex items-center gap-2">
-                                      <span className="p-1.5 rounded-lg bg-slate-100 border border-slate-200">
-                                        <ApprovalIcon iconKey={meta.iconKey} className="w-4 h-4 text-slate-800" />
-                                      </span>
-                                      <div>
-                                        <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                                          <span>{n.approvalName}</span>
-                                          {isStandalone && (
-                                            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold border bg-purple-50 text-purple-700 border-purple-200 shrink-0">
-                                              Standalone
-                                            </span>
-                                          )}
+                                return (
+                                  <div
+                                    key={n.id}
+                                    onClick={() => setSelectedId(n.id)}
+                                    className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-indigo-500 shadow-2xs hover:shadow-md transition-all cursor-pointer space-y-2"
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="p-1.5 rounded-lg bg-slate-100 border border-slate-200">
+                                          <ApprovalIcon iconKey={meta.iconKey} className="w-4 h-4 text-slate-800" />
+                                        </span>
+                                        <div>
+                                          <div className="font-bold text-slate-900 text-xs">
+                                            {n.approvalName}
+                                          </div>
+                                          <div className="text-[10px] font-mono text-slate-400">{n.approvalCode}</div>
                                         </div>
-                                        <div className="text-[10px] font-mono text-slate-400">{n.approvalCode}</div>
+                                      </div>
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${statusConfig.badgeBg}`}>
+                                        {n.status === 'available' ? 'Ready' : n.status === 'in_progress' ? 'In Progress' : n.status === 'done' ? 'Done' : 'Blocked'}
+                                      </span>
+                                    </div>
+
+                                    <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
+                                      <span>{meta.department}</span>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setReportTargetNode(n);
+                                          }}
+                                          className="p-1 rounded text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
+                                          title="Report an issue or discrepancy with this statutory requirement"
+                                        >
+                                          <AlertCircle className="w-3 h-3 text-amber-600" />
+                                          <span>Report</span>
+                                        </button>
+                                        <span className="text-indigo-600 font-bold hover:underline">Inspect →</span>
                                       </div>
                                     </div>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${statusConfig.badgeBg}`}>
-                                      {n.status === 'available' ? 'Ready' : n.status === 'in_progress' ? 'In Progress' : n.status === 'done' ? 'Done' : 'Blocked'}
-                                    </span>
                                   </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                                  <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
-                                    <span>{meta.department}</span>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setReportTargetNode(n);
-                                        }}
-                                        className="p-1 rounded text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
-                                        title="Report an issue or discrepancy with this statutory requirement"
-                                      >
-                                        <AlertCircle className="w-3 h-3 text-amber-600" />
-                                        <span>Report</span>
-                                      </button>
-                                      <span className="text-indigo-600 font-bold hover:underline">Inspect →</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                  {/* Dedicated Non-Gating Standalone Registrations Panel */}
+                  {Array.from(standaloneNodeIds).length > 0 && (
+                    <div className="p-5 rounded-3xl bg-purple-950/95 text-white space-y-4 shadow-xl border border-purple-800/80">
+                      <div className="flex items-center justify-between pb-3 border-b border-purple-800/80">
+                        <div className="flex items-center gap-2.5">
+                          <span className="p-2 rounded-xl bg-purple-900 text-purple-300 border border-purple-700/80">
+                            <GitCommitHorizontal className="w-5 h-5" />
+                          </span>
+                          <div>
+                            <h4 className="font-extrabold text-white text-base">
+                              Non-Gating Standalone Statutory Registrations ({standaloneNodeIds.size})
+                            </h4>
+                            <p className="text-xs text-purple-200 leading-snug">
+                              These registrations have zero gating dependencies on other statutory clearances and can be prepared independently at any point without blocking primary construction layers.
+                            </p>
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {data.nodes
+                          .filter((n) => standaloneNodeIds.has(n.id))
+                          .map((n) => {
+                            const meta = getApprovalMeta(n.approvalCode, n.approvalName);
+                            const statusConfig = STATUS_CONFIGS[n.status] || STATUS_CONFIGS.blocked;
+
+                            return (
+                              <div
+                                key={n.id}
+                                onClick={() => setSelectedId(n.id)}
+                                className="p-4 rounded-2xl bg-white text-slate-900 border border-purple-200 hover:border-purple-500 shadow-sm transition-all cursor-pointer space-y-2"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="p-1.5 rounded-lg bg-purple-50 border border-purple-200">
+                                      <ApprovalIcon iconKey={meta.iconKey} className="w-4 h-4 text-purple-800" />
+                                    </span>
+                                    <div>
+                                      <div className="font-bold text-slate-900 text-xs flex items-center gap-1">
+                                        <span>{n.approvalName}</span>
+                                        <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                          Non-Gating
+                                        </span>
+                                      </div>
+                                      <div className="text-[10px] font-mono text-slate-400">{n.approvalCode}</div>
+                                    </div>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${statusConfig.badgeBg}`}>
+                                    {n.status === 'available' ? 'Ready' : n.status === 'in_progress' ? 'In Progress' : n.status === 'done' ? 'Done' : 'Blocked'}
+                                  </span>
+                                </div>
+
+                                <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
+                                  <span>{meta.department}</span>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setReportTargetNode(n);
+                                      }}
+                                      className="p-1 rounded text-amber-600 hover:text-amber-800 hover:bg-amber-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
+                                      title="Report an issue or discrepancy with this statutory requirement"
+                                    >
+                                      <AlertCircle className="w-3 h-3 text-amber-600" />
+                                      <span>Report</span>
+                                    </button>
+                                    <span className="text-purple-700 font-bold hover:underline">Inspect →</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-slate-500 italic">No parallel layers computed.</p>
