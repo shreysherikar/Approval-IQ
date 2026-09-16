@@ -8,4 +8,5 @@ target
 .gradle
 **/build
 *.apk
+*.timestamp-*.mjs
 Astra.txt
