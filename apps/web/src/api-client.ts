@@ -246,6 +246,16 @@ export const evaluationsApi = {
   get(id: string, token?: string): Promise<EvaluationResponse> {
     return get(`/evaluations/${id}`, { token });
   },
+  /**
+   * POST /evaluations/what-if — server-side What-If sandbox evaluation run
+   * over dynamic transient business profile parameters without mutating DB state.
+   */
+  simulateWhatIf(
+    body: { industryCode?: string; profile: Record<string, unknown> },
+    token?: string,
+  ): Promise<Record<string, unknown>> {
+    return post('/evaluations/what-if', body, { token });
+  },
 };
 
 // ---------------------------------------------------------------------------
