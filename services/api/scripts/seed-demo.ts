@@ -269,7 +269,6 @@ async function main(): Promise<void> {
 
     const applicant = userMap.applicant!;
     const officer = userMap.officer!;
-    const _admin = userMap.admin!;
 
     // 3. Officer Authority Scoping
     console.log('\n[2/7] Scoping officer across authorities...');
@@ -477,7 +476,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
       data: {
         id: doc1Id,
         projectId: project.id,
-        documentDefinitionId: docDefTradeLicence?.id,
+        documentDefinitionId: docDefTradeLicence?.id ?? null,
         documentDefinitionManualOverride: true,
         metadata: {
           notes: 'Municipal Trade Licence issued by Pune Municipal Corporation',
@@ -551,25 +550,35 @@ APPROVALIQ_DEMO_TRADE_LICENCE
         };
         const realProvider = new AnthropicExtractionProvider({
           apiKey: anthropicApiKey,
-          model: process.env.ANTHROPIC_MODEL,
+          ...(process.env.ANTHROPIC_MODEL ? { model: process.env.ANTHROPIC_MODEL } : {}),
         });
         doc1ExtractionOutput = await realProvider.extract(tradeLicenceBuffer, 'text/plain');
         console.log(`  ✓ Real Anthropic extraction completed successfully (${doc1ExtractionOutput.modelVersion}).`);
       } catch (err) {
         console.warn(`  ⚠️ Real extraction failed (${err instanceof Error ? err.message : String(err)}). Falling back to mock extraction.`);
         doc1ExtractionOutput = {
-          fields: doc1MockExtractionFields,
+          fields: [
+            { name: 'applicantName', value: 'Pune Craft Brewery Pvt Ltd', confidence: 0.98, evidenceLocation: 'Header > Licensee Name' },
+            { name: 'premisesAddress', value: 'Plot 42, Hadapsar Industrial Area, Pune 411028', confidence: 0.95, evidenceLocation: 'Schedule A > Location' },
+            { name: 'coveredAreaSqft', value: '5000', confidence: 0.92, evidenceLocation: 'Schedule B > Total Sanctioned Floor Area' },
+            { name: 'validityExpiryDate', value: '2028-03-31', confidence: 0.99, evidenceLocation: 'Validity Period > Expiry Date' },
+          ],
           modelProvider: 'mock',
-          modelVersion: 'mock-1.0.0',
-          promptVersion: 'n/a',
+          modelVersion: 'mock-v1',
+          promptVersion: '1.0.0',
         };
       }
     } else {
       doc1ExtractionOutput = {
-        fields: doc1MockExtractionFields,
+        fields: [
+          { name: 'applicantName', value: 'Pune Craft Brewery Pvt Ltd', confidence: 0.98, evidenceLocation: 'Header > Licensee Name' },
+          { name: 'premisesAddress', value: 'Plot 42, Hadapsar Industrial Area, Pune 411028', confidence: 0.95, evidenceLocation: 'Schedule A > Location' },
+          { name: 'coveredAreaSqft', value: '5000', confidence: 0.92, evidenceLocation: 'Schedule B > Total Sanctioned Floor Area' },
+          { name: 'validityExpiryDate', value: '2028-03-31', confidence: 0.99, evidenceLocation: 'Validity Period > Expiry Date' },
+        ],
         modelProvider: 'mock',
-        modelVersion: 'mock-1.0.0',
-        promptVersion: 'n/a',
+        modelVersion: 'mock-v1',
+        promptVersion: '1.0.0',
       };
     }
 
@@ -684,7 +693,7 @@ APPROVALIQ_DEMO_TRADE_LICENCE
       data: {
         id: doc2Id,
         projectId: project.id,
-        documentDefinitionId: docDefLease?.id,
+        documentDefinitionId: docDefLease?.id ?? null,
         documentDefinitionManualOverride: true,
         metadata: {
           notes: 'Registered Long-Term Industrial Lease Deed (30 years) with MIDC / Landowner',
