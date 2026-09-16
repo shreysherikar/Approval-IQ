@@ -110,7 +110,6 @@ function CompetitorMap({
       map.remove();
       mapRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Recenter when the location changes.
