@@ -1450,6 +1450,7 @@ export interface GrievanceView {
   rectificationAction: string | null;
   authority: { id: string; code: string; name: string; department: string | null } | null;
   approval: { id: string; code: string; name: string; slaDays: number | null } | null;
+  project?: { id: string; name: string; applicantName?: string | null; industryType?: string | null; state?: string | null; district?: string | null } | null;
   submittedBy: { id: string; email: string; role: string };
   resolvedBy: { id: string; email: string; role: string } | null;
   documents: GrievanceDocumentItem[];
@@ -1514,6 +1515,11 @@ export const grievancesApi = {
   /** Get single grievance details and audit timeline */
   get(projectId: string, grievanceId: string, token?: string): Promise<GrievanceView> {
     return get<GrievanceView>(`/projects/${projectId}/grievances/${grievanceId}`, { token });
+  },
+
+  /** Generate Statutory Appeal Filing Pack for Tier 3 RTS Commission */
+  getFilingPack(projectId: string, grievanceId: string, token?: string): Promise<Record<string, unknown>> {
+    return get<Record<string, unknown>>(`/projects/${projectId}/grievances/${grievanceId}/filing-pack`, { token });
   },
 
   /** Lodge statutory grievance */

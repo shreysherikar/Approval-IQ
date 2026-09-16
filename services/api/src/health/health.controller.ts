@@ -19,4 +19,24 @@ export class HealthController {
     }
     return { status: 'ok', timestamp: new Date().toISOString() };
   }
+
+  @Get('engine/health')
+  @ApiOperation({ summary: 'Approval Engine health check & ruleset version metadata' })
+  @ApiResponse({ status: 200, description: 'Engine operational' })
+  async engineHealth(): Promise<{
+    status: string;
+    rulesetVersion: string;
+    gitCommit: string;
+    timestamp: string;
+  }> {
+    const rulesetVersion = process.env.VITE_RULESET_VERSION || process.env.RULESET_VERSION || 'ruleset-v2026.09.1-beta+git7a2f9';
+    const gitCommit = process.env.GIT_COMMIT || '7a2f9e4';
+
+    return {
+      status: 'ok',
+      rulesetVersion,
+      gitCommit,
+      timestamp: new Date().toISOString(),
+    };
+  }
 }

@@ -1031,13 +1031,26 @@ Based on your facility's profile, our AI engine has mapped out the optimal combi
       throw new BadRequestException(`Status '${nextStatus}' is invalid for batch update.`);
     }
 
-    // Execute atomic Prisma transaction across all requested instances
+    // Find current instances matching the criteria before transaction
+    const targetInstances = await this.prisma.approvalInstance.findMany({
+      where: {
+        id: { in: instanceIds },
+        projectId,
+      },
+      select: { id: true, status: true },
+    });
+
+    const expectedPreviousStatus = nextStatus === 'in_progress' ? 'available' : 'in_progress';
+    const eligibleIds = targetInstances.filter((i) => i.status === expectedPreviousStatus).map((i) => i.id);
+    const skippedIds = instanceIds.filter((id) => !eligibleIds.includes(id));
+
+    // Execute atomic Prisma transaction across eligible instances
     const updatedCount = await this.prisma.$transaction(async (tx) => {
+      if (eligibleIds.length === 0) return 0;
       const result = await tx.approvalInstance.updateMany({
         where: {
-          id: { in: instanceIds },
+          id: { in: eligibleIds },
           projectId,
-          status: nextStatus === 'in_progress' ? 'available' : 'in_progress',
         },
         data: {
           status: nextStatus,
@@ -1049,6 +1062,8 @@ Based on your facility's profile, our AI engine has mapped out the optimal combi
     return {
       success: true,
       updatedCount,
+      updatedIds: eligibleIds,
+      skippedIds,
       nextStatus,
       timestamp: new Date().toISOString(),
     };
@@ -1099,11 +1114,48 @@ Based on your facility's profile, our AI engine has mapped out the optimal combi
       },
     });
 
+    const gitHubToken = process.env.GITHUB_TOKEN;
+    let gitHubIssueUrl: string | null = null;
+    let gitHubStatus: 'dispatched' | 'simulated' = 'simulated';
+
+    if (gitHubToken) {
+      try {
+        // Live GitHub API Webhook dispatch using server Octokit token
+        const response = await fetch('https://api.github.com/repos/shreysherikar/Approval-IQ/issues', {
+          method: 'POST',
+          headers: {
+            Authorization: `token ${gitHubToken}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'ApprovalIQ-RuleEngine-Notifier',
+          },
+          body: JSON.stringify({
+            title: `[Rule Discrepancy] ${payload.approvalCode} (${releaseVer})`,
+            body: `### Tracked Rule Discrepancy Report (${issueRef})
+• **Approval Code:** ${payload.approvalCode}
+• **Ruleset Release:** ${releaseVer}
+• **Category:** ${payload.category}
+• **Git Commit:** ${commitHash}
+• **Description:** ${payload.description || 'None provided'}`,
+            labels: ['rule-discrepancy', 'automated-triage'],
+          }),
+        });
+        if (response.ok) {
+          const issueData = (await response.json()) as { html_url: string };
+          gitHubIssueUrl = issueData.html_url;
+          gitHubStatus = 'dispatched';
+        }
+      } catch {
+        // Fallback gracefully to simulated payload metadata
+      }
+    }
+
     return {
       success: true,
       issueRef,
       releaseVersion: releaseVer,
       commitHash,
+      gitHubStatus,
+      gitHubIssueUrl: gitHubIssueUrl || `https://github.com/shreysherikar/Approval-IQ/issues?q=${issueRef}`,
       gitHubPullRequestPayload: {
         title: `fix(rules): update statutory definition for ${payload.approvalCode}`,
         headBranch: `fix/rule-${payload.approvalCode.toLowerCase()}-${commitHash}`,
