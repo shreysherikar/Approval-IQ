@@ -3152,6 +3152,14 @@ export function RoadmapPage(): JSX.Element {
         {/* Action controls */}
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
           <Link
+            to={`/projects/${projectId}/schemes`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-semibold shadow-xs transition-colors"
+          >
+            <Gift className="w-3.5 h-3.5 text-amber-300" />
+            <span>💰 {t('nav.schemes')}</span>
+          </Link>
+
+          <Link
             to={`/projects/${projectId}/grievances`}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors"
           >
