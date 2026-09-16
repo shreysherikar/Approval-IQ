@@ -66,6 +66,7 @@ type RoadmapEdge = Edge<RoadmapEdgeData>;
 import dagre from '@dagrejs/dagre';
 import {
   roadmapApi,
+  engineApi,
   grievancesApi,
   documentsApi,
   reuseApi,
@@ -3195,7 +3196,14 @@ function AiSchemeAdvisorModal({
 // ---------------------------------------------------------------------------
 
 function CoverageDeclarationModal({ onClose }: { onClose: () => void }): JSX.Element {
-  const coverageData = {
+  const { accessToken } = useAuth();
+  const coverageQuery = useQuery({
+    queryKey: ['coverage-stats'],
+    queryFn: () => engineApi.getCoverageStats(accessToken ?? undefined),
+    staleTime: 60_000,
+  });
+
+  const fallbackData = {
     industries: [
       { name: 'Brewery & Distillery Operations', icon: '🍺', scope: 'Full Scope (24 Approvals)' },
       { name: 'Bakery & Food Processing', icon: '🍞', scope: 'Full Scope (18 Approvals)' },
@@ -3219,6 +3227,8 @@ function CoverageDeclarationModal({ onClose }: { onClose: () => void }): JSX.Ele
       { code: 'EPR-PLASTIC-001', name: 'Extended Producer Responsibility Registration', reason: 'Portal Guidance — Annual packaging tonnage threshold confirmation required', status: 'unverified' },
     ],
   };
+
+  const coverageData = coverageQuery.data || fallbackData;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs">
@@ -3268,7 +3278,7 @@ function CoverageDeclarationModal({ onClose }: { onClose: () => void }): JSX.Ele
               1. Industry Coverage Scope (3 Sectors Mapped)
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {coverageData.industries.map((ind) => (
+              {coverageData.industries.map((ind: { name: string; icon: string; scope: string }) => (
                 <div key={ind.name} className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
                   <div className="text-lg">{ind.icon}</div>
                   <div className="font-bold text-slate-900">{ind.name}</div>
@@ -3285,19 +3295,19 @@ function CoverageDeclarationModal({ onClose }: { onClose: () => void }): JSX.Ele
             </h4>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
-                <div className="text-2xl font-black text-emerald-700 font-mono">61</div>
+                <div className="text-2xl font-black text-emerald-700 font-mono">{coverageData.verifiedCount}</div>
                 <div className="text-[10px] text-emerald-900 font-bold uppercase mt-0.5">Claims Verified</div>
                 <div className="text-[9px] text-emerald-600 font-mono">Published Gazettes &amp; Acts</div>
               </div>
               <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
-                <div className="text-2xl font-black text-amber-700 font-mono">14</div>
+                <div className="text-2xl font-black text-amber-700 font-mono">{coverageData.unverifiedCount}</div>
                 <div className="text-[10px] text-amber-900 font-bold uppercase mt-0.5">Unverified Claims</div>
                 <div className="text-[9px] text-amber-600 font-mono">Portal Guidance Notes</div>
               </div>
               <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-200">
-                <div className="text-2xl font-black text-indigo-700 font-mono">75</div>
+                <div className="text-2xl font-black text-indigo-700 font-mono">{coverageData.totalClaims}</div>
                 <div className="text-[10px] text-indigo-900 font-bold uppercase mt-0.5">Total Mapped Rules</div>
-                <div className="text-[9px] text-indigo-600 font-mono">81.3% Verified Ratio</div>
+                <div className="text-[9px] text-indigo-600 font-mono">{((coverageData.verifiedCount / coverageData.totalClaims) * 100).toFixed(1)}% Verified Ratio</div>
               </div>
             </div>
           </div>
@@ -3308,7 +3318,7 @@ function CoverageDeclarationModal({ onClose }: { onClose: () => void }): JSX.Ele
               3. Verified Statutory Claims (Sample Published Norms)
             </h4>
             <div className="space-y-1.5">
-              {coverageData.verifiedClaims.map((c) => (
+              {coverageData.verifiedClaims.map((c: { code: string; name: string; source: string; status: string }) => (
                 <div key={c.code} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
                   <div className="space-y-0.5">
                     <div className="font-bold text-slate-900 flex items-center gap-1.5">
@@ -3331,7 +3341,7 @@ function CoverageDeclarationModal({ onClose }: { onClose: () => void }): JSX.Ele
               4. Unverified Claims (Portal Guidance / Variable Bye-Laws)
             </h4>
             <div className="space-y-1.5">
-              {coverageData.unverifiedClaims.map((c) => (
+              {coverageData.unverifiedClaims.map((c: { code: string; name: string; reason: string; status: string }) => (
                 <div key={c.code} className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center justify-between gap-2">
                   <div className="space-y-0.5">
                     <div className="font-bold text-slate-900 flex items-center gap-1.5">
