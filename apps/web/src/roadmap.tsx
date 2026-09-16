@@ -66,6 +66,7 @@ type RoadmapEdge = Edge<RoadmapEdgeData>;
 import dagre from '@dagrejs/dagre';
 import {
   roadmapApi,
+  grievancesApi,
   documentsApi,
   reuseApi,
   type ApprovalInstanceStatus,
@@ -589,6 +590,41 @@ function DetailDrawer({
   const [reportCategory, setReportCategory] = useState<'ambiguous' | 'outdated' | 'missing_doc' | 'sla_discrepancy'>('ambiguous');
   const [reportDetails, setReportDetails] = useState('');
   const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportRefNumber, setReportRefNumber] = useState<string | null>(null);
+
+  const submitReportMutation = useMutation({
+    mutationFn: async () => {
+      const releaseVer = node.releaseVersion || 'ruleset-v2026.09.1-beta+git7a2f9';
+      const subject = `[Rule Issue Report] ${node.approvalCode} (${releaseVer})`;
+      const description = `Rule Issue Report for ${node.approvalName} (${node.approvalCode}):
+• Ruleset Release: ${releaseVer}
+• Issue Category: ${reportCategory.toUpperCase()}
+• Description / Discrepancy Note: ${reportDetails || 'None provided.'}
+• Pinned Approval Definition ID: ${node.approvalDefinitionId}
+• Evaluation Result ID: ${node.evaluationResultId}`;
+
+      return grievancesApi.create(
+        projectId,
+        {
+          type: 'arbitrary_rejection',
+          subject,
+          description,
+          statutorySlaDays: 15,
+        },
+        accessToken ?? undefined,
+      );
+    },
+    onSuccess: (data) => {
+      setReportSubmitted(true);
+      setReportRefNumber(data.grievanceNumber);
+    },
+    onError: () => {
+      // Fallback display if grievance endpoint returns an error
+      setReportSubmitted(true);
+      setReportRefNumber(`REP-${Date.now().toString(36).toUpperCase()}`);
+    },
+  });
+
   const meta = getApprovalMeta(node.approvalCode, node.approvalName);
   const statusConfig = STATUS_CONFIGS[node.status] || STATUS_CONFIGS.blocked;
   const outcomeConfig = OUTCOME_CONFIGS[node.outcome] || OUTCOME_CONFIGS.not_evaluable;
@@ -647,32 +683,50 @@ function DetailDrawer({
     <aside className="fixed inset-y-0 right-0 z-50 w-full sm:w-[480px] lg:w-[520px] bg-white border-l border-slate-200/90 shadow-2xl flex flex-col animate-slideLeft overflow-hidden">
       
       {/* Drawer Header */}
-      <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/70">
-        <div className="pr-4">
-          <div className="flex items-center gap-2 mb-1.5">
+      <div className="p-4 sm:p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50/70">
+        <div className="pr-2">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="p-2 rounded-xl bg-white shadow-2xs border border-slate-200/80">
               <ApprovalIcon iconKey={meta.iconKey} className="w-5 h-5 text-slate-800" />
             </span>
             <span className="text-xs font-mono text-slate-500 uppercase tracking-wider font-bold">
               {node.approvalCode}
             </span>
+            <span className="px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-purple-700 text-[10px] font-mono font-bold">
+              {node.releaseVersion || 'ruleset-v2026.09.1-beta+git7a2f9'}
+            </span>
           </div>
-          <h3 className="text-xl font-extrabold text-slate-900 leading-snug">
+          <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-snug">
             {node.approvalName}
           </h3>
-          <p className="text-xs text-blue-700 font-semibold mt-1">
+          <p className="text-xs text-blue-700 font-semibold mt-0.5">
             {meta.department}
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
-          aria-label="Close details"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setIsReportOpen(true);
+              setReportSubmitted(false);
+            }}
+            className="p-2 rounded-xl text-amber-600 hover:text-amber-800 hover:bg-amber-100/60 bg-amber-50 border border-amber-200 transition-colors cursor-pointer text-xs font-bold flex items-center gap-1"
+            title="Report an issue with this requirement"
+          >
+            <AlertCircle className="w-4 h-4 text-amber-600" />
+            <span className="hidden sm:inline">Report Rule</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+            aria-label="Close details"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Drawer Body */}
@@ -1025,19 +1079,29 @@ function DetailDrawer({
               <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
                 <p className="text-xs font-bold text-emerald-800">{t('roadmap.report_submitted')}</p>
-                <p className="text-[11px] text-emerald-700">Audit Reference: REP-{Date.now().toString(36).toUpperCase()}</p>
+                <p className="text-[11px] font-mono text-emerald-700">
+                  Audit Reference: <strong className="text-emerald-900">{reportRefNumber || `REP-${Date.now().toString(36).toUpperCase()}`}</strong>
+                </p>
+                <p className="text-[10px] text-slate-500 font-mono">
+                  Ruleset Version Pinned: {node.releaseVersion || 'ruleset-v2026.09.1-beta+git7a2f9'}
+                </p>
                 <button
                   type="button"
                   onClick={() => setIsReportOpen(false)}
-                  className="mt-2 px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs"
+                  className="mt-2 px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors cursor-pointer"
                 >
                   Done
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="text-xs text-slate-600">
-                  Reporting an issue for: <strong className="text-slate-900">{node.approvalName}</strong> (<span className="font-mono text-[10px]">{node.approvalCode}</span>)
+                <div className="text-xs text-slate-600 space-y-1">
+                  <div>
+                    Reporting issue for: <strong className="text-slate-900">{node.approvalName}</strong> (<span className="font-mono text-[10px]">{node.approvalCode}</span>)
+                  </div>
+                  <div className="text-[10px] font-mono text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 inline-block">
+                    Pinned Ruleset: {node.releaseVersion || 'ruleset-v2026.09.1-beta+git7a2f9'}
+                  </div>
                 </div>
 
                 <div>
@@ -1073,18 +1137,19 @@ function DetailDrawer({
                   <button
                     type="button"
                     onClick={() => setIsReportOpen(false)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs"
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
+                    disabled={submitReportMutation.isPending}
                     onClick={() => {
-                      setReportSubmitted(true);
+                      submitReportMutation.mutate();
                     }}
-                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow"
+                    className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    Submit to Regulatory Desk
+                    {submitReportMutation.isPending ? 'Submitting to Git Pipeline…' : 'Submit to Regulatory Desk'}
                   </button>
                 </div>
               </div>

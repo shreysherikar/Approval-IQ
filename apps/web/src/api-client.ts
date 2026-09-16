@@ -298,6 +298,8 @@ export interface RoadmapNode {
   status: ApprovalInstanceStatus;
   sourceUrl: string | null;
   lastVerifiedDate: string | null;
+  releaseId?: string | null;
+  releaseVersion?: string | null;
   unlockedAt: string | null;
   updatedAt: string | null;
 }
@@ -345,6 +347,7 @@ export interface SchemeEvaluationInfo {
 
 export interface RoadmapResponse {
   projectId: string;
+  releaseVersion?: string;
   nodes: RoadmapNode[];
   edges: RoadmapEdge[];
   /** Engine-computed parallel layers over the gating graph (instance ids). */

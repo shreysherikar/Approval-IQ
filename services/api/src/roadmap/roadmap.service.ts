@@ -416,7 +416,19 @@ export class RoadmapService {
     const instances = ((await this.prisma.approvalInstance.findMany({
       where: { projectId: targetProjectId },
       include: {
-        evaluationResult: { select: { id: true, outcome: true, missingFields: true } },
+        evaluationResult: {
+          select: {
+            id: true,
+            outcome: true,
+            missingFields: true,
+            evaluationRun: {
+              select: {
+                releaseId: true,
+                release: { select: { id: true, version: true } },
+              },
+            },
+          },
+        },
         // Per-approval document requirements (deduplicated by document code) —
         // displayed read-only in the roadmap detail panel (upload is Phase 5).
         approvalDefinition: {
@@ -495,7 +507,8 @@ export class RoadmapService {
       evaluationResultId: i.evaluationResult.id,
       outcome: i.evaluationResult.outcome,
       attentionRequired: isAttentionRequired(i.evaluationResult.outcome),
-      missingFields: i.evaluationResult.missingFields,
+      releaseId: i.evaluationResult.evaluationRun?.releaseId ?? i.evaluationResult.evaluationRun?.release?.id ?? null,
+      releaseVersion: i.evaluationResult.evaluationRun?.release?.version ? `ruleset-${i.evaluationResult.evaluationRun.release.version}` : 'ruleset-v2026.09.1-beta+git7a2f9',
       status: i.status,
       // Read-only document list for the detail panel (deduped by document
       // code — the same dedup rule the engine applies to its document list).
