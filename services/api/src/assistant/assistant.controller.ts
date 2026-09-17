@@ -2,17 +2,13 @@ import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ProjectMemberGuard } from '../common/guards/project-member.guard';
-import { AssistantService } from './assistant.service';
+import { AssistantService, type AssistantChatResponse } from './assistant.service';
 
 /**
- * ApprovalIQ Assistant — grounded project chat.
- * Same authorization shape as roadmap/profile/time-cost: JwtAuthGuard (who
- * are you?) + ProjectMemberGuard (are you a member of :projectId?), so the
- * assistant can never leak one applicant's project data to another.
+ * ApprovalIQ Voice & Grounded Assistant ("Approve") — Project Chat & Voice Navigation.
  */
 @ApiTags('assistant')
 @Controller('assistant')
-@UseGuards(JwtAuthGuard)
 export class AssistantController {
   constructor(private readonly service: AssistantService) {}
 
@@ -22,18 +18,32 @@ export class AssistantController {
     return { mode: this.service.mode };
   }
 
-  @Post('projects/:projectId/chat')
-  @UseGuards(ProjectMemberGuard)
+  @Post('chat')
   @ApiOperation({
     summary:
-      'One grounded chat turn about a project — answers are derived from the project knowledge snapshot (profile, evaluations, time/cost prediction, documents).',
+      'General voice/text assistant turn about ApprovalIQ, state single-window regulations, clearances, and platform navigation.',
+  })
+  async generalChat(
+    @Body() body: { message?: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
+  ): Promise<AssistantChatResponse> {
+    const message = (body?.message ?? '').trim();
+    const history = Array.isArray(body?.history) ? body.history : [];
+    return this.service.generalChat(message, history);
+  }
+
+  @Post('projects/:projectId/chat')
+  @UseGuards(JwtAuthGuard, ProjectMemberGuard)
+  @ApiOperation({
+    summary:
+      'One grounded voice/text turn about a project — answers are strictly derived from the live project snapshot with structured navigation actions.',
   })
   async chat(
     @Param('projectId') projectId: string,
     @Body() body: { message?: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> },
-  ): Promise<{ reply: string; mode: 'llm' | 'offline' }> {
+  ): Promise<AssistantChatResponse> {
     const message = (body?.message ?? '').trim();
     const history = Array.isArray(body?.history) ? body.history : [];
     return this.service.chat(projectId, message, history);
   }
 }
+
