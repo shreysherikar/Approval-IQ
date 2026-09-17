@@ -988,6 +988,21 @@ export interface ReuseCandidatesResponse {
   requiredDocuments: ReuseRequiredDocument[];
 }
 
+export interface ConsentGrantView {
+  id: string;
+  principalId: string;
+  principalEmail: string;
+  projectId: string;
+  documentId: string;
+  targetAuthorityId: string;
+  purpose: string;
+  grantedAt: string;
+  revokedAt: string | null;
+  isActive: boolean;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
 export const reuseApi = {
   /**
    * GET /projects/:projectId/documents/reuse-candidates?approvalInstanceId=X
@@ -1003,6 +1018,34 @@ export const reuseApi = {
       `/projects/${projectId}/documents/reuse-candidates?approvalInstanceId=${encodeURIComponent(approvalInstanceId)}`,
       { token },
     );
+  },
+
+  /** GET /projects/:projectId/documents/consent-grants — list DPDP consent grants */
+  getConsentGrants(
+    projectId: string,
+    documentId?: string,
+    token?: string,
+  ): Promise<ConsentGrantView[]> {
+    const qs = documentId ? `?documentId=${encodeURIComponent(documentId)}` : '';
+    return get(`/projects/${projectId}/documents/consent-grants${qs}`, { token });
+  },
+
+  /** POST /projects/:projectId/documents/consent-grants — grant per-purpose consent */
+  grantConsent(
+    projectId: string,
+    body: { documentId: string; targetAuthorityId: string; purpose: string },
+    token?: string,
+  ): Promise<ConsentGrantView> {
+    return post(`/projects/${projectId}/documents/consent-grants`, body, { token });
+  },
+
+  /** PATCH /projects/:projectId/documents/consent-grants/:grantId/revoke — revoke consent */
+  revokeConsent(
+    projectId: string,
+    grantId: string,
+    token?: string,
+  ): Promise<ConsentGrantView> {
+    return patch(`/projects/${projectId}/documents/consent-grants/${grantId}/revoke`, {}, { token });
   },
 };
 export interface ExtractedField {

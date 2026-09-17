@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Param, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ProjectMemberGuard } from '../common/guards/project-member.guard';
@@ -29,4 +29,43 @@ export class ReuseController {
   ) {
     return this.reuse.listReuseCandidates(projectId, approvalInstanceId);
   }
+
+  @Get('consent-grants')
+  @ApiOperation({
+    summary: 'List active and historical DPDP Act 2023 consent grants for a document / project',
+  })
+  getConsentGrants(
+    @Param('projectId') projectId: string,
+    @Query('documentId') documentId?: string,
+  ) {
+    return this.reuse.getConsentGrants(projectId, documentId);
+  }
+
+  @Post('consent-grants')
+  @ApiOperation({
+    summary: 'Grant granular per-purpose data reuse consent under DPDP Act 2023',
+  })
+  grantConsent(
+    @Param('projectId') projectId: string,
+    @Body() body: { documentId: string; targetAuthorityId: string; purpose: string },
+    @Req() req: { user?: { userId?: string }; ip?: string; headers?: Record<string, string | string[]> },
+  ) {
+    const userId = req.user?.userId || 'usr-applicant-001';
+    const userAgent = (req.headers?.['user-agent'] as string) || undefined;
+    return this.reuse.grantConsent(projectId, userId, body, req.ip, userAgent);
+  }
+
+  @Patch('consent-grants/:grantId/revoke')
+  @ApiOperation({
+    summary: 'Revoke an existing DPDP Act 2023 data reuse consent grant',
+  })
+  revokeConsent(
+    @Param('projectId') projectId: string,
+    @Param('grantId') grantId: string,
+    @Req() req: { user?: { userId?: string } },
+  ) {
+    const userId = req.user?.userId || 'usr-applicant-001';
+    return this.reuse.revokeConsent(projectId, grantId, userId);
+  }
 }
+

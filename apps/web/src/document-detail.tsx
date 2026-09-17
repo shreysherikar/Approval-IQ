@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './auth';
-import { intelligenceApi, documentsApi, type ConsistencyCheckResult, type Document, type ExtractedField } from './api-client';
-import { EmptyState, ErrorBanner, LoadingSpinner } from './components';
+import { intelligenceApi, documentsApi, reuseApi, type ConsistencyCheckResult, type Document, type ExtractedField } from './api-client';
+import { ConsentGrantModal, EmptyState, ErrorBanner, LoadingSpinner } from './components';
 import { PROFILE_FIELD_LABELS } from './profile-form';
 
 export function FieldRow(props: {
@@ -229,7 +229,122 @@ export function DocumentDetailPage(props: { projectId: string; documentId: strin
           </div>
         </div>
       )}
+
+      {/* DPDP Act 2023 Consent Grants Log */}
+      <ConsentGrantsSection projectId={projectId} documentId={documentId} documentName={version.originalFilename} token={accessToken ?? undefined} />
     </div>
   );
 }
+
+function ConsentGrantsSection({ projectId, documentId, documentName, token }: { projectId: string; documentId: string; documentName: string; token?: string }): JSX.Element {
+  const qc = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+
+  const grantsQuery = useQuery({
+    queryKey: ['consent-grants', projectId, documentId],
+    queryFn: () => reuseApi.getConsentGrants(projectId, documentId, token),
+    staleTime: 5_000,
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (grantId: string) => reuseApi.revokeConsent(projectId, grantId, token),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['consent-grants', projectId, documentId] });
+    },
+  });
+
+  const grants = grantsQuery.data ?? [];
+
+  return (
+    <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-mono font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            DPDP Act 2023 Compliant
+          </div>
+          <h3 className="text-lg font-extrabold text-slate-900 mt-1">Granular Data Share &amp; Reuse Consent Grants</h3>
+          <p className="text-xs text-slate-500">Section 6(1) Explicit Consent Ledger &amp; Section 6(4) Revocation Registry</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowModal(true)}
+          className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 shadow-sm transition-all"
+        >
+          + Authorize New Department Share
+        </button>
+      </div>
+
+      {grantsQuery.isLoading ? (
+        <LoadingSpinner label="Loading consent grants..." />
+      ) : grants.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500 space-y-1">
+          <p className="font-semibold text-slate-700">No cross-department consent grants recorded for this document.</p>
+          <p>This document has not been authorized for reuse with external authorities yet.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500 uppercase font-mono border-b border-slate-200">
+              <tr>
+                <th className="p-2.5">Grant ID</th>
+                <th className="p-2.5">Target Authority</th>
+                <th className="p-2.5">Purpose</th>
+                <th className="p-2.5">Granted At</th>
+                <th className="p-2.5">Status</th>
+                <th className="p-2.5 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-sans">
+              {grants.map((g) => (
+                <tr key={g.id} className="hover:bg-slate-50/50">
+                  <td className="p-2.5 font-mono text-slate-600 font-semibold">{g.id.slice(0, 8)}…</td>
+                  <td className="p-2.5 font-bold text-slate-900">{g.targetAuthorityId}</td>
+                  <td className="p-2.5 text-slate-700 max-w-xs truncate">{g.purpose}</td>
+                  <td className="p-2.5 font-mono text-slate-500">{new Date(g.grantedAt).toLocaleString()}</td>
+                  <td className="p-2.5">
+                    {g.isActive ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800 border border-green-200">
+                        ACTIVE CONSENT
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        REVOKED ({new Date(g.revokedAt!).toLocaleDateString()})
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2.5 text-right">
+                    {g.isActive && (
+                      <button
+                        type="button"
+                        disabled={revokeMutation.isPending}
+                        onClick={() => revokeMutation.mutate(g.id)}
+                        className="text-xs font-bold text-red-600 hover:text-red-800 hover:underline disabled:opacity-50"
+                      >
+                        Revoke Consent
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <ConsentGrantModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        documentId={documentId}
+        documentName={documentName}
+        targetAuthorityId="MPCB"
+        targetAuthorityName="Maharashtra Pollution Control Board (MPCB)"
+        projectId={projectId}
+        token={token}
+        onConsentUpdated={() => void grantsQuery.refetch()}
+      />
+    </div>
+  );
+}
+
 

@@ -272,4 +272,145 @@ export class ReuseService {
       passedConditions: evaluation.eligible ? (evaluation.passedConditions ?? []) : undefined,
     };
   }
+
+  // --------------------------------------------------------------------------
+  // DPDP Act 2023: Granular Data Reuse Consent Management
+  // --------------------------------------------------------------------------
+
+  async getConsentGrants(projectId: string, documentId?: string): Promise<Record<string, unknown>[]> {
+    const where: { projectId: string; documentId?: string } = { projectId };
+    if (documentId) where.documentId = documentId;
+
+    const grants = await this.prisma.consentGrant.findMany({
+      where,
+      include: {
+        principal: { select: { id: true, email: true, role: true } },
+        document: { select: { id: true, documentDefinitionId: true } },
+      },
+      orderBy: { grantedAt: 'desc' },
+    });
+
+    return grants.map((g) => ({
+      id: g.id,
+      principalId: g.principalId,
+      principalEmail: g.principal?.email ?? 'applicant@enterprise.gov.in',
+      projectId: g.projectId,
+      documentId: g.documentId,
+      targetAuthorityId: g.targetAuthorityId,
+      purpose: g.purpose,
+      grantedAt: g.grantedAt.toISOString(),
+      revokedAt: g.revokedAt ? g.revokedAt.toISOString() : null,
+      isActive: g.revokedAt === null,
+      ipAddress: g.ipAddress,
+      userAgent: g.userAgent,
+    }));
+  }
+
+  async grantConsent(
+    projectId: string,
+    principalId: string,
+    body: { documentId: string; targetAuthorityId: string; purpose: string },
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<Record<string, unknown>> {
+    // Revoke any prior active grant for the same document & targetAuthority to maintain explicit single active grant state
+    await this.prisma.consentGrant.updateMany({
+      where: {
+        projectId,
+        documentId: body.documentId,
+        targetAuthorityId: body.targetAuthorityId,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+
+    const grant = await this.prisma.consentGrant.create({
+      data: {
+        projectId,
+        principalId,
+        documentId: body.documentId,
+        targetAuthorityId: body.targetAuthorityId,
+        purpose: body.purpose,
+        ipAddress: ipAddress ?? null,
+        userAgent: userAgent ?? null,
+      },
+      include: {
+        principal: { select: { email: true } },
+      },
+    });
+
+    // Record audit event for DPDP statutory compliance trace
+    await this.prisma.auditEvent.create({
+      data: {
+        userId: principalId,
+        projectId,
+        action: 'CONSENT_GRANTED',
+        actor: 'applicant',
+        details: {
+          consentGrantId: grant.id,
+          documentId: grant.documentId,
+          targetAuthorityId: grant.targetAuthorityId,
+          purpose: grant.purpose,
+          dpdpActClause: 'Section 6(1) Data Fiduciary Explicit Consent Notice',
+        },
+      },
+    });
+
+    return {
+      id: grant.id,
+      principalId: grant.principalId,
+      principalEmail: grant.principal?.email ?? 'applicant@enterprise.gov.in',
+      projectId: grant.projectId,
+      documentId: grant.documentId,
+      targetAuthorityId: grant.targetAuthorityId,
+      purpose: grant.purpose,
+      grantedAt: grant.grantedAt.toISOString(),
+      revokedAt: null,
+      isActive: true,
+      ipAddress: grant.ipAddress,
+      userAgent: grant.userAgent,
+    };
+  }
+
+  async revokeConsent(projectId: string, grantId: string, principalId: string): Promise<Record<string, unknown>> {
+    const grant = await this.prisma.consentGrant.findFirst({
+      where: { id: grantId, projectId },
+    });
+
+    if (!grant) {
+      throw new NotFoundException(`ConsentGrant '${grantId}' not found in project '${projectId}'`);
+    }
+
+    const updated = await this.prisma.consentGrant.update({
+      where: { id: grantId },
+      data: { revokedAt: new Date() },
+    });
+
+    await this.prisma.auditEvent.create({
+      data: {
+        userId: principalId,
+        projectId,
+        action: 'CONSENT_REVOKED',
+        actor: 'applicant',
+        details: {
+          consentGrantId: grant.id,
+          documentId: grant.documentId,
+          targetAuthorityId: grant.targetAuthorityId,
+          revokedAt: updated.revokedAt,
+          dpdpActClause: 'Section 6(4) Right to Revoke Consent',
+        },
+      },
+    });
+
+    return {
+      id: updated.id,
+      projectId: updated.projectId,
+      documentId: updated.documentId,
+      targetAuthorityId: updated.targetAuthorityId,
+      grantedAt: updated.grantedAt.toISOString(),
+      revokedAt: updated.revokedAt ? updated.revokedAt.toISOString() : new Date().toISOString(),
+      isActive: false,
+    };
+  }
 }
+

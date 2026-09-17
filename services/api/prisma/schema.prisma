@@ -210,6 +210,7 @@ model User {
   grievancesSubmitted     Grievance[]                  @relation("GrievanceSubmitter")
   grievancesResolved      Grievance[]                  @relation("GrievanceResolver")
   grievanceActions        GrievanceAction[]            @relation("GrievanceActionAuthor")
+  consentGrants           ConsentGrant[]               @relation("UserConsentGrants")
   auditEvents             AuditEvent[]
   createdAt               DateTime                     @default(now()) @map("created_at")
   updatedAt               DateTime                     @updatedAt @map("updated_at")
@@ -430,6 +431,7 @@ model Document {
   // Phase 9: documents offered as evidence when answering a clarification.
   clarificationResponses           ClarificationResponseDocument[]
   grievanceDocuments               GrievanceDocument[]
+  consentGrants                    ConsentGrant[]
   createdAt                        DateTime                        @default(now()) @map("created_at")
   updatedAt                        DateTime                        @updatedAt @map("updated_at")
 
@@ -1044,3 +1046,29 @@ model AuditEvent {
   @@index([userId])
   @@map("audit_events")
 }
+
+// ===========================================================================
+// DPDP Act 2023: Granular Data Reuse Consent (ConsentGrant)
+// ===========================================================================
+
+model ConsentGrant {
+  id                 String             @id @default(uuid())
+  principalId        String             @map("principal_id")
+  principal          User               @relation("UserConsentGrants", fields: [principalId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  projectId          String             @map("project_id")
+  documentId         String             @map("document_id")
+  document           Document           @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  targetAuthorityId  String             @map("target_authority_id")
+  purpose            String             @db.Text
+  grantedAt          DateTime           @default(now()) @map("granted_at")
+  revokedAt          DateTime?          @map("revoked_at")
+  ipAddress          String?            @map("ip_address")
+  userAgent          String?            @map("user_agent")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  @@index([projectId, principalId])
+  @@index([documentId])
+  @@map("consent_grants")
+}
+
