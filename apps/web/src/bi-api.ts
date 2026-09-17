@@ -32,6 +32,7 @@ export interface TimeCostTimelineRow {
   estimatedTimeMaxDays: number | null;
   timeBasis: string | null;
   timeStatus: EvidenceStatus | null;
+  durationType?: 'official_notified' | 'planning_estimate' | 'unknown' | string;
   timeSourceNote: string | null;
   dependencies: string | null;
   dependencyApprovalNames: string[];
@@ -61,9 +62,13 @@ export interface TimeCostCostRow {
   inspectionFee: MinMax;
   documentationCost: MinMax;
   otherCost: MinMax;
+  environmentalFee?: MinMax;
   total: MinMax;
+  formattedTotal?: string;
   costStatus: EvidenceStatus | null;
   costSourceNote: string | null;
+  costFormula?: string | null;
+  costType?: string | null;
   whyRequired: string;
   sourceUrl: string | null;
   sourceTitle: string | null;
@@ -81,41 +86,62 @@ export interface TimeCostPrediction {
   message?: string;
   businessContext?: {
     industry: string;
+    investmentAmountInr?: number;
     location: Record<string, { value?: unknown; status?: string }> | null;
   };
   time?: {
+    estimatedTimeRangeStr?: string;
     estimatedMinWorkingDays: number;
     estimatedMaxWorkingDays: number;
     basis: string;
     criticalPath: string[];
-    criticalPathLengthDays: MinMax;
-    longestApproval: { code: string; name: string; days: number } | null;
+    criticalPathLengthDays?: MinMax;
+    longestApproval?: { code: string; name: string; days: number } | null;
     parallelGroups: Array<{ layerIndex: number; approvalIds: string[]; startDay: number; finishDayMax: number }>;
     parallelApprovalCodes: string[];
-    explanation: string;
+    explanation?: string;
     approvalsMissingTime: string[];
   };
   cost?: {
     currency: string;
+    estimatedCostRangeStr?: string;
     governmentFees: MinMax;
     registrationFees: MinMax;
     inspectionFees: MinMax;
     documentationCosts: MinMax;
+    environmentalFees?: MinMax;
     otherComplianceCosts: MinMax;
     total: MinMax;
     approvalsMissingCost: string[];
     note: string;
+  };
+  complexity?: {
+    level: 'low' | 'medium' | 'high' | string;
+    score: number;
+    factors: string[];
+  };
+  whyThisEstimate?: string[];
+  timeDrivers?: Array<{
+    name: string;
+    category: string;
+    maxDays: number;
+    percentage: number;
+  }>;
+  dataQuality?: {
+    officialEvidenceCount: number;
+    planningEstimatesCount: number;
+    unknownCount: number;
   };
   timeline?: TimeCostTimelineRow[];
   costRows?: TimeCostCostRow[];
   confidence?: {
     level: 'high' | 'medium' | 'limited' | 'no_data' | string;
     score: number;
-    timeEvidenceKnown: number;
-    costEvidenceKnown: number;
-    verifiedTimeApprovals: number;
-    verifiedCostApprovals: number;
-    totalApprovals: number;
+    timeEvidenceKnown?: number;
+    costEvidenceKnown?: number;
+    verifiedTimeApprovals?: number;
+    verifiedCostApprovals?: number;
+    totalApprovals?: number;
     explanation: string[];
   };
   delayFactors?: Array<{ factor: string; affectedApprovals: string[]; basis: string }>;
