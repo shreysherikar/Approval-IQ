@@ -17,7 +17,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "import:regulatory": "tsx scripts/import-regulatory-data.ts",
-    "test:unit": "tsx --test test/to-engine-condition.test.ts test/clarification-state.test.ts test/auth.google.test.ts test/inspections.unit.test.ts test/evaluations.data-depth.unit.test.ts test/extraction.provider.unit.test.ts test/quick-overview.unit.test.ts",
+    "test:unit": "tsx --test test/to-engine-condition.test.ts test/clarification-state.test.ts test/auth.google.test.ts test/inspections.unit.test.ts test/evaluations.data-depth.unit.test.ts test/extraction.provider.unit.test.ts test/quick-overview.unit.test.ts test/voice-assistant.unit.test.ts",
     "test:unit:quick-overview": "tsx --test test/quick-overview.unit.test.ts",
     "test:unit:auth": "tsx --test test/auth.google.test.ts",
     "test:unit:inspections": "tsx --test test/inspections.unit.test.ts",

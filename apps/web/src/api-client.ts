@@ -1972,3 +1972,50 @@ export const engineApi = {
     return get<{ status: string; rulesetVersion: string; gitCommit: string; timestamp: string }>('/engine/health', { token });
   },
 };
+
+// ---------------------------------------------------------------------------
+// Assistant & Voice API ("Approve")
+// ---------------------------------------------------------------------------
+export interface AssistantChatResponse {
+  reply: string;
+  spokenText: string;
+  mode: 'llm' | 'offline';
+  actions?: Array<{
+    type: 'navigate';
+    target: 'roadmap' | 'schemes' | 'profile' | 'vault' | 'time-cost' | 'inspections' | 'grievances';
+    entityId?: string;
+    label?: string;
+  }>;
+  referencedEntities?: Array<{ type: string; id?: string; name?: string }>;
+}
+
+export const assistantApi = {
+  getStatus(token?: string): Promise<{ mode: 'llm' | 'offline' }> {
+    return get<{ mode: 'llm' | 'offline' }>('/assistant/status', { token });
+  },
+  chatTurn(
+    projectId: string,
+    message: string,
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    token?: string,
+  ): Promise<AssistantChatResponse> {
+    return post<AssistantChatResponse>(
+      `/assistant/projects/${projectId}/chat`,
+      { message, history: history ?? [] },
+      { token },
+    );
+  },
+  generalChatTurn(
+    message: string,
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    token?: string,
+  ): Promise<AssistantChatResponse> {
+    return post<AssistantChatResponse>(
+      '/assistant/chat',
+      { message, history: history ?? [] },
+      { token },
+    );
+  },
+};
+
+

@@ -209,6 +209,7 @@ function CleanApplicationCard({ item }: { item: QueueItem }): JSX.Element {
 // ---------------------------------------------------------------------------
 export function OfficerQueuePage(): JSX.Element {
   const { accessToken, isRestoring, user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'applications' | 'grievances'>('applications');
   const [statusFilter, setStatusFilter] = useState('in_progress');
   const [authorityId, setAuthorityId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -259,8 +260,6 @@ export function OfficerQueuePage(): JSX.Element {
       <ErrorBanner message="This portal is reserved for statutory officers. Sign in with an officer account." />
     );
   }
-
-  const [activeTab, setActiveTab] = useState<'applications' | 'grievances'>('applications');
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">

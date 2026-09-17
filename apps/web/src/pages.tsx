@@ -263,15 +263,26 @@ export function LoginPage(): JSX.Element {
     setIsLoading(true);
     setError(null);
     try {
-      const resp = await authApi.login({ email, password });
-      login(resp.accessToken, resp.refreshToken);
+      const authUser = await login(email, password);
       const next = searchParams.get('next');
-      void navigate(next || '/projects');
+      if (next) {
+        void navigate(next);
+      } else if (authUser.role === 'officer' || authUser.role === 'admin') {
+        void navigate('/officer');
+      } else {
+        void navigate('/projects');
+      }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Invalid credentials provided.');
+      setError(err instanceof ApiError ? err.message : 'Invalid credentials provided. Please check your email and password.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fillCredentials = (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    setError(null);
   };
 
   return (
@@ -320,13 +331,43 @@ export function LoginPage(): JSX.Element {
 
           {displayError && <ErrorBanner message={displayError} />}
 
+          {/* Quick Demo Credentials Switcher */}
+          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs space-y-2">
+            <div className="flex items-center justify-between font-mono font-bold text-[10px] text-amber-900 uppercase">
+              <span>⚡ Quick Demo Credentials</span>
+              <span className="text-[9px] text-amber-700 font-normal">Click to autofill</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => fillCredentials('saloni1005@gmail.com', 'Saloni@123')}
+                className="px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 hover:border-amber-500 hover:bg-amber-100/50 text-left transition-all cursor-pointer shadow-sm"
+              >
+                <div className="font-bold text-slate-900 text-[11px] flex items-center gap-1">
+                  <span>🏢 Applicant</span>
+                </div>
+                <div className="font-mono text-[9px] text-slate-500 truncate">saloni1005@gmail.com</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => fillCredentials('officer@approvaliq.dev', 'Password123!')}
+                className="px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 hover:border-amber-500 hover:bg-amber-100/50 text-left transition-all cursor-pointer shadow-sm"
+              >
+                <div className="font-bold text-slate-900 text-[11px] flex items-center gap-1">
+                  <span>🏛️ Officer Desk</span>
+                </div>
+                <div className="font-mono text-[9px] text-slate-500 truncate">officer@approvaliq.dev</div>
+              </button>
+            </div>
+          </div>
+
           {!isEmbedded && (
             <>
               <div className="pt-1">
                 <GoogleSignInButton label="Sign in with Google" disabled={isLoading} />
               </div>
 
-              <div className="relative flex items-center justify-center my-3">
+              <div className="relative flex items-center justify-center my-2">
                 <div className="w-full border-t border-ocean-200" />
                 <span className="bg-canvas px-2.5 text-[10px] uppercase tracking-wider text-ocean-600 font-bold font-mono absolute">
                   or work credentials
