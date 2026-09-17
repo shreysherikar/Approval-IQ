@@ -450,7 +450,7 @@ export const roadmapApi = {
   batchUpdateStatus(
     projectId: string,
     instanceIds: string[],
-    status: Exclude<ApprovalInstanceStatus, 'blocked' | 'available'>,
+    status: Exclude<ApprovalInstanceStatus, 'blocked'>,
     token?: string,
   ): Promise<{ success: boolean; updatedCount: number; nextStatus: string }> {
     return patch(

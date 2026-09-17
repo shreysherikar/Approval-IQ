@@ -1019,7 +1019,7 @@ Based on your facility's profile, our AI engine has mapped out the optimal combi
   async batchUpdateStatus(
     projectId: string,
     instanceIds: string[],
-    nextStatus: 'in_progress' | 'done',
+    nextStatus: 'available' | 'in_progress' | 'done',
   ): Promise<Record<string, unknown>> {
     await this.assertProjectExists(projectId);
 
@@ -1027,7 +1027,7 @@ Based on your facility's profile, our AI engine has mapped out the optimal combi
       throw new BadRequestException('instanceIds must be a non-empty array of instance strings.');
     }
 
-    if (!['in_progress', 'done'].includes(nextStatus)) {
+    if (!['available', 'in_progress', 'done'].includes(nextStatus)) {
       throw new BadRequestException(`Status '${nextStatus}' is invalid for batch update.`);
     }
 
@@ -1040,8 +1040,11 @@ Based on your facility's profile, our AI engine has mapped out the optimal combi
       select: { id: true, status: true },
     });
 
-    const expectedPreviousStatus = nextStatus === 'in_progress' ? 'available' : 'in_progress';
-    const eligibleIds = targetInstances.filter((i) => i.status === expectedPreviousStatus).map((i) => i.id);
+    const expectedPreviousStatus =
+      nextStatus === 'in_progress' ? 'available' : nextStatus === 'done' ? 'in_progress' : 'in_progress';
+    const eligibleIds = targetInstances
+      .filter((i) => (nextStatus === 'available' ? i.status === 'in_progress' || i.status === 'done' : i.status === expectedPreviousStatus))
+      .map((i) => i.id);
     const skippedIds = instanceIds.filter((id) => !eligibleIds.includes(id));
 
     // Execute atomic Prisma transaction across eligible instances
