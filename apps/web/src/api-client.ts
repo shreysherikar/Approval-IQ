@@ -1811,5 +1811,24 @@ export const integrationsApi = {
 };
 
 // ---------------------------------------------------------------------------
-// Projects API (create)
+// Engine & Coverage API
 // ---------------------------------------------------------------------------
+export interface CoverageStatsData {
+  industries: Array<{ name: string; icon: string; scope: string }>;
+  verifiedCount: number;
+  unverifiedCount: number;
+  totalClaims: number;
+  verifiedRatio: string;
+  lastAuditDate: string;
+  verifiedClaims: Array<{ code: string; name: string; source: string; status: string }>;
+  unverifiedClaims: Array<{ code: string; name: string; reason: string; status: string }>;
+}
+
+export const engineApi = {
+  getCoverageStats(token?: string): Promise<CoverageStatsData> {
+    return get<CoverageStatsData>('/engine/coverage-stats', { token });
+  },
+  getHealth(token?: string): Promise<{ status: string; rulesetVersion: string; gitCommit: string; timestamp: string }> {
+    return get<{ status: string; rulesetVersion: string; gitCommit: string; timestamp: string }>('/engine/health', { token });
+  },
+};
