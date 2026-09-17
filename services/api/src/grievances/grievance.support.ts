@@ -2,7 +2,7 @@ import type { Grievance, GrievanceAction, GrievanceDocument } from '@prisma/clie
 import type { GrievanceTier, GrievanceStatus, GrievanceType } from './grievance.dto';
 
 export const GRIEVANCE_INCLUDE = {
-  project: { select: { id: true, name: true, applicantName: true, industryType: true, state: true, district: true } },
+  project: { select: { id: true, name: true, industry: true, businessId: true } },
   authority: { select: { id: true, code: true, name: true, department: true } },
   approvalInstance: {
     select: {
@@ -33,7 +33,7 @@ export const GRIEVANCE_INCLUDE = {
 } as const;
 
 export type GrievanceRow = Grievance & {
-  project?: { id: string; name: string; applicantName?: string | null; industryType?: string | null; state?: string | null; district?: string | null } | null;
+  project?: { id: string; name: string; industry?: string | null; businessId?: string | null } | null;
   authority?: { id: string; code: string; name: string; department: string | null } | null;
   approvalInstance?: {
     id: string;

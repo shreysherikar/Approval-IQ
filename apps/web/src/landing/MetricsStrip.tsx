@@ -139,30 +139,30 @@ export const MetricsStrip: React.FC = () => {
 
   return (
     <section className="relative z-10 -mt-6 sm:-mt-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 p-6 sm:p-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+      <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl shadow-ocean-900/5 border border-ocean-200/80 p-6 sm:p-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 divide-y sm:divide-y-0 sm:divide-x divide-ocean-100">
           {METRICS.map((metric) => (
             <div
               key={metric.id}
               className="flex items-center gap-4 pt-4 sm:pt-0 sm:pl-6 first:pl-0 first:pt-0 group transition-all"
             >
               <div
-                className={`w-12 h-12 rounded-2xl ${metric.iconBg} ${metric.iconColor} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform duration-300`}
+                className={`w-12 h-12 rounded-2xl bg-ocean-50 text-ocean-700 border border-ocean-200/60 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 group-hover:bg-ocean-100 group-hover:shadow-glow-cyan transition-all duration-300`}
               >
                 {metric.icon}
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                <div className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight font-editorial">
                   <CounterDisplay
                     target={metric.targetNumber}
                     prefix={metric.prefix}
                     suffix={metric.suffix}
                   />
                 </div>
-                <div className="text-xs sm:text-sm font-semibold text-slate-700">
+                <div className="text-xs sm:text-sm font-semibold text-ink-soft">
                   {t(metric.labelKey, metric.defaultLabel)}
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5 font-normal hidden sm:block">
+                <div className="text-[11px] text-ink-muted mt-0.5 font-normal hidden sm:block">
                   {t(metric.sublabelKey, metric.defaultSublabel)}
                 </div>
               </div>

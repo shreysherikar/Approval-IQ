@@ -84,6 +84,7 @@ import {
   ErrorBanner,
   LoadingSpinner,
   DocumentUploadControl,
+  QuickOverviewCard,
 } from './components';
 import { PROFILE_FIELD_LABELS } from './profile-form';
 import { RecoveryPlanPanel } from './recovery';
@@ -3719,6 +3720,9 @@ export function RoadmapPage(): JSX.Element {
           </Link>
         </div>
       </div>
+
+      {/* AI Quick Overview Card */}
+      <QuickOverviewCard projectId={projectId} />
 
       {/* Point-of-Display Statutory Disclaimer Banner & Coverage Declaration (Dossier Part 4.6, 9.1 & 11.1) */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-amber-950 text-xs shadow-2xs">

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { ScrollProgressBar } from './ScrollProgressBar';
+import { DynamicScrollBackground } from './DynamicScrollBackground';
 import { Navbar } from './Navbar';
 import { HeroSection } from './HeroSection';
 import { MetricsStrip } from './MetricsStrip';
+import { HeliverCapsuleLens } from './HeliverCapsuleLens';
 import { LiveEngineShowcaseSection } from './LiveEngineShowcaseSection';
 import { RoleSwitcherSection } from './RoleSwitcherSection';
+import { CrossMinistryMatrixSection } from './CrossMinistryMatrixSection';
 import { IndustriesSection } from './IndustriesSection';
 import { WorkflowSection } from './WorkflowSection';
 import { DemoModal } from './DemoModal';
@@ -16,9 +19,12 @@ export const LandingPage: React.FC = () => {
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen bg-transparent text-ink flex flex-col font-sans selection:bg-ocean-100 selection:text-ocean-900 relative">
       {/* Top Scroll Reading Progress Line */}
       <ScrollProgressBar />
+
+      {/* Dynamic Ambient Scroll-Driven Color Changing Canvas */}
+      <DynamicScrollBackground />
 
       {/* Sticky Glassmorphism Navigation Bar */}
       <Navbar
@@ -37,11 +43,17 @@ export const LandingPage: React.FC = () => {
         {/* Floating Animated Metrics Strip */}
         <MetricsStrip />
 
+        {/* Heliver-Style Interactive Frosted Glass Capsule Lens */}
+        <HeliverCapsuleLens />
+
         {/* Live Engine Capabilities: Document → Decision + Live Audit Feed */}
         <LiveEngineShowcaseSection />
 
         {/* Tailored Experiences: Applicant vs Officer vs Admin */}
         <RoleSwitcherSection />
+
+        {/* Brand New Feature: Topological Cross-Ministry Clearance DAG Matrix */}
+        <CrossMinistryMatrixSection />
 
         {/* Interactive Industries Section */}
         <IndustriesSection />

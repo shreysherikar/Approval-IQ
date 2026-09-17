@@ -17,9 +17,9 @@ export const ScrollProgressBar: React.FC = () => {
   }, []);
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-[2.5px] z-[60] bg-transparent pointer-events-none">
+    <div className="fixed top-0 left-0 right-0 h-[3px] z-[60] bg-transparent pointer-events-none">
       <div
-        className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 transition-[width] duration-150 ease-out"
+        className="h-full bg-gradient-to-r from-ocean-600 via-ocean-400 to-cyan-300 shadow-[0_0_12px_rgba(56,172,204,0.8)] transition-[width] duration-150 ease-out"
         style={{ width: `${scrollProgress}%` }}
       />
     </div>

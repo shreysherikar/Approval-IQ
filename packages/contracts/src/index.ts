@@ -116,5 +116,63 @@ export const businessProfileDraftSchema = z
 
 export type BusinessProfileDraftInput = z.infer<typeof businessProfileDraftSchema>;
 
+// ---------------------------------------------------------------------------
+// Quick Overview Contract (AI-Generated Executive Project Synthesis)
+// ---------------------------------------------------------------------------
 
+export interface QuickOverviewHighlight {
+  label: string;
+  value: string;
+  badge?: string;
+  tone?: 'positive' | 'warning' | 'neutral' | 'urgent';
+}
 
+export interface QuickOverviewNextStep {
+  id: string;
+  title: string;
+  description: string;
+  actionLabel: string;
+  actionRoute: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface QuickOverviewMissingField {
+  field: string;
+  label: string;
+  impact: string;
+}
+
+export interface QuickOverviewDocumentStatus {
+  totalRequired: number;
+  uploadedCount: number;
+  verifiedCount: number;
+  missingCount: number;
+  missingList: string[];
+}
+
+export interface QuickOverviewResponse {
+  isReady: boolean;
+  projectId: string;
+  projectName: string;
+  summary: string;
+  businessContext: {
+    name: string;
+    industry: string;
+    location: string;
+    investmentFormatted: string;
+    workforceFormatted: string;
+    status: string;
+  };
+  keyHighlights: QuickOverviewHighlight[];
+  situation: string;
+  whatYouNeedToDo: string;
+  whatIsReady: string;
+  whatIsBlocking: string;
+  schemesAndIncentives: string;
+  missingInformation: QuickOverviewMissingField[];
+  documents: QuickOverviewDocumentStatus;
+  nextSteps: QuickOverviewNextStep[];
+  rtsSlaTimelineSummary?: string;
+  generatedAt: string;
+  isAiSynthesized: boolean;
+}

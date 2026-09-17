@@ -10,8 +10,6 @@ import {
   ShieldCheck, 
   Globe2, 
   Lock, 
-  Sparkles,
-  CheckCircle2,
   Check
 } from 'lucide-react';
 import { ApiError, authApi } from './api-client';
@@ -33,133 +31,204 @@ export function HomePage(): JSX.Element {
 }
 
 // ---------------------------------------------------------------------------
-// Shared High-Fidelity Enterprise Showcase Sidebar
+// Shared Oceanic Showcase Sidebar for Authentication
 // ---------------------------------------------------------------------------
 
 function AuthShowcaseSidebar(): JSX.Element {
   const { t } = useLanguage();
+  const [activeTheme, setActiveTheme] = useState<'cyan' | 'mustard'>('cyan');
 
   return (
-    <div className="hidden lg:flex flex-col justify-between w-1/2 p-12 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white relative overflow-hidden">
+    <div
+      className="hidden lg:flex flex-col justify-between w-1/2 p-12 text-white relative overflow-hidden border-r transition-all duration-700 select-none"
+      style={{
+        background: activeTheme === 'cyan'
+          ? 'linear-gradient(135deg, #06212B 0%, #0A3140 40%, #085375 75%, #0E8BB2 100%)'
+          : 'linear-gradient(135deg, #0A2F3D 0%, #0E6B7A 35%, #B45309 75%, #D97706 100%)',
+        borderColor: activeTheme === 'cyan' ? '#0B364C' : '#78350F',
+      }}
+    >
+      {/* Animated Floating Ambient Spheres */}
+      <div
+        className="absolute w-80 h-80 rounded-full blur-3xl pointer-events-none transition-all duration-700 ease-out animate-float-slow"
+        style={{
+          top: '-10%',
+          left: '-10%',
+          background: activeTheme === 'cyan'
+            ? 'radial-gradient(circle, rgba(56, 172, 204, 0.45) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(245, 158, 11, 0.45) 0%, transparent 70%)',
+        }}
+      />
+      <div
+        className="absolute w-80 h-80 rounded-full blur-3xl pointer-events-none transition-all duration-700 ease-out animate-float"
+        style={{
+          bottom: '-10%',
+          right: '-10%',
+          background: activeTheme === 'cyan'
+            ? 'radial-gradient(circle, rgba(14, 139, 178, 0.40) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(217, 119, 6, 0.40) 0%, transparent 70%)',
+        }}
+      />
       
-      {/* Ambient background glows */}
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
-
-      {/* Top Brand Logo */}
+      {/* Top Brand Logo & Mode Switcher */}
       <div className="relative z-10 flex items-center justify-between">
         <Link to="/" className="inline-flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 p-0.5 shadow-lg shadow-blue-500/30 group-hover:scale-105 transition-transform">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <span className="text-transparent bg-clip-text bg-gradient-to-tr from-blue-400 to-cyan-300 font-black text-xl">
-                A
-              </span>
-            </div>
+          <div
+            className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-105 transition-all duration-300 ${
+              activeTheme === 'cyan' ? 'bg-cyan-500 shadow-glow-cyan' : 'bg-amber-500 shadow-md shadow-amber-500/30'
+            }`}
+          >
+            ▲
           </div>
-          <span className="text-2xl font-black tracking-tight text-white">
-            Approval<span className="text-cyan-400">IQ</span>
+          <span className="font-editorial text-2xl font-bold tracking-tight text-white">
+            Approval<span className={activeTheme === 'cyan' ? 'text-cyan-300' : 'text-amber-300'}>IQ</span>
           </span>
         </Link>
+
+        {/* Interactive Dual-Mode Color Switcher */}
+        <div className="flex items-center gap-2 bg-black/40 backdrop-blur-xl border border-white/20 px-3 py-1.5 rounded-full shadow-lg">
+          <button
+            type="button"
+            className={`text-[10px] uppercase font-bold tracking-wider cursor-pointer transition-colors ${
+              activeTheme === 'cyan' ? 'text-cyan-300 font-extrabold' : 'text-white/60 hover:text-white'
+            }`}
+            onClick={() => setActiveTheme('cyan')}
+          >
+            Cyan
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTheme(activeTheme === 'cyan' ? 'mustard' : 'cyan')}
+            className="w-9 h-4.5 rounded-full bg-white/20 relative p-0.5 transition-colors cursor-pointer border border-white/30 flex items-center"
+            aria-label="Toggle Color Theme"
+          >
+            <div
+              className={`w-3.5 h-3.5 rounded-full shadow-md transform transition-transform duration-300 ${
+                activeTheme === 'mustard' ? 'translate-x-4 bg-amber-400' : 'translate-x-0 bg-cyan-300'
+              }`}
+            />
+          </button>
+          <button
+            type="button"
+            className={`text-[10px] uppercase font-bold tracking-wider cursor-pointer transition-colors ${
+              activeTheme === 'mustard' ? 'text-amber-300 font-extrabold' : 'text-white/60 hover:text-white'
+            }`}
+            onClick={() => setActiveTheme('mustard')}
+          >
+            Mustard
+          </button>
+        </div>
       </div>
 
-      {/* Middle Value Proposition & Live Miniature Roadmap */}
-      <div className="relative z-10 space-y-8 my-auto py-8">
+      {/* Middle Value Proposition & Clearance Critical Path */}
+      <div className="relative z-10 space-y-6 my-auto py-6">
         
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-400/20 text-cyan-300 text-xs font-bold uppercase tracking-wider font-mono">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            {t('auth.sidebar_badge', 'Statutory Intelligence Platform')}
-          </div>
+        <div className="space-y-2.5">
+          <span className="stamp-seal stamp-approved text-[10px] shadow-sm">
+            {t('auth.sidebar_badge', 'STATUTORY COMPLIANCE INTELLIGENCE')}
+          </span>
           
-          <h2 className="text-3xl xl:text-4xl font-black tracking-tight text-white leading-tight">
-            {t('auth.sidebar_headline', 'Streamline industrial clearances across India')}
+          <h2 className="font-editorial text-3xl xl:text-4xl font-bold text-white leading-tight tracking-tight drop-shadow-sm">
+            {activeTheme === 'cyan'
+              ? 'Streamline industrial clearances across Indian states'
+              : 'Deterministic clearance desk with Right to Services timers'}
           </h2>
           
-          <p className="text-slate-300 text-sm xl:text-base leading-relaxed max-w-md">
-            {t('auth.sidebar_sub', 'Instant dependency roadmaps, auto-gated prerequisites, and document deduplication for over 10,450+ central & state regulatory norms.')}
+          <p className="text-white/80 text-xs xl:text-sm leading-relaxed max-w-md font-sans">
+            {t(
+              'auth.sidebar_sub',
+              'Deterministic dependency DAGs, prerequisite isolation, and OCR document cross-reuse across central and state regulatory authorities.'
+            )}
           </p>
         </div>
 
-        {/* Live Mini Clearance Lifecycle Card */}
-        <div className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800/90 shadow-2xl backdrop-blur-md space-y-3 max-w-md">
-          <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-800">
-            <span className="font-bold text-slate-300 font-mono">CRITICAL PATH ROADMAP</span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-bold inline-flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-slate-300" />
-              Automated Gating
+        {/* Live Mini Clearance Lifecycle Card with Frosted Glass Pill */}
+        <div
+          className="p-4 rounded-2xl border space-y-3 max-w-md backdrop-blur-xl shadow-2xl transition-all duration-500"
+          style={{
+            background: 'rgba(255, 255, 255, 0.12)',
+            borderColor: activeTheme === 'cyan' ? 'rgba(56, 172, 204, 0.4)' : 'rgba(245, 158, 11, 0.4)',
+          }}
+        >
+          <div className="flex items-center justify-between text-xs pb-2 border-b border-white/15">
+            <span className="font-mono font-bold text-white text-[11px] uppercase tracking-wider">
+              {activeTheme === 'cyan' ? 'CRITICAL PATH ROADMAP' : 'CONSENSUS GATEWAY ACTIVE'}
+            </span>
+            <span className="stamp-seal stamp-approved text-[9px]">
+              Gated Sequence
             </span>
           </div>
 
           <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/40 border border-slate-700/50">
-              <div className="flex items-center gap-2 text-slate-200">
-                <Building2 className="w-4 h-4 text-slate-300" />
-                <span className="font-semibold">Factory Plan Sanction</span>
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-black/20 border border-white/10 hover:border-white/30 transition-colors">
+              <div className="flex items-center gap-2 text-white">
+                <Building2 className="w-3.5 h-3.5 text-emerald-300" />
+                <span className="font-medium text-xs">Factory Plan Sanction (DISH)</span>
               </div>
-              <span className="text-slate-200 font-mono font-bold text-[11px] inline-flex items-center gap-1">
-                <Check className="w-3 h-3 text-slate-300" /> SANCTIONED
+              <span className="stamp-seal stamp-approved text-[9px]">
+                <Check className="w-2.5 h-2.5 inline mr-0.5" /> SANCTIONED
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-2 rounded-xl bg-blue-950/40 border border-blue-600/40 text-blue-200 shadow-sm">
+            <div
+              className="flex items-center justify-between p-2.5 rounded-lg border text-white transition-colors"
+              style={{
+                background: activeTheme === 'cyan' ? 'rgba(14, 139, 178, 0.25)' : 'rgba(217, 119, 6, 0.25)',
+                borderColor: activeTheme === 'cyan' ? 'rgba(56, 172, 204, 0.6)' : 'rgba(245, 158, 11, 0.6)',
+              }}
+            >
               <div className="flex items-center gap-2">
-                <FlaskConical className="w-4 h-4 text-slate-300" />
-                <span className="font-semibold">Consent to Establish (CTE)</span>
+                <FlaskConical className={`w-3.5 h-3.5 ${activeTheme === 'cyan' ? 'text-cyan-300' : 'text-amber-300'}`} />
+                <span className="font-medium text-xs">Consent to Establish (MPCB)</span>
               </div>
-              <span className="text-slate-200 font-mono font-bold text-[11px] inline-flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 text-slate-300" /> READY TO START
+              <span className="stamp-seal stamp-pending text-[9px]">
+                IN REVIEW
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/20 border border-slate-800 text-slate-400 opacity-70">
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-black/10 border border-white/10 text-white/60">
               <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-slate-400" />
-                <span className="font-semibold">Provisional Fire Safety NOC</span>
+                <Flame className="w-3.5 h-3.5" />
+                <span className="text-xs">Provisional Fire NOC</span>
               </div>
-              <span className="text-slate-400 font-mono font-bold text-[11px] inline-flex items-center gap-1">
-                <Lock className="w-3 h-3 text-slate-400" /> GATED
+              <span className="font-mono text-[9px] uppercase tracking-wider text-white/70">
+                <Lock className="w-2.5 h-2.5 inline mr-0.5" /> GATED
               </span>
             </div>
           </div>
         </div>
 
-        {/* Feature Highlights with B&W Icons */}
-        <div className="grid grid-cols-2 gap-4 max-w-md pt-2">
-          <div className="flex items-start gap-2.5 text-xs text-slate-300">
-            <div className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm shrink-0">
-              <Zap className="w-4 h-4" />
-            </div>
+        {/* Pillar Badges */}
+        <div className="grid grid-cols-2 gap-3 max-w-md pt-1 text-xs">
+          <div className="flex items-start gap-2 text-white/80">
+            <Zap className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${activeTheme === 'cyan' ? 'text-cyan-300' : 'text-amber-300'}`} />
             <div>
-              <div className="font-bold text-white">Prerequisite Tree</div>
-              <div className="text-slate-400 text-[11px]">Zero premature rejections</div>
+              <div className="font-semibold text-white text-xs">Prerequisite Tree</div>
+              <div className="text-[11px] text-white/70">Zero premature forfeitures</div>
             </div>
           </div>
-          <div className="flex items-start gap-2.5 text-xs text-slate-300">
-            <div className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm shrink-0">
-              <FileText className="w-4 h-4" />
-            </div>
+          <div className="flex items-start gap-2 text-white/80">
+            <FileText className="w-3.5 h-3.5 text-emerald-300 shrink-0 mt-0.5" />
             <div>
-              <div className="font-bold text-white">Smart Document Reuse</div>
-              <div className="text-slate-400 text-[11px]">Upload once, reuse across portals</div>
+              <div className="font-semibold text-white text-xs">Single-Dossier Reuse</div>
+              <div className="text-[11px] text-white/70">Cross-linked multi-desk files</div>
             </div>
           </div>
         </div>
 
       </div>
 
-      {/* Bottom Security & Trust Footer */}
-      <div className="relative z-10 pt-6 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-slate-300" />
-          <span>256-Bit Bank Grade Encryption</span>
+      {/* Bottom Trust Sign-Off */}
+      <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-white/70">
+        <div className="flex items-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+          <span>Statutory Data Isolation</span>
         </div>
-        <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400">
-          <Globe2 className="w-3.5 h-3.5 text-slate-300" />
-          <span>Built for Indian Enterprises</span>
+        <div className="flex items-center gap-1.5">
+          <Globe2 className={`w-3.5 h-3.5 ${activeTheme === 'cyan' ? 'text-cyan-300' : 'text-amber-300'}`} />
+          <span>All Indian States</span>
         </div>
       </div>
-
     </div>
   );
 }
@@ -169,164 +238,142 @@ function AuthShowcaseSidebar(): JSX.Element {
 // ---------------------------------------------------------------------------
 
 export function LoginPage(): JSX.Element {
-  const { login, isLoading, error: authError } = useAuth();
-  const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const oauthError = searchParams.get('error');
+  const { login } = useAuth();
+  const { t } = useLanguage();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const error = formError ?? authError ?? (oauthError ? decodeURIComponent(oauthError) : null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const authErrorParam = searchParams.get('error');
+  const displayError =
+    error ??
+    (authErrorParam === 'oauth_failed'
+      ? 'Google Sign-In failed or was cancelled. Please try again.'
+      : authErrorParam === 'no_token'
+        ? 'Authentication service did not return an access token.'
+        : null);
 
   const submit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
-    setFormError(null);
+    setIsLoading(true);
+    setError(null);
     try {
-      const authUser = await login(email, password);
-      if (authUser.role === 'officer' || authUser.role === 'admin') {
-        void navigate('/officer');
-      } else {
-        void navigate('/projects');
-      }
+      const resp = await authApi.login({ email, password });
+      login(resp.accessToken, resp.refreshToken);
+      const next = searchParams.get('next');
+      void navigate(next || '/projects');
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof ApiError ? err.message : 'Invalid credentials provided.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans antialiased">
+    <div className="min-h-screen flex bg-canvas font-sans antialiased text-ink">
       
       {/* Left Showcase Banner */}
       <AuthShowcaseSidebar />
 
-      {/* Right Authentication Form Area */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 xl:p-16 relative">
+      {/* Right Form Area */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-10 xl:p-14 relative">
         
         {/* Top Header Navigation */}
-        <div className="flex items-center justify-between pb-8">
+        <div className="flex items-center justify-between pb-6">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-ocean-700 hover:text-ocean-900 transition-colors font-mono"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back to website</span>
+            <span>← Back to Platform</span>
           </Link>
 
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
-            <div className="text-xs text-slate-500 font-medium">
-              {t('auth.no_account', 'New to ApprovalIQ?')}{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-bold ml-1 hover:underline">
-                {t('nav.register', 'Create account →')}
+            <div className="text-xs text-ink-soft">
+              {t('auth.no_account', "Don't have an account?")}{' '}
+              <Link to="/register" className="text-ocean-600 hover:text-ocean-800 font-bold hover:underline">
+                {t('nav.register', 'Open Docket →')}
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Form Card Container */}
-        <div className="max-w-md w-full mx-auto my-auto space-y-6">
+        {/* Form Container */}
+        <div className="max-w-md w-full mx-auto my-auto space-y-5 animate-fade-in-up">
           
-          {/* Headline & Subtitle */}
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold font-mono mb-3 border border-slate-200">
-              <Sparkles className="w-3.5 h-3.5 text-slate-700" />
-              <span>Welcome Back</span>
-            </div>
-            
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-              {t('auth.login_title', 'Sign in to your account')}
+            <span className="stamp-seal stamp-neutral text-[10px] mb-2 inline-block">
+              STATUTORY CLEARANCE PASSBOOK
+            </span>
+            <h1 className="font-editorial text-2xl sm:text-3xl font-bold text-ink tracking-tight">
+              {t('auth.login_title', 'Access Your Compliance Desk')}
             </h1>
-            <p className="text-sm text-slate-500 mt-1.5">
-              {t('auth.login_sub', 'Access your regulatory roadmaps, projects, and statutory dossiers.')}
+            <p className="text-xs text-ink-soft mt-1 leading-relaxed">
+              {t('auth.login_sub', 'Sign in to access your statutory dockets, verified evidence vault, and RTS countdown timers.')}
             </p>
           </div>
 
-          {/* Error Banner */}
-          {error && <ErrorBanner message={error} />}
+          {displayError && <ErrorBanner message={displayError} />}
 
           {!isEmbedded && (
             <>
-              {/* Google SSO Button */}
               <div className="pt-1">
-                <GoogleSignInButton label="Continue with Google" disabled={isLoading} />
+                <GoogleSignInButton label="Sign in with Google" disabled={isLoading} />
               </div>
 
-              {/* Divider */}
-              <div className="relative flex items-center justify-center my-4">
-                <div className="w-full border-t border-slate-200" />
-                <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
-                  or continue with email
+              <div className="relative flex items-center justify-center my-3">
+                <div className="w-full border-t border-ocean-200" />
+                <span className="bg-canvas px-2.5 text-[10px] uppercase tracking-wider text-ocean-600 font-bold font-mono absolute">
+                  or work credentials
                 </span>
               </div>
             </>
           )}
 
-          {/* Email / Password Form */}
-          <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          {/* Email & Password Form */}
+          <form onSubmit={(e) => void submit(e)} className="space-y-3.5">
             
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 font-mono">
-                {t('auth.email_label', 'Email Address')}
+              <label className="block text-[11px] font-mono font-bold uppercase tracking-wider text-ocean-950 mb-1">
+                {t('auth.email_label', 'Work Email Address')}
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206" />
-                  </svg>
-                </div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="founder@company.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-xs"
-                  autoComplete="email"
-                />
-              </div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="founder@enterprise.com"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-ocean-200/80 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-ocean-500 focus:ring-2 focus:ring-ocean-300/40 transition-all shadow-tactile-sm"
+                autoComplete="email"
+              />
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 font-mono">
-                  {t('auth.password_label', 'Password')}
-                </label>
-              </div>
+              <label className="block text-[11px] font-mono font-bold uppercase tracking-wider text-ocean-950 mb-1">
+                {t('auth.password_label', 'Password')}
+              </label>
               
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-11 py-3 rounded-2xl bg-white border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-xs"
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-lg bg-white border border-ocean-200/80 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-ocean-500 focus:ring-2 focus:ring-ocean-300/40 transition-all shadow-tactile-sm"
                   autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-mono text-ocean-600 hover:text-ocean-900"
                 >
-                  {showPassword ? (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                    </svg>
-                  ) : (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
             </div>
@@ -334,36 +381,23 @@ export function LoginPage(): JSX.Element {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-3.5 px-4 shadow-lg shadow-blue-500/25 active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="tactile-btn tactile-btn-primary w-full py-2.5 px-4 text-xs font-semibold shadow-tactile hover:shadow-glow-cyan flex items-center justify-center gap-2"
             >
               {isLoading ? (
-                <>
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  <span>Signing in…</span>
-                </>
+                <span>Signing in…</span>
               ) : (
-                <span>{t('auth.sign_in_btn', 'Sign in to Dashboard →')}</span>
+                <span>{t('auth.sign_in_btn', 'Enter Docket Desk →')}</span>
               )}
             </button>
           </form>
 
-          {/* Quick Switch to Register */}
-          <div className="text-center pt-2">
-            <p className="text-xs text-slate-500">
-              {t('auth.no_account', "Don't have an ApprovalIQ account yet?")}{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-bold hover:underline">
-                {t('nav.register', 'Sign up free')}
-              </Link>
-            </p>
-          </div>
-
         </div>
 
-        {/* Bottom Legal & Privacy Notice */}
-        <div className="pt-8 text-center text-xs text-slate-400">
-          Protected by enterprise-grade 256-bit encryption. By logging in, you agree to our{' '}
-          <Link to="/about" className="underline hover:text-slate-600">Terms</Link> and{' '}
-          <Link to="/about" className="underline hover:text-slate-600">Privacy Policy</Link>.
+        {/* Bottom Legal Notice */}
+        <div className="pt-6 text-center text-[11px] font-mono text-ink-muted">
+          Protected by AES-256 encryption. By logging in, you agree to our{' '}
+          <Link to="/about" className="underline hover:text-ocean-700">Terms</Link> and{' '}
+          <Link to="/about" className="underline hover:text-ocean-700">Privacy Policy</Link>.
         </div>
 
       </div>
@@ -402,111 +436,90 @@ export function RegisterPage(): JSX.Element {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans antialiased">
+    <div className="min-h-screen flex bg-canvas font-sans antialiased text-ink">
       
       {/* Left Showcase Banner */}
       <AuthShowcaseSidebar />
 
-      {/* Right Registration Form Area */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 xl:p-16 relative">
+      {/* Right Form Area */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-10 xl:p-14 relative">
         
         {/* Top Header Navigation */}
-        <div className="flex items-center justify-between pb-8">
+        <div className="flex items-center justify-between pb-6">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-ocean-700 hover:text-ocean-900 transition-colors font-mono"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back to website</span>
+            <span>← Back to Platform</span>
           </Link>
 
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
-            <div className="text-xs text-slate-500 font-medium">
-              {t('auth.has_account', 'Already have an account?')}{' '}
-              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-bold ml-1 hover:underline">
-                {t('nav.login', 'Sign in →')}
+            <div className="text-xs text-ink-soft">
+              {t('auth.has_account', 'Have an account?')}{' '}
+              <Link to="/login" className="text-ocean-600 hover:text-ocean-800 font-bold hover:underline">
+                {t('nav.login', 'Sign In →')}
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Form Card Container */}
-        <div className="max-w-md w-full mx-auto my-auto space-y-6">
+        {/* Form Container */}
+        <div className="max-w-md w-full mx-auto my-auto space-y-5 animate-fade-in-up">
           
-          {/* Headline & Subtitle */}
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-bold font-mono mb-3 border border-slate-200">
-              <Sparkles className="w-3.5 h-3.5 text-slate-700" />
-              <span>30-Second Fast Onboarding</span>
-            </div>
-            
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-              {t('auth.register_title', 'Create your account')}
+            <span className="stamp-seal stamp-approved text-[10px] mb-2 inline-block">
+              NEW APPLICANT REGISTRATION
+            </span>
+            <h1 className="font-editorial text-2xl sm:text-3xl font-bold text-ink tracking-tight">
+              {t('auth.register_title', 'Open Your Regulatory Docket')}
             </h1>
-            <p className="text-sm text-slate-500 mt-1.5">
-              {t('auth.register_sub', 'Start building your regulatory clearance roadmap for your business.')}
+            <p className="text-xs text-ink-soft mt-1 leading-relaxed">
+              {t('auth.register_sub', 'Initialize your statutory profile to resolve exact prerequisite sequences and clearances.')}
             </p>
           </div>
 
-          {/* Error Banner */}
           {error && <ErrorBanner message={error} />}
 
           {!isEmbedded && (
             <>
-              {/* Google SSO Button */}
               <div className="pt-1">
-                <GoogleSignInButton label="Sign up with Google" disabled={isLoading} />
+                <GoogleSignInButton label="Register with Google" disabled={isLoading} />
               </div>
 
-              {/* Divider */}
-              <div className="relative flex items-center justify-center my-4">
-                <div className="w-full border-t border-slate-200" />
-                <span className="bg-slate-50 px-3 text-[11px] uppercase tracking-wider text-slate-400 font-bold font-mono absolute">
-                  or register with work email
+              <div className="relative flex items-center justify-center my-3">
+                <div className="w-full border-t border-ocean-200" />
+                <span className="bg-canvas px-2.5 text-[10px] uppercase tracking-wider text-ocean-600 font-bold font-mono absolute">
+                  or work email
                 </span>
               </div>
             </>
           )}
 
           {/* Registration Form */}
-          <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          <form onSubmit={(e) => void submit(e)} className="space-y-3.5">
             
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 font-mono">
+              <label className="block text-[11px] font-mono font-bold uppercase tracking-wider text-ocean-950 mb-1">
                 {t('auth.email_label', 'Work Email Address')}
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206" />
-                  </svg>
-                </div>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="founder@company.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-xs"
-                  autoComplete="email"
-                />
-              </div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="founder@enterprise.com"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-white border border-ocean-200/80 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-ocean-500 focus:ring-2 focus:ring-ocean-300/40 transition-all shadow-tactile-sm"
+                autoComplete="email"
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 font-mono">
+              <label className="block text-[11px] font-mono font-bold uppercase tracking-wider text-ocean-950 mb-1">
                 {t('auth.password_label', 'Password')} (min 8 characters)
               </label>
               
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
@@ -514,37 +527,22 @@ export function RegisterPage(): JSX.Element {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
-                  className="w-full pl-10 pr-11 py-3 rounded-2xl bg-white border border-slate-200 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-xs"
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-lg bg-white border border-ocean-200/80 text-xs text-ink placeholder-ink-muted focus:outline-none focus:border-ocean-500 focus:ring-2 focus:ring-ocean-300/40 transition-all shadow-tactile-sm"
                   autoComplete="new-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-mono text-ocean-600 hover:text-ocean-900"
                 >
-                  {showPassword ? (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
-                    </svg>
-                  ) : (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  {showPassword ? 'Hide' : 'Show'}
                 </button>
               </div>
 
-              {/* Dynamic Password Strength Helper */}
               {password.length > 0 && (
-                <div className="mt-2 flex items-center gap-2 text-xs">
-                  <span className={`inline-flex items-center gap-1.5 font-bold ${isPasswordValid ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {isPasswordValid ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                    ) : (
-                      <span className="w-2.5 h-2.5 rounded-full border border-amber-500 flex-shrink-0" />
-                    )}
-                    <span>{isPasswordValid ? 'Password meets requirements' : 'At least 8 characters required'}</span>
+                <div className="mt-1.5 flex items-center gap-1 text-[11px] font-mono">
+                  <span className={isPasswordValid ? 'text-forest-500 font-bold' : 'text-amber-600'}>
+                    {isPasswordValid ? '✓ Meets character length' : '⚠ Minimum 8 characters required'}
                   </span>
                 </div>
               )}
@@ -553,36 +551,23 @@ export function RegisterPage(): JSX.Element {
             <button
               type="submit"
               disabled={isLoading || !isPasswordValid}
-              className="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold py-3.5 px-4 shadow-lg shadow-blue-500/25 active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="tactile-btn tactile-btn-primary w-full py-2.5 px-4 text-xs font-semibold shadow-tactile hover:shadow-glow-cyan flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isLoading ? (
-                <>
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  <span>Creating your account…</span>
-                </>
+                <span>Creating docket…</span>
               ) : (
-                <span>{t('auth.create_account_btn', 'Create Enterprise Account →')}</span>
+                <span>{t('auth.create_account_btn', 'Create Case File Desk →')}</span>
               )}
             </button>
           </form>
 
-          {/* Bottom Switch Link */}
-          <div className="text-center pt-2">
-            <p className="text-xs text-slate-500">
-              {t('auth.has_account', 'Already have an account?')}{' '}
-              <Link to="/login" className="text-blue-600 hover:text-blue-700 font-bold hover:underline">
-                {t('nav.login', 'Sign in')}
-              </Link>
-            </p>
-          </div>
-
         </div>
 
         {/* Bottom Legal Notice */}
-        <div className="pt-8 text-center text-xs text-slate-400">
+        <div className="pt-6 text-center text-[11px] font-mono text-ink-muted">
           By registering, you agree to ApprovalIQ's{' '}
-          <Link to="/about" className="underline hover:text-slate-600">Terms of Service</Link> and{' '}
-          <Link to="/about" className="underline hover:text-slate-600">Privacy Policy</Link>.
+          <Link to="/about" className="underline hover:text-ocean-700">Terms of Service</Link> and{' '}
+          <Link to="/about" className="underline hover:text-ocean-700">Privacy Policy</Link>.
         </div>
 
       </div>

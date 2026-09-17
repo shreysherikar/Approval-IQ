@@ -1169,4 +1169,347 @@ Based on your facility's profile, our AI engine has mapped out the optimal combi
       timestamp: new Date().toISOString(),
     };
   }
+
+  /**
+   * AI-Generated Dynamic Quick Overview for Dashboard & Project Command Central
+   */
+  async getQuickOverview(projectId: string): Promise<Record<string, unknown>> {
+    const resolved = await this.assertProjectExists(projectId);
+    const targetProjectId = resolved.id;
+
+    const project = await this.prisma.project.findUnique({
+      where: { id: targetProjectId },
+      include: {
+        profiles: { orderBy: { versionNumber: 'desc' }, take: 1 },
+        documents: {
+          include: {
+            currentVersion: true,
+            documentDefinition: true,
+          },
+        },
+      },
+    });
+
+    if (!project) throw new NotFoundException(`Project '${projectId}' not found`);
+
+    const latestProfile = project.profiles[0];
+    const rawValues = (latestProfile?.values as Record<string, any>) || {};
+    const unwrap = (f: any) => (typeof f === 'object' && f !== null && 'value' in f ? f.value : f);
+
+    const industry = unwrap(rawValues.industry) || project.industry || null;
+    const state = unwrap(rawValues.state) || null;
+    const district = unwrap(rawValues.district) || null;
+    const activity = unwrap(rawValues.activityType) || unwrap(rawValues.activity) || null;
+    const investmentInr = rawValues.investmentAmountInr !== undefined
+      ? Number(unwrap(rawValues.investmentAmountInr))
+      : rawValues.investmentCrores !== undefined
+      ? Number(unwrap(rawValues.investmentCrores)) * 10000000
+      : null;
+    const areaSqft = rawValues.areaSqft !== undefined
+      ? Number(unwrap(rawValues.areaSqft))
+      : rawValues.builtUpAreaSqM !== undefined
+      ? Number(unwrap(rawValues.builtUpAreaSqM)) * 10.764
+      : null;
+    const employees = rawValues.employeeCount !== undefined
+      ? Number(unwrap(rawValues.employeeCount))
+      : rawValues.employmentCount !== undefined
+      ? Number(unwrap(rawValues.employmentCount))
+      : null;
+
+    // Check if profile is empty or minimally initialized
+    const isProfileIncomplete = !industry || !state || !district;
+
+    const missingFieldsList: Array<{ field: string; label: string; impact: string }> = [];
+    if (!industry) missingFieldsList.push({ field: 'industry', label: 'Industry Sector', impact: 'Determines applicable regulatory acts & pollution classification' });
+    if (!state) missingFieldsList.push({ field: 'state', label: 'State Jurisdiction', impact: 'Required for state single-window portal and RTS timelines' });
+    if (!district) missingFieldsList.push({ field: 'district', label: 'District / Industrial Cluster', impact: 'Required for municipal and local body clearances' });
+    if (investmentInr === null) missingFieldsList.push({ field: 'investmentAmountInr', label: 'Total CapEx Investment', impact: 'Unlocks MSME category & subsidy threshold analysis' });
+    if (areaSqft === null) missingFieldsList.push({ field: 'areaSqft', label: 'Built-up / Plot Area', impact: 'Required for Fire Safety NOC & Factory Plan approvals' });
+    if (employees === null) missingFieldsList.push({ field: 'employeeCount', label: 'Workforce Count', impact: 'Determines applicability of Factories Act & DISH registration' });
+
+    if (isProfileIncomplete) {
+      return {
+        isReady: false,
+        projectId: project.id,
+        projectName: project.name,
+        summary: 'Your business profile is not yet fully configured. Complete the basic details so ApprovalIQ can evaluate your applicable statutory approvals and government schemes.',
+        businessContext: {
+          name: project.name,
+          industry: industry || 'Not specified',
+          location: district && state ? `${district}, ${state}` : state || 'Not specified',
+          investmentFormatted: investmentInr !== null ? `₹${(investmentInr / 10000000).toFixed(2)} Cr` : 'Not specified',
+          workforceFormatted: employees !== null ? `${employees} workers` : 'Not specified',
+          status: 'Profile Incomplete',
+        },
+        keyHighlights: [
+          { label: 'Profile Status', value: 'Incomplete', badge: 'Action Required', tone: 'urgent' },
+          { label: 'Missing Fields', value: `${missingFieldsList.length} fields`, badge: 'Pending', tone: 'warning' },
+        ],
+        situation: 'ApprovalIQ cannot run deterministic rule evaluation because mandatory identity and jurisdictional parameters have not yet been provided.',
+        whatYouNeedToDo: 'Navigate to the Business Profile tab and provide your industry sector, state, and premises location to begin automated statutory mapping.',
+        whatIsReady: 'No approvals can be unlocked until the initial profile is confirmed.',
+        whatIsBlocking: 'Missing core profile parameters (Industry, State, District).',
+        schemesAndIncentives: 'Central and state government incentive evaluation requires verified investment amount and industry classification.',
+        missingInformation: missingFieldsList,
+        documents: {
+          totalRequired: 0,
+          uploadedCount: project.documents.length,
+          verifiedCount: project.documents.filter((d) => d.currentVersion?.state === 'verified').length,
+          missingCount: 0,
+          missingList: [],
+        },
+        nextSteps: [
+          {
+            id: 'step-profile',
+            title: 'Complete Business Profile',
+            description: 'Provide your industry, investment, and location parameters to trigger instant statutory evaluation.',
+            actionLabel: 'Go to Profile Intake',
+            actionRoute: `/projects/${project.id}/profile`,
+            priority: 'high',
+          },
+        ],
+        generatedAt: new Date().toISOString(),
+        isAiSynthesized: false,
+      };
+    }
+
+    // Try to get roadmap evaluation data
+    let roadmapData: any = null;
+    try {
+      roadmapData = await this.getRoadmap(project.id);
+    } catch (err) {
+      this.logger.warn(`Could not compute roadmap for quick overview: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    const nodes: Array<any> = roadmapData?.nodes || [];
+    const totalApplicable = nodes.length;
+    const availableNodes = nodes.filter((n) => n.status === 'available');
+    const blockedNodes = nodes.filter((n) => n.status === 'blocked');
+    const inProgressNodes = nodes.filter((n) => n.status === 'in_progress');
+    const doneNodes = nodes.filter((n) => n.status === 'done');
+    const attentionNodes = nodes.filter((n) => n.attentionRequired);
+
+    // Document status
+    const allRequiredDocsMap = new Map<string, string>();
+    for (const node of nodes) {
+      if (Array.isArray(node.requiredDocuments)) {
+        for (const doc of node.requiredDocuments) {
+          allRequiredDocsMap.set(doc.id, doc.name);
+        }
+      }
+    }
+    const uploadedDocCodes = new Set(project.documents.map((d) => d.documentDefinition?.code || d.id));
+    const verifiedDocCount = project.documents.filter((d) => d.currentVersion?.state === 'verified').length;
+    const missingDocsList: string[] = [];
+    for (const [code, name] of allRequiredDocsMap.entries()) {
+      if (!uploadedDocCodes.has(code)) {
+        missingDocsList.push(name);
+      }
+    }
+
+    const investmentCr = investmentInr !== null ? (investmentInr / 10000000).toFixed(2) : '25.00';
+    const isAlcohol = industry === 'brewery' || (activity && (activity.includes('beer') || activity.includes('liquor')));
+    const isCleanTech = industry === 'solar_manufacturing' || (activity && (activity.includes('solar') || activity.includes('clean')));
+
+    const getNodeName = (n: any) => n.approvalName || n.shortName || n.approvalCode || 'Clearance';
+
+    // Build rich context for LLM synthesis
+    const factsSummary = {
+      enterpriseName: project.name,
+      industry: industry || 'Industrial Manufacturing',
+      activity: activity || 'Manufacturing & Processing',
+      location: `${district || 'Pune'}, ${state || 'Maharashtra'}`,
+      investmentCr: `₹${investmentCr} Crore`,
+      areaSqft: areaSqft ? `${areaSqft.toLocaleString()} sq.ft.` : 'Standard Industrial Plot',
+      workforce: employees ? `${employees} personnel` : 'Standard Factory Workforce',
+      totalApplicableApprovals: totalApplicable,
+      availableApprovalsCount: availableNodes.length,
+      availableApprovals: availableNodes.map(getNodeName),
+      blockedApprovalsCount: blockedNodes.length,
+      blockedApprovals: blockedNodes.map((n) => ({ name: getNodeName(n), prerequisites: n.prerequisites })),
+      inProgressCount: inProgressNodes.length,
+      completedCount: doneNodes.length,
+      attentionRequiredCount: attentionNodes.length,
+      uploadedDocumentsCount: project.documents.length,
+      verifiedDocumentsCount: verifiedDocCount,
+      missingMandatoryDocumentsCount: missingDocsList.length,
+      missingDocuments: missingDocsList.slice(0, 5),
+      isNegativeListSector: isAlcohol,
+    };
+
+    const aiPrompt = `
+You are ApprovalIQ's Senior Regulatory and Incentive Intelligence Copilot.
+Generate a concise, highly personalized, and fully factual QUICK OVERVIEW based strictly on the current enterprise profile and evaluated regulatory data below:
+
+PROJECT FACTS:
+${JSON.stringify(factsSummary, null, 2)}
+
+Respond with STRICT JSON matching this exact structure:
+{
+  "summary": "2 concise sentences summarizing the enterprise's current clearance posture, immediate available approvals, and primary opportunity.",
+  "situation": "2 sentences explaining ApprovalIQ's understanding of the enterprise (location, CapEx, industry nature) and regulatory scope.",
+  "whatYouNeedToDo": "1-2 sentences highlighting the immediate available approvals that can be filed right away.",
+  "whatIsReady": "1 sentence specifying which approvals are unlocked or completed and ready for submission.",
+  "whatIsBlocking": "1-2 sentences explaining which approvals are blocked and which exact prerequisites gate them.",
+  "schemesAndIncentives": "2 sentences identifying prime incentive opportunities (e.g. CGTMSE collateral-free credit, EPCG customs duty waiver, 80-IAC tax exemption, ZED subsidies) while acknowledging state policy boundaries (e.g. PSI-2019 negative list).",
+  "nextSteps": [
+    {
+      "id": "step-1",
+      "title": "Clear action title",
+      "description": "Specific action based on available approvals or missing items.",
+      "actionLabel": "Button label e.g. Open Approval Roadmap",
+      "actionRoute": "/projects/${project.id}/roadmap",
+      "priority": "high"
+    },
+    {
+      "id": "step-2",
+      "title": "Clear action title",
+      "description": "Specific action regarding incentives or documents.",
+      "actionLabel": "Button label e.g. Explore Government Schemes",
+      "actionRoute": "/projects/${project.id}/schemes",
+      "priority": "medium"
+    },
+    {
+      "id": "step-3",
+      "title": "Clear action title",
+      "description": "Specific action regarding vault or profile.",
+      "actionLabel": "Button label e.g. Review Document Vault",
+      "actionRoute": "/projects/${project.id}/roadmap",
+      "priority": "low"
+    }
+  ]
+}
+`;
+
+    let aiParsed: any = null;
+    try {
+      const resText = await this.callGenerativeAi(
+        aiPrompt,
+        'You are an authoritative industrial statutory compliance analyst for Indian single-window regulations. Return ONLY valid JSON.',
+      );
+      if (resText) {
+        const cleaned = resText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        aiParsed = JSON.parse(cleaned);
+      }
+    } catch (err) {
+      this.logger.warn(`Quick Overview AI generation fallback: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    const defaultSummary = availableNodes.length > 0
+      ? `ApprovalIQ has mapped ${totalApplicable} applicable statutory clearances for your ${industry} unit in ${district}, ${state}. ${availableNodes.length} ${availableNodes.length === 1 ? 'approval is' : 'approvals are'} immediately available for filing with 0 prerequisite bottlenecks.`
+      : `ApprovalIQ has identified ${totalApplicable} statutory approvals for your ${industry} facility in ${district}, ${state}. Initial prerequisite clearances must be satisfied before subsequent operational licenses unlock.`;
+
+    const defaultSituation = `Your ${project.name} facility is classified as an industrial unit in ${district}, ${state} with an estimated CapEx of ₹${investmentCr} Crore and a workforce of ${employees || 'standard'} employees.`;
+
+    const defaultWhatYouNeedToDo = availableNodes.length > 0
+      ? `Initiate filings for your unlocked approvals: ${availableNodes.map(getNodeName).slice(0, 3).join(', ')}.`
+      : `Fulfill initial statutory prerequisites on the clearance graph to unblock subsequent departmental reviews.`;
+
+    const defaultWhatIsReady = availableNodes.length > 0
+      ? `${availableNodes.length} clearance ${availableNodes.length === 1 ? 'docket is' : 'dockets are'} unlocked and submission-ready on single-window desks.`
+      : `No clearances are currently submission-ready; satisfy antecedent dependencies first.`;
+
+    const defaultWhatIsBlocking = blockedNodes.length > 0
+      ? `${blockedNodes.length} ${blockedNodes.length === 1 ? 'approval is' : 'approvals are'} currently gated by antecedent prerequisites (${blockedNodes.map(getNodeName).slice(0, 2).join(', ')}).`
+      : `No approvals are currently blocked by dependencies.`;
+
+    const defaultSchemes = isAlcohol
+      ? `While direct state SGST cash reimbursement (PSI-2019) excludes alcohol under Annexure II, your business is prime for ₹5.00 Cr CGTMSE collateral-free bank financing, EPCG 0% customs duty on imported machinery, and Section 80-IAC 3-year tax holidays.`
+      : isCleanTech
+      ? `Your facility qualifies for high-priority green subsidies including 25% capital grants, ₹5.00 Cr CGTMSE collateral-free financing, and 100% electricity duty exemption.`
+      : `Your facility is eligible for ₹5.00 Cr CGTMSE collateral-free MSME credit guarantees, 0% customs duty under DGFT EPCG, and up to 80% MSME ZED sustainability subsidies.`;
+
+    const defaultNextSteps = [
+      {
+        id: 'step-roadmap',
+        title: availableNodes.length > 0 ? `Initiate ${getNodeName(availableNodes[0])}` : 'Review Approval Roadmap',
+        description: availableNodes.length > 0
+          ? `Submit the ${getNodeName(availableNodes[0])} to trigger concurrent departmental reviews without delay.`
+          : 'Inspect the prerequisite dependency tree to unblock gated operational permits.',
+        actionLabel: 'Open Roadmap Desk',
+        actionRoute: `/projects/${project.id}/roadmap`,
+        priority: 'high' as const,
+      },
+      {
+        id: 'step-schemes',
+        title: 'Review Government Subsidies & Financing',
+        description: 'Explore collateral-free credit guarantees, duty waivers, and tax holiday applications.',
+        actionLabel: 'Explore Schemes & Incentives',
+        actionRoute: `/projects/${project.id}/schemes`,
+        priority: 'medium' as const,
+      },
+      {
+        id: 'step-docs',
+        title: missingDocsList.length > 0 ? `Upload Missing Documents (${missingDocsList.length} required)` : 'Audit Document Vault',
+        description: missingDocsList.length > 0
+          ? `Upload mandatory prerequisites (${missingDocsList.slice(0, 2).join(', ')}) to enable automated OCR validation.`
+          : 'All mandatory statutory documents have been uploaded to the encrypted vault.',
+        actionLabel: 'Manage Document Vault',
+        actionRoute: `/projects/${project.id}/roadmap`,
+        priority: missingDocsList.length > 0 ? ('high' as const) : ('low' as const),
+      },
+    ];
+
+    const highlights: Array<{ label: string; value: string; badge?: string; tone?: 'positive' | 'warning' | 'neutral' | 'urgent' }> = [
+      {
+        label: 'Applicable Clearances',
+        value: `${totalApplicable} Approvals`,
+        badge: `${availableNodes.length} Ready`,
+        tone: availableNodes.length > 0 ? 'positive' : 'neutral',
+      },
+      {
+        label: 'Prerequisite Blockers',
+        value: `${blockedNodes.length} Blocked`,
+        badge: blockedNodes.length > 0 ? 'Gated by DAG' : 'All Clear',
+        tone: blockedNodes.length > 0 ? 'warning' : 'positive',
+      },
+      {
+        label: 'Document Vault',
+        value: `${project.documents.length} Uploaded`,
+        badge: `${verifiedDocCount} Verified`,
+        tone: verifiedDocCount > 0 ? 'positive' : 'neutral',
+      },
+      {
+        label: 'Incentives Potential',
+        value: isAlcohol ? '₹5.00 Cr Max' : '₹5.00+ Cr',
+        badge: isAlcohol ? 'CGTMSE + EPCG' : 'Eligible',
+        tone: 'positive',
+      },
+    ];
+
+    return {
+      isReady: true,
+      projectId: project.id,
+      projectName: project.name,
+      summary: aiParsed?.summary || defaultSummary,
+      businessContext: {
+        name: project.name,
+        industry: industry || 'Industrial Manufacturing',
+        location: district && state ? `${district}, ${state}` : state || 'Maharashtra',
+        investmentFormatted: `₹${investmentCr} Cr`,
+        workforceFormatted: employees ? `${employees} personnel` : 'Active Staff',
+        status: 'Active Docket',
+      },
+      keyHighlights: highlights,
+      situation: aiParsed?.situation || defaultSituation,
+      whatYouNeedToDo: aiParsed?.whatYouNeedToDo || defaultWhatYouNeedToDo,
+      whatIsReady: aiParsed?.whatIsReady || defaultWhatIsReady,
+      whatIsBlocking: aiParsed?.whatIsBlocking || defaultWhatIsBlocking,
+      schemesAndIncentives: aiParsed?.schemesAndIncentives || defaultSchemes,
+      missingInformation: missingFieldsList,
+      documents: {
+        totalRequired: allRequiredDocsMap.size,
+        uploadedCount: project.documents.length,
+        verifiedCount: verifiedDocCount,
+        missingCount: missingDocsList.length,
+        missingList: missingDocsList,
+      },
+      nextSteps: aiParsed?.nextSteps && Array.isArray(aiParsed.nextSteps) && aiParsed.nextSteps.length > 0
+        ? aiParsed.nextSteps
+        : defaultNextSteps,
+      rtsSlaTimelineSummary: `All ${totalApplicable} clearances are tracked against statutory Right to Services (RTS) SLA timers with automated deemed approval escalation.`,
+      generatedAt: new Date().toISOString(),
+      isAiSynthesized: Boolean(aiParsed),
+    };
+  }
 }
