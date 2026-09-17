@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL, documentsApi, type DedupPromptResponse, type Document, type DocumentVersionState } from './api-client';
+import { API_BASE_URL, documentsApi, reuseApi, type DedupPromptResponse, type Document, type DocumentVersionState } from './api-client';
 
 export function GoogleSignInButton({
   label = 'Continue with Google',
@@ -433,3 +433,152 @@ function DedupPromptPanel({
     </div>
   );
 }
+
+/**
+ * DPDP Act 2023 Granular Data Reuse Consent Modal (Section 6(1) & 6(4))
+ * Allows explicit, revocable per-purpose authorization before sharing documents across departments.
+ */
+export function ConsentGrantModal({
+  isOpen,
+  onClose,
+  documentId,
+  documentName,
+  targetAuthorityId,
+  targetAuthorityName,
+  projectId,
+  token,
+  onConsentUpdated,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  documentId: string;
+  documentName: string;
+  targetAuthorityId: string;
+  targetAuthorityName: string;
+  projectId: string;
+  token?: string | undefined;
+  onConsentUpdated?: (() => void) | undefined;
+}): JSX.Element | null {
+  const [purpose, setPurpose] = useState('Verification & cross-departmental clearance review for statutory industrial registration');
+  const [agree, setAgree] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const grantMutation = useMutation({
+    mutationFn: () =>
+      reuseApi.grantConsent(
+        projectId,
+        { documentId, targetAuthorityId, purpose },
+        token,
+      ),
+    onSuccess: () => {
+      setError(null);
+      onConsentUpdated?.();
+      onClose();
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : 'Failed to grant consent');
+    },
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-mono font-semibold">
+              <span>DPDP Act 2023</span>
+              <span>•</span>
+              <span>Statutory Data Fiduciary Notice</span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900">Granular Data Reuse Authorization</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Notice Description */}
+        <div className="space-y-3 text-sm text-slate-600">
+          <p>
+            Under Section 6(1) of the Digital Personal Data Protection (DPDP) Act 2023, ApprovalIQ requires explicit consent before re-using or sharing your document with another government department or regulatory authority.
+          </p>
+          
+          <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5 space-y-2 text-xs font-mono">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Document:</span>
+              <span className="font-semibold text-slate-900 truncate max-w-[240px]">{documentName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Target Authority:</span>
+              <span className="font-semibold text-blue-700">{targetAuthorityName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Statutory SLA:</span>
+              <span className="font-semibold text-slate-900">15 Days (Section 6(4) Revocable)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Purpose Input */}
+        <div className="space-y-2">
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider font-mono">
+            Specified Purpose of Data Share
+          </label>
+          <textarea
+            value={purpose}
+            onChange={(e) => setPurpose(e.target.value)}
+            rows={2}
+            className="w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            placeholder="Specify purpose of consent..."
+          />
+        </div>
+
+        {/* Explicit Checkbox Consent */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-2">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agree}
+              onChange={(e) => setAgree(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-xs text-slate-700 leading-relaxed">
+              I explicitly authorize ApprovalIQ to securely transmit <strong>{documentName}</strong> to <strong>{targetAuthorityName}</strong> strictly for the stated purpose. I acknowledge that I hold the right to revoke this consent at any time via the Document Vault.
+            </span>
+          </label>
+        </div>
+
+        {error && <p className="text-xs text-red-600 font-semibold">{error}</p>}
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!agree || !purpose.trim() || grantMutation.isPending}
+            onClick={() => grantMutation.mutate()}
+            className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {grantMutation.isPending ? 'Granting Consent…' : 'Grant Explicit Consent'}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+

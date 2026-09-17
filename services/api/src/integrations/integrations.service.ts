@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface ExternalPortalAdapter {
   portalCode: 'maitri' | 'nsws' | 'digilocker' | 'apisetu';
@@ -11,6 +12,8 @@ export interface ExternalPortalAdapter {
 
 @Injectable()
 export class IntegrationsService {
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
   /**
    * Returns registered government single-window and digital credential gateway adapters.
    * Proves architecture readiness for National Single Window System (NSWS) and MAITRI.
@@ -54,6 +57,7 @@ export class IntegrationsService {
 
   /**
    * Simulates an outbound push of a sealed submission packet to a State Single Window system.
+   * Enforces DPDP Act 2023 §6(1) explicit consent check for target portal data transmission.
    */
   async exportPacketToSingleWindow(params: {
     portalCode: 'maitri' | 'nsws';
@@ -67,6 +71,23 @@ export class IntegrationsService {
     acknowledgedAt: string;
     portalReceiptUrl: string;
   }> {
+    const targetAuthorityId = params.portalCode === 'maitri' ? 'MPCB' : 'FSSAI';
+
+    // Query active DPDP Act 2023 consent grants for this project & target authority
+    const activeConsent = await this.prisma.consentGrant.findFirst({
+      where: {
+        projectId: params.projectId,
+        targetAuthorityId,
+        revokedAt: null,
+      },
+    });
+
+    if (!activeConsent) {
+      throw new ForbiddenException(
+        `DPDP Act 2023 Violation (§6(1)): No active ConsentGrant found for target authority '${targetAuthorityId}' on project '${params.projectId}'. Outbound portal transmission hard-blocked until explicit applicant authorization is recorded in Document Vault.`,
+      );
+    }
+
     const timestamp = new Date().toISOString();
     const mockRef = `${params.portalCode.toUpperCase()}-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
 

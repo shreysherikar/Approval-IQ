@@ -65,7 +65,7 @@ export class RoadmapController {
   })
   batchUpdateStatus(
     @Param('projectId') projectId: string,
-    @Body() body: { instanceIds: string[]; status: 'in_progress' | 'done' },
+    @Body() body: { instanceIds: string[]; status: 'available' | 'in_progress' | 'done' },
   ): Promise<Record<string, unknown>> {
     return this.service.batchUpdateStatus(projectId, body.instanceIds, body.status);
   }

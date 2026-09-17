@@ -119,6 +119,16 @@ export class GrievancesController {
         res.send(html);
         return;
       }
+      if (format === 'pdf') {
+        const pdfHeader = Buffer.from(
+          `%PDF-1.4\n1 0 obj\n<< /Title (${data.docketNumber}) /Creator (ApprovalIQ RTS Compliance Engine) >>\nendobj\n`,
+          'utf-8',
+        );
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="RTS-Filing-Pack-${data.docketNumber}.pdf"`);
+        res.send(pdfHeader);
+        return;
+      }
       res.json(data);
       return;
     }
