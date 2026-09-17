@@ -1,5 +1,5 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { BusinessMapService, BusinessMapResult } from './business-map.service';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { BusinessMapService, BusinessMapResult, ClusterAiAnalysisResult } from './business-map.service';
 
 @Controller('business-map')
 export class BusinessMapController {
@@ -11,5 +11,19 @@ export class BusinessMapController {
     @Query('category') category?: string,
   ): Promise<BusinessMapResult> {
     return this.businessMapService.searchBusinessConcentration(query || '', category);
+  }
+
+  @Post('ai-analyze-cluster')
+  async analyzeClusterWithAi(
+    @Body()
+    body: {
+      clusterName: string;
+      stateCode: string;
+      stateName: string;
+      sector: string;
+      customQuery?: string;
+    },
+  ): Promise<ClusterAiAnalysisResult> {
+    return this.businessMapService.analyzeClusterWithAi(body);
   }
 }

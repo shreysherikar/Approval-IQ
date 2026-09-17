@@ -30,9 +30,9 @@ export function GoogleSignInButton({
       type="button"
       disabled={disabled}
       onClick={handleGoogleSignIn}
-      className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50/80 hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-500/15 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 active:scale-[0.99]"
+      className="tactile-btn tactile-btn-secondary w-full py-2.5 px-4 text-sm flex items-center justify-center gap-3 border border-ink-border hover:border-ocean-300 hover:shadow-tactile transition-all"
     >
-      <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+      <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
         <path
           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
           fill="#4285F4"
@@ -50,17 +50,17 @@ export function GoogleSignInButton({
           fill="#EA4335"
         />
       </svg>
-      <span className="text-slate-800 font-semibold">{label}</span>
+      <span className="text-ink font-semibold">{label}</span>
     </button>
   );
 }
 
 export function LoadingSpinner({ label = 'Loading…' }: { label?: string }): JSX.Element {
   return (
-    <div role="status" aria-live="polite" className="flex items-center gap-2 text-gray-600">
+    <div role="status" aria-live="polite" className="inline-flex items-center gap-2.5 text-xs font-mono font-medium text-slate-700">
       <span
         aria-hidden="true"
-        className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
+        className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-amber-200 border-t-amber-500 shadow-sm"
       />
       <span>{label}</span>
     </div>
@@ -75,18 +75,23 @@ export function ErrorBanner({
   onRetry?: () => void;
 }): JSX.Element {
   return (
-    <div role="alert" className="rounded-md border border-red-300 bg-red-50 p-4 text-red-800">
-      <p className="font-medium">Something went wrong</p>
-      <p className="mt-1 text-sm">{message}</p>
-      {onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-3 rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
-        >
-          Retry
-        </button>
-      )}
+    <div role="alert" className="rounded-lg border border-rose-500/30 bg-rose-50/80 p-4 text-rose-700 shadow-sm animate-fade-in-up">
+      <div className="flex items-start gap-2.5">
+        <span className="font-mono text-sm font-bold text-rose-500">⚠</span>
+        <div className="flex-1">
+          <p className="font-semibold text-xs tracking-wide uppercase font-mono text-rose-800">Statutory Validation Warning</p>
+          <p className="mt-1 text-xs text-slate-700 leading-relaxed">{message}</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="tactile-btn mustard-btn-secondary mt-3 text-xs py-1 px-3 text-rose-700 border-rose-300 hover:bg-rose-100"
+            >
+              Retry Action
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -101,33 +106,33 @@ export function EmptyState({
   action?: JSX.Element;
 }): JSX.Element {
   return (
-    <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
-      <p className="text-lg font-medium text-gray-800">{title}</p>
-      {description && <p className="mt-1 text-sm text-gray-600">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+    <div className="rounded-xl border border-dashed border-amber-300/70 bg-amber-50/30 p-8 text-center space-y-2.5 animate-fade-in-up">
+      <p className="font-editorial text-lg font-bold text-slate-900">{title}</p>
+      {description && <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">{description}</p>}
+      {action && <div className="pt-2">{action}</div>}
     </div>
   );
 }
 
 /**
  * State badge for DocumentVersion — Phase 5+.
- * Uses the same visual language as roadmap status/outcome badges.
+ * Uses tactile oceanic stamp seals.
  */
 export function DocumentStateBadge({ state }: { state: DocumentVersionState }): JSX.Element {
-  const styleMap: Record<DocumentVersionState, { bg: string; text: string; border: string; label: string }> = {
-    uploaded: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300', label: 'Uploaded' },
-    queued: { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200', label: 'Queued' },
-    processing: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', label: 'Processing' },
-    extracted: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', label: 'Extracted' },
-    needs_verification: { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300', label: 'Needs verification' },
-    verified: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', label: 'Verified' },
-    rejected: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300', label: 'Rejected' },
-    superseded: { bg: 'bg-gray-100', text: 'text-gray-500', border: 'border-gray-300', label: 'Superseded' },
-    archived: { bg: 'bg-gray-200', text: 'text-gray-600', border: 'border-gray-400', label: 'Archived' },
+  const styleMap: Record<DocumentVersionState, { cls: string; label: string }> = {
+    uploaded: { cls: 'stamp-neutral', label: 'Uploaded' },
+    queued: { cls: 'stamp-neutral', label: 'Queued' },
+    processing: { cls: 'stamp-neutral', label: 'Processing' },
+    extracted: { cls: 'stamp-pending', label: 'OCR Extracted' },
+    needs_verification: { cls: 'stamp-pending', label: 'Needs Verification' },
+    verified: { cls: 'stamp-approved', label: '✓ Verified' },
+    rejected: { cls: 'stamp-action', label: '✕ Rejected' },
+    superseded: { cls: 'stamp-neutral', label: 'Superseded' },
+    archived: { cls: 'stamp-neutral', label: 'Archived' },
   };
   const s = styleMap[state] ?? styleMap.uploaded;
   return (
-    <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${s.bg} ${s.text} ${s.border}`}>
+    <span className={`stamp-seal ${s.cls}`}>
       {s.label}
     </span>
   );
@@ -144,19 +149,12 @@ export function formatUploadDate(iso: string): string {
 
 /**
  * File upload control for a single required document.
- * Shows current version (if any), upload date, state badge.
- * Upload action → POST /projects/:projectId/documents (first version).
- * Replace action → POST /projects/:projectId/documents/:documentId/versions (versioning endpoint).
  */
 interface DocumentUploadControlProps {
   projectId: string;
-  /** The required document from the deduplicated list (roadmap requiredDocuments). */
   requiredDoc: { id: string; name: string };
-  /** Optional: pre-fetched existing document (by documentDefinitionId match). */
   existingDoc?: Document | null;
-  /** Auth token for API calls. */
   token: string;
-  /** Called after successful upload/replace to refresh parent list. */
   onChange?: () => void;
 }
 
@@ -169,9 +167,6 @@ export function DocumentUploadControl({
 }: DocumentUploadControlProps): JSX.Element {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  // Phase 7 dedup: the upload returned a duplicate prompt (Prompt 5.2) with the
-  // four choices. We keep the pending file so the user's chosen `dedupChoice`
-  // can be re-submitted to the same endpoint and recorded.
   const [dedupPrompt, setDedupPrompt] = useState<DedupPromptResponse | null>(null);
   const pendingFileRef = useRef<File | null>(null);
 
@@ -188,8 +183,6 @@ export function DocumentUploadControl({
     onSuccess: (result) => {
       setError(null);
       if (result && typeof result === 'object' && 'duplicateDetected' in result && result.duplicateDetected) {
-        // A byte-identical file already exists in this project. Surface the four
-        // choices instead of treating this as a successful fresh upload.
         setDedupPrompt(result as DedupPromptResponse);
         return;
       }
@@ -212,9 +205,6 @@ export function DocumentUploadControl({
     },
   });
 
-  // Re-submits the same (pending) file with the user's chosen dedupChoice, so the
-  // pick is recorded by the existing backend behavior. reject_duplicate is a 409
-  // → it surfaces as an error banner via onError.
   const dedupChoiceMutation = useMutation({
     mutationFn: (choice: string) => {
       const file = pendingFileRef.current;
@@ -236,7 +226,6 @@ export function DocumentUploadControl({
     } else {
       uploadMutation.mutate(file);
     }
-    // Reset input so same file can be re-selected if needed
     e.target.value = '';
   };
 
@@ -244,11 +233,11 @@ export function DocumentUploadControl({
   const currentVersion = existingDoc?.currentVersion;
 
   return (
-    <div className="space-y-3 rounded-md border border-gray-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-2">
+    <div className="editorial-card p-4 space-y-3 transition-all duration-300 hover:shadow-tactile-lg">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-gray-900 truncate">{requiredDoc.name}</p>
-          <p className="mt-0.5 text-xs text-gray-500 font-mono">Def ID: {requiredDoc.id}</p>
+          <p className="font-semibold text-sm text-ink truncate">{requiredDoc.name}</p>
+          <p className="mt-0.5 text-xs text-ink-muted font-mono">ID: {requiredDoc.id}</p>
         </div>
         {currentVersion && (
           <DocumentStateBadge state={currentVersion.state} />
@@ -256,18 +245,18 @@ export function DocumentUploadControl({
       </div>
 
       {currentVersion && (
-        <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
+        <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3 bg-ocean-50/60 p-2.5 rounded-lg border border-ocean-200/80">
           <div>
-            <p className="text-xs font-medium text-gray-500">Version</p>
-            <p className="font-mono text-gray-900">{currentVersion.versionNumber}</p>
+            <p className="text-[10px] font-mono uppercase text-ink-muted">Version</p>
+            <p className="font-mono font-bold text-ocean-700">v{currentVersion.versionNumber}</p>
           </div>
           <div>
-            <p className="text-xs font-medium text-gray-500">Uploaded</p>
-            <p className="font-mono text-gray-900">{formatUploadDate(currentVersion.uploadedAt)}</p>
+            <p className="text-[10px] font-mono uppercase text-ink-muted">Uploaded</p>
+            <p className="font-mono text-ink-soft truncate">{formatUploadDate(currentVersion.uploadedAt)}</p>
           </div>
           <div>
-            <p className="text-xs font-medium text-gray-500">File</p>
-            <p className="truncate font-mono text-gray-700">{currentVersion.originalFilename}</p>
+            <p className="text-[10px] font-mono uppercase text-ink-muted">File Name</p>
+            <p className="truncate font-mono text-ink-soft">{currentVersion.originalFilename}</p>
           </div>
         </div>
       )}
@@ -275,9 +264,10 @@ export function DocumentUploadControl({
       {existingDoc && (
         <Link
           to={`/projects/${projectId}/documents/${existingDoc.id}`}
-          className="mt-2 inline-block text-sm text-blue-600 hover:underline"
+          className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors group"
         >
-          Open document detail (extraction &amp; verification) →
+          <span>Open inspection dossier (OCR extraction &amp; cross-reuse)</span>
+          <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
         </Link>
       )}
 
@@ -298,55 +288,50 @@ export function DocumentUploadControl({
         />
       ) : (
         <div className="mt-3">
-        <label className="block">
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-            disabled={isUploading}
-            onChange={handleFileSelect}
-            className="sr-only"
-            id={`doc-upload-${requiredDoc.id}`}
-          />
-          <button
-            type="button"
-            disabled={isUploading}
-            onClick={() => document.getElementById(`doc-upload-${requiredDoc.id}`)?.click()}
-            className="w-full rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isUploading ? (
-              <>
-                <LoadingSpinner label="" />
-                {existingDoc ? 'Replacing…' : 'Uploading…'}
-              </>
-            ) : existingDoc ? (
-              'Replace document'
-            ) : (
-              'Upload document'
-            )}
-          </button>
-        </label>
-        <p className="mt-1 text-xs text-gray-500">
-          Allowed: PDF, DOC, DOCX, PNG, JPG (max 20 MB).{' '}
-          {existingDoc ? 'Replaces current version (prior version kept).' : 'Creates first version.'}
-        </p>
+          <label className="block">
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+              disabled={isUploading}
+              onChange={handleFileSelect}
+              className="sr-only"
+              id={`doc-upload-${requiredDoc.id}`}
+            />
+            <button
+              type="button"
+              disabled={isUploading}
+              onClick={() => document.getElementById(`doc-upload-${requiredDoc.id}`)?.click()}
+              className="tactile-btn tactile-btn-secondary w-full py-2.5 px-3 text-xs flex items-center justify-center gap-2 border-ocean-200 hover:border-ocean-400"
+            >
+              {isUploading ? (
+                <>
+                  <LoadingSpinner label="" />
+                  <span>{existingDoc ? 'Replacing version…' : 'Uploading evidence…'}</span>
+                </>
+              ) : existingDoc ? (
+                'Upload New Version'
+              ) : (
+                'Upload Document Evidence'
+              )}
+            </button>
+          </label>
+          <p className="mt-1.5 text-[11px] font-mono text-ink-muted">
+            PDF, DOCX, PNG, JPG (max 20 MB).{' '}
+            {existingDoc ? 'Supersedes current version while preserving audit history.' : 'Establishes primary verified document.'}
+          </p>
         </div>
       )}
 
       {!existingDoc && !isUploading && !dedupPrompt && (
         <EmptyState
-          title="No document uploaded yet"
-          description="Upload the first version of this required document."
+          title="Awaiting Evidence Upload"
+          description="Upload the initial certified copy of this document to satisfy statutory prerequisites."
         />
       )}
     </div>
   );
 }
-/**
- * The blueprint's four dedup choices (Prompt 5.2), surfaced when the upload is a
- * byte-identical duplicate of an existing project document. Choosing one
- * re-submits the pending file with the selected `dedupChoice` so the backend
- * records the decision (link / new version / keep separate / reject).
- */
+
 function DedupPromptPanel({
   prompt,
   projectId,
@@ -365,44 +350,45 @@ function DedupPromptPanel({
   const choices: Array<{ value: string; label: string; description: string }> = [
     {
       value: 'link_to_existing',
-      label: 'Link to existing',
-      description: 'Use the existing document for this requirement (no new document is created).',
+      label: 'Cross-Link to Existing Document',
+      description: 'Reuses the previously uploaded byte-verified document without consuming redundant storage.',
     },
     {
       value: 'create_new_version',
-      label: 'Create new version',
-      description: 'Add this file as a new version of the existing document.',
+      label: 'Create New Tracked Version',
+      description: 'Appends this file as an incremented version of the existing record.',
     },
     {
       value: 'keep_separate',
-      label: 'Keep as separate document',
-      description: 'Store this file as its own separate document.',
+      label: 'Store as Independent Record',
+      description: 'Maintains this file as a standalone entry with separate audit timeline.',
     },
     {
       value: 'reject_duplicate',
-      label: 'Reject as duplicate',
-      description: 'Do not upload — discard this file (nothing is created).',
+      label: 'Discard Duplicate Submission',
+      description: 'Cancels this upload without altering existing records.',
     },
   ];
 
   return (
-    <div className="mt-3 space-y-3 rounded border border-amber-300 bg-amber-50 p-3" role="alert">
-      <div className="flex items-start justify-between gap-2">
+    <div className="mt-3 space-y-3 rounded-lg border border-amber-500/30 bg-amber-50/90 p-4 text-ink shadow-tactile-sm animate-fade-in-up" role="alert">
+      <div className="flex items-start justify-between gap-2 border-b border-amber-500/20 pb-2.5">
         <div>
-          <p className="text-sm font-semibold text-amber-900">
-            This file is a duplicate already in this project.
+          <p className="text-xs font-bold uppercase tracking-wider font-mono text-amber-600">
+            Byte-Identical Document Detected
           </p>
-          <p className="mt-0.5 text-xs text-amber-800">
-            A byte-identical file was uploaded before — choose how to handle it (never silently duplicate).
+          <p className="mt-0.5 text-xs text-ink-soft">
+            This file matches an existing verified dossier in this project. Choose statutory linking behavior:
           </p>
         </div>
         <Link
           to={`/projects/${projectId}/documents/${existing.id}`}
-          className="shrink-0 rounded border border-amber-300 bg-white px-2 py-0.5 text-xs text-amber-900 hover:bg-amber-100"
+          className="shrink-0 stamp-seal stamp-neutral text-[10px]"
         >
-          Existing v{existingVersion ? existingVersion.versionNumber : '—'}{existingVersion ? ` · ${existingVersion.state}` : ''}
+          Existing v{existingVersion ? existingVersion.versionNumber : '—'}
         </Link>
       </div>
+
       <div className="grid gap-2">
         {choices.map((c) => (
           <button
@@ -410,24 +396,25 @@ function DedupPromptPanel({
             type="button"
             disabled={pending}
             onClick={() => onChoose(c.value)}
-            className="rounded border border-gray-300 bg-white px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+            className="tactile-btn tactile-btn-secondary p-3 text-left w-full block border-amber-500/30 hover:border-amber-500 hover:bg-white transition-all"
           >
-            <span className="font-medium text-gray-900">{c.label}</span>
-            <span className="mt-0.5 block text-xs text-gray-600">{c.description}</span>
+            <span className="font-semibold text-xs text-ink block">{c.label}</span>
+            <span className="mt-0.5 block text-[11px] text-ink-soft leading-tight">{c.description}</span>
           </button>
         ))}
       </div>
-      <div className="flex items-center justify-between gap-2">
+
+      <div className="flex items-center justify-between gap-2 pt-1">
         <button
           type="button"
           disabled={pending}
           onClick={onDismiss}
-          className="rounded border border-gray-300 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="tactile-btn tactile-btn-secondary px-3 py-1 text-xs text-ink-muted hover:bg-white"
         >
-          Cancel upload
+          Cancel
         </button>
-        <span className="text-xs text-amber-800">
-          {pending ? 'Submitting choice…' : 'Your choice is recorded in the document metadata.'}
+        <span className="text-[11px] font-mono text-ink-muted">
+          {pending ? 'Recording consensus…' : 'Decision is cryptographically logged.'}
         </span>
       </div>
     </div>
@@ -581,4 +568,6 @@ export function ConsentGrantModal({
     </div>
   );
 }
+
+export { QuickOverviewCard } from './components/QuickOverviewCard';
 

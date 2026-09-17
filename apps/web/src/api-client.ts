@@ -400,6 +400,63 @@ export interface AiSchemeChatResponse {
   timestamp: string;
 }
 
+export interface QuickOverviewHighlight {
+  label: string;
+  value: string;
+  badge?: string;
+  tone?: 'positive' | 'warning' | 'neutral' | 'urgent';
+}
+
+export interface QuickOverviewNextStep {
+  id: string;
+  title: string;
+  description: string;
+  actionLabel: string;
+  actionRoute: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface QuickOverviewMissingField {
+  field: string;
+  label: string;
+  impact: string;
+}
+
+export interface QuickOverviewDocumentStatus {
+  totalRequired: number;
+  uploadedCount: number;
+  verifiedCount: number;
+  missingCount: number;
+  missingList: string[];
+}
+
+export interface QuickOverviewResponse {
+  isReady: boolean;
+  projectId: string;
+  projectName: string;
+  summary: string;
+  businessContext: {
+    name: string;
+    industry: string;
+    location: string;
+    investmentFormatted: string;
+    workforceFormatted: string;
+    status: string;
+  };
+  keyHighlights: QuickOverviewHighlight[];
+  situation: string;
+  whatYouNeedToDo: string;
+  whatIsReady: string;
+  whatIsBlocking: string;
+  schemesAndIncentives: string;
+  missingInformation: QuickOverviewMissingField[];
+  documents: QuickOverviewDocumentStatus;
+  nextSteps: QuickOverviewNextStep[];
+  rtsSlaTimelineSummary?: string;
+  generatedAt: string;
+  isAiSynthesized: boolean;
+}
+
 /**
  * Roadmap reads/writes. Authenticated (JwtAuthGuard) AND object-scoped
  * (ProjectMemberGuard on :projectId) — pass the caller's access token.
@@ -477,6 +534,46 @@ export const roadmapApi = {
       payload,
       { token },
     );
+  },
+  /** GET /projects/:projectId/quick-overview — dynamic AI executive overview */
+  getQuickOverview(projectId: string, token?: string): Promise<QuickOverviewResponse> {
+    return get(`/projects/${projectId}/quick-overview`, { token });
+  },
+  /** POST /projects/:projectId/quick-overview — regenerate dynamic AI executive overview */
+  regenerateQuickOverview(projectId: string, token?: string): Promise<QuickOverviewResponse> {
+    return post(`/projects/${projectId}/quick-overview`, {}, { token });
+  },
+};
+
+export const businessMapApi = {
+  analyzeClusterWithAi(body: {
+    clusterName: string;
+    stateCode: string;
+    stateName: string;
+    sector: string;
+    customQuery?: string;
+  }): Promise<any> {
+    return post('/business-map/ai-analyze-cluster', body);
+  },
+};
+
+export const aiSimulationApi = {
+  simulateDag(body: {
+    sector: string;
+    state?: string | undefined;
+    landAreaSqft?: number | undefined;
+    investmentInr?: number | undefined;
+    hasHazardous?: boolean | undefined;
+    customNiche?: string | undefined;
+  }): Promise<any> {
+    return post('/ai-simulation/simulate-dag', body);
+  },
+  analyzeLens(body: {
+    mode: 'founder' | 'authority';
+    sector?: string | undefined;
+    state?: string | undefined;
+  }): Promise<any> {
+    return post('/ai-simulation/analyze-lens', body);
   },
 };
 

@@ -2,9 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { HeroImageCarousel } from './HeroImageCarousel';
 import { FloatingApprovalCards } from './FloatingApprovalCards';
-import { SystemStatusIndicator } from './SystemStatusIndicator';
-import { HeroGlowBackground } from './HeroGlowBackground';
 import { useLanguage } from '../i18n';
+import { ArrowRight } from 'lucide-react';
 
 interface HeroSectionProps {
   onOpenDemo: () => void;
@@ -15,131 +14,86 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenDemo, onOpenComm
   const { t } = useLanguage();
 
   return (
-    <section className="relative pt-24 pb-12 lg:pt-28 lg:pb-16 overflow-hidden">
-      {/* Interactive Mouse-Following Radial Glow and Grid Mesh */}
-      <HeroGlowBackground />
+    <section className="relative pt-24 pb-14 lg:pt-28 lg:pb-20 overflow-hidden border-b border-ocean-200/80 bg-transparent text-ink">
+      {/* Luminous Ambient Background Glow */}
+      <div className="absolute top-0 left-1/4 w-[32rem] h-[32rem] bg-ocean-300/20 rounded-full blur-[110px] pointer-events-none -z-10 animate-pulse-glow" />
+      <div className="absolute bottom-0 right-1/4 w-[28rem] h-[28rem] bg-cyan-200/30 rounded-full blur-[100px] pointer-events-none -z-10 animate-float" />
+      <div className="absolute top-1/2 left-10 w-80 h-80 bg-amber-200/25 rounded-full blur-3xl pointer-events-none -z-10 animate-float-slow" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
           
-          {/* Left Hero Column: Typography & CTAs (5 cols on lg) */}
-          <div className="lg:col-span-5 flex flex-col items-start z-10">
-            {/* Badges Row: Simplifying Compliance + Live System Status */}
-            <div className="flex flex-wrap items-center gap-2.5 mb-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                <span className="text-xs font-semibold text-blue-900 tracking-wide">
-                  {t('hero.simplifying', 'Simplifying Compliance')}
-                </span>
-              </div>
-              <SystemStatusIndicator />
-            </div>
-
-            {/* Main Headline */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[44px] xl:text-[50px] font-extrabold text-slate-900 tracking-tight leading-[1.15]">
-              {t('hero.headline_part1', 'From Regulations to Approvals — ')}
-              <span className="text-gradient-primary block sm:inline mt-1 sm:mt-0">
-                {t('hero.headline_part2', 'Smarter, Faster, Together.')}
+          {/* Left Column: Editorial Headline & Actions */}
+          <div className="lg:col-span-6 flex flex-col items-start z-10 space-y-6 text-left">
+            
+            {/* Editorial Headline */}
+            <h1 className="font-editorial text-3xl sm:text-4xl md:text-5xl lg:text-[48px] font-bold text-ink tracking-tight leading-[1.12]">
+              {t('hero.headline_part1', 'From Statutory Filings to Commissioning — ')}
+              <span className="gradient-ocean-text block sm:inline">
+                {t('hero.headline_part2', 'Deterministic, Sequenced, Guaranteed.')}
               </span>
             </h1>
 
-            {/* Supporting Copy */}
-            <p className="mt-5 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl">
+            {/* Plain-Language Subtitle */}
+            <p className="text-sm sm:text-base text-ink-soft leading-relaxed max-w-xl font-sans">
               {t(
                 'hero.subheading',
-                'AI-powered guidance for permits, licenses, and regulatory approvals — so you can focus on building what matters.'
+                'Personalized regulatory roadmap resolving exact prerequisite sequences, document de-duplication, multi-agency joint inspections, and statutory Right to Services SLAs.'
               )}
             </p>
 
-            {/* CTA Group */}
-            <div className="mt-8 flex flex-wrap items-center gap-4 w-full sm:w-auto">
+            {/* Tactile Action Group */}
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto pt-2">
               <Link
                 to="/register"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold text-base shadow-lg shadow-blue-500/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0"
+                className="tactile-btn tactile-btn-primary px-6 py-3.5 text-sm flex items-center gap-2 shadow-tactile group"
               >
-                <span>{t('hero.get_started', 'Get Started')}</span>
-                <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
+                <span>{t('hero.get_started', 'Generate Regulatory Roadmap')}</span>
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Link>
 
               <button
                 type="button"
                 onClick={onOpenDemo}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-white/90 hover:bg-white text-slate-700 hover:text-blue-600 font-semibold text-base border border-slate-200/90 shadow-sm transition-all duration-200 hover:border-blue-300 cursor-pointer"
+                className="tactile-btn tactile-btn-secondary px-5 py-3.5 text-sm flex items-center gap-2"
               >
-                <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                  <svg className="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-                <span>{t('hero.watch_demo', 'Watch Demo')}</span>
+                <span>{t('hero.watch_demo', 'Demo Credentials')}</span>
               </button>
 
               {onOpenCommandPalette && (
                 <button
                   type="button"
                   onClick={onOpenCommandPalette}
-                  className="hidden xl:inline-flex items-center gap-2 px-4 py-3.5 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-xs font-medium border border-slate-200/80 transition-all cursor-pointer"
-                  title="Search regulations & clearances"
+                  className="tactile-btn px-4 py-3.5 text-xs rounded-lg font-mono bg-white text-ocean-800 border border-ocean-300 hover:bg-ocean-50 shadow-tactile-sm"
+                  title="Search regulations & clearances (⌘K)"
                 >
-                  <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <span>{t('hero.search', 'Search')}</span>
-                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-mono shadow-2xs">
-                    ⌘K
-                  </kbd>
+                  <span>⌘K</span>
                 </button>
               )}
             </div>
 
-            {/* 3 Compact Feature Highlights */}
-            <div className="mt-10 pt-8 border-t border-slate-200/70 w-full grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2.5 group">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800 leading-tight">{t('hero.feature_ai', 'AI-Powered')}</div>
-                  <div className="text-[11px] text-slate-500">{t('hero.feature_ai_sub', 'Guidance')}</div>
-                </div>
+            {/* Trust Pillar Grid */}
+            <div className="pt-6 border-t border-ocean-200/80 w-full grid grid-cols-3 gap-3">
+              <div className="p-2.5 rounded-xl bg-white/80 border border-ocean-200/80 shadow-tactile-sm hover:border-ocean-300 transition-colors">
+                <div className="font-mono font-bold text-xs text-ocean-700">{t('hero.feature_ai', 'DAG Critical Path')}</div>
+                <div className="text-[11px] text-ink-muted mt-0.5">{t('hero.feature_ai_sub', 'Predecessor sequencing')}</div>
               </div>
 
-              <div className="flex items-center gap-2.5 group">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800 leading-tight">{t('hero.feature_rts', 'RTS Aligned')}</div>
-                  <div className="text-[11px] text-slate-500">{t('hero.feature_rts_sub', 'Zero Arbitrary SLAs')}</div>
-                </div>
+              <div className="p-2.5 rounded-xl bg-white/80 border border-ocean-200/80 shadow-tactile-sm hover:border-ocean-300 transition-colors">
+                <div className="font-mono font-bold text-xs text-amber-700">{t('hero.feature_rts', 'RTS Protected')}</div>
+                <div className="text-[11px] text-ink-muted mt-0.5">{t('hero.feature_rts_sub', 'Enforceable SLA timers')}</div>
               </div>
 
-              <div className="flex items-center gap-2.5 group">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-800 leading-tight">{t('hero.feature_docs', 'Zero Redundancy')}</div>
-                  <div className="text-[11px] text-slate-500">{t('hero.feature_docs_sub', 'Auto Reuse')}</div>
-                </div>
+              <div className="p-2.5 rounded-xl bg-white/80 border border-ocean-200/80 shadow-tactile-sm hover:border-ocean-300 transition-colors">
+                <div className="font-mono font-bold text-xs text-emerald-700">{t('hero.feature_docs', 'Zero Redundancy')}</div>
+                <div className="text-[11px] text-ink-muted mt-0.5">{t('hero.feature_docs_sub', 'Multi-desk OCR reuse')}</div>
               </div>
             </div>
           </div>
 
-          {/* Right Hero Column: Large Visual Showcase + Image Carousel + Floating UI Cards (7 cols on lg) */}
-          <div className="lg:col-span-7 relative h-[460px] sm:h-[540px] md:h-[580px] w-full rounded-3xl overflow-hidden shadow-2xl border border-white/60 bg-slate-900">
-            {/* The Dynamic 3s rotating Ken Burns Carousel */}
+          {/* Right Column: High Quality Photography Gallery + Floating Status Card */}
+          <div className="lg:col-span-6 relative h-[420px] sm:h-[480px] md:h-[520px] w-full rounded-2xl overflow-hidden shadow-2xl border border-ocean-200/90 bg-white/70 backdrop-blur-sm">
             <HeroImageCarousel />
-
-            {/* The Floating UI Cards overlay (Business profile, Applicable norms, etc.) */}
             <FloatingApprovalCards />
           </div>
 

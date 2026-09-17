@@ -91,5 +91,23 @@ export class RoadmapController {
     const userId = req.user?.userId;
     return this.service.reportRuleDiscrepancy(projectId, body, userId);
   }
+
+  @Get('quick-overview')
+  @ApiOperation({
+    summary:
+      'Get dynamic AI-generated quick overview synthesized from current business profile, approvals graph, schemes, and documents.',
+  })
+  getQuickOverview(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
+    return this.service.getQuickOverview(projectId);
+  }
+
+  @Post('quick-overview')
+  @ApiOperation({
+    summary:
+      'Regenerate dynamic AI quick overview for the project.',
+  })
+  regenerateQuickOverview(@Param('projectId') projectId: string): Promise<Record<string, unknown>> {
+    return this.service.getQuickOverview(projectId);
+  }
 }
 

@@ -3,12 +3,14 @@ import { JobsModule } from '../jobs/jobs.module';
 import { ProjectMemberGuard } from '../common/guards/project-member.guard';
 import { IntelligenceController } from './intelligence.controller';
 import { JobsController } from './jobs.controller';
+import { AiSimulationController } from './ai-simulation.controller';
 import { IntelligenceService } from './intelligence.service';
 import { ConsistencyService } from './consistency.service';
 
 @Module({
   imports: [JobsModule],
-  controllers: [IntelligenceController, JobsController],
+  controllers: [IntelligenceController, JobsController, AiSimulationController],
   providers: [IntelligenceService, ConsistencyService, ProjectMemberGuard],
+  exports: [IntelligenceService],
 })
 export class IntelligenceModule {}

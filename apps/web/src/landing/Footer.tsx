@@ -7,70 +7,65 @@ export const Footer: React.FC = () => {
   const { t } = useLanguage();
 
   return (
-    <footer className="bg-[#0b1329] text-slate-300 text-sm border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
+    <footer className="bg-ocean-950 text-ocean-100 text-xs border-t border-ocean-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           
           {/* Brand Info */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-400 flex items-center justify-center text-white font-black text-lg shadow-md">
+          <div className="lg:col-span-2 space-y-3.5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-ocean-400 to-ocean-600 flex items-center justify-center text-white font-bold text-xs shadow-glow-cyan/20">
                 ▲
               </div>
-              <span className="text-xl font-black text-white tracking-tight">
-                Approval<span className="text-blue-400">IQ</span>
+              <span className="font-editorial text-xl font-bold text-white tracking-tight">
+                Approval<span className="text-ocean-400">IQ</span>
               </span>
             </div>
-            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-sm">
-              {t('footer.tagline', 'AI-powered regulatory intelligence and approvals platform engineered for Indian enterprises, MSMEs, and startups.')}
+            <p className="text-ocean-200/80 text-xs leading-relaxed max-w-sm font-sans">
+              {t('footer.tagline', 'Deterministic regulatory roadmap and statutory compliance intelligence for industrial facilities, MSMEs, and startups across Indian states.')}
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/90 border border-slate-700 text-slate-200 text-xs font-medium">
-              <Globe2 className="w-3.5 h-3.5 text-slate-300" />
-              <span>{t('footer.engineered', 'Engineered for Bharat')}</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-ocean-900/80 border border-ocean-800 text-ocean-200 font-mono text-[10px]">
+              <Globe2 className="w-3.5 h-3.5 text-ocean-400" />
+              <span>National Single Window &amp; Right to Services Aligned</span>
             </div>
           </div>
 
-          {/* Product links */}
-          <div>
-            <h4 className="text-white font-semibold text-xs uppercase tracking-wider mb-4">
-              {t('footer.product_title', 'Product')}
+          {/* Platform Links */}
+          <div className="space-y-3">
+            <h4 className="text-white font-mono font-bold text-[11px] uppercase tracking-wider">
+              {t('footer.product_title', 'Platform')}
             </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm">
+            <ul className="space-y-2 text-xs">
               <li>
-                <Link to="/business-map" className="hover:text-white transition-colors text-cyan-400 font-semibold inline-flex items-center gap-1.5">
-                  <Compass className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{t('nav.business_map', 'Business Intelligence Map')}</span>
+                <Link to="/business-map" className="hover:text-white text-ocean-300 font-semibold inline-flex items-center gap-1.5 transition-colors">
+                  <Compass className="w-3.5 h-3.5 text-ocean-400" />
+                  <span>{t('nav.business_map', 'GIS Cluster Map')}</span>
                 </Link>
               </li>
               <li>
-                <a href="#how-it-works" className="hover:text-white transition-colors">
-                  {t('workflow.step2_title', 'AI Regulatory Engine')}
+                <a href="#how-it-works" className="text-ocean-200/70 hover:text-white transition-colors">
+                  {t('workflow.step2_title', 'DAG Gating Engine')}
                 </a>
               </li>
               <li>
-                <a href="#industries" className="hover:text-white transition-colors">
-                  {t('industries.title', 'Industry Frameworks')}
+                <a href="#industries" className="text-ocean-200/70 hover:text-white transition-colors">
+                  {t('industries.title', 'Sector Packages')}
                 </a>
               </li>
               <li>
-                <a href="#how-it-works" className="hover:text-white transition-colors">
-                  {t('workflow.step3_title', 'Document Checklists')}
-                </a>
-              </li>
-              <li>
-                <Link to="/register" className="hover:text-white transition-colors">
-                  {t('nav.integrations', 'Single Window Integration')}
+                <Link to="/integrations" className="text-ocean-200/70 hover:text-white transition-colors">
+                  {t('nav.integrations', 'DigiLocker & NSWS Hub')}
                 </Link>
               </li>
             </ul>
           </div>
 
           {/* Industries */}
-          <div>
-            <h4 className="text-white font-semibold text-xs uppercase tracking-wider mb-4">
-              {t('footer.industries_title', 'Industries')}
+          <div className="space-y-3">
+            <h4 className="text-white font-mono font-bold text-[11px] uppercase tracking-wider">
+              {t('footer.industries_title', 'Sectors')}
             </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm">
+            <ul className="space-y-2 text-xs text-ocean-200/70">
               <li>
                 <a href="#industries" className="hover:text-white transition-colors">
                   {t('industries.brewery', 'Brewery & Distilleries')}
@@ -83,63 +78,50 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <a href="#industries" className="hover:text-white transition-colors">
-                  {t('industries.chemicals', 'Chemical Manufacturing')}
+                  {t('industries.chemicals', 'Chemicals & Materials')}
                 </a>
               </li>
               <li>
                 <a href="#industries" className="hover:text-white transition-colors">
-                  {t('industries.pharma', 'Pharmaceuticals & Biotech')}
-                </a>
-              </li>
-              <li>
-                <a href="#industries" className="hover:text-white transition-colors">
-                  {t('industries.logistics', 'Logistics & Warehousing')}
+                  {t('industries.imports', 'Cross-Border Imports')}
                 </a>
               </li>
             </ul>
           </div>
 
-          {/* Account / Legal */}
-          <div>
-            <h4 className="text-white font-semibold text-xs uppercase tracking-wider mb-4">
-              {t('footer.company_title', 'Company & Access')}
+          {/* Legal & Standards */}
+          <div className="space-y-3">
+            <h4 className="text-white font-mono font-bold text-[11px] uppercase tracking-wider">
+              {t('footer.legal_title', 'Regulatory Governance')}
             </h4>
-            <ul className="space-y-2.5 text-xs sm:text-sm">
+            <ul className="space-y-2 text-xs text-ocean-200/70">
               <li>
                 <Link to="/about" className="hover:text-white transition-colors">
-                  {t('nav.about', 'About Us')}
+                  {t('nav.about', 'About ApprovalIQ')}
                 </Link>
               </li>
               <li>
                 <Link to="/contact" className="hover:text-white transition-colors">
-                  {t('nav.contact', 'Contact & Support')}
+                  {t('nav.contact', 'Support & Help Desk')}
                 </Link>
               </li>
               <li>
-                <Link to="/login" className="hover:text-white transition-colors">
-                  {t('nav.login', 'Sign In')}
-                </Link>
-              </li>
-              <li>
-                <Link to="/register" className="hover:text-white transition-colors">
-                  {t('nav.register', 'Create Account')}
-                </Link>
-              </li>
-              <li>
-                <span className="text-slate-500">Security & Encryption (AES-256)</span>
+                <span className="font-mono text-[10px] text-ocean-400 block pt-1">
+                  ISO 27001 / DPDP Act Compliant
+                </span>
               </li>
             </ul>
           </div>
 
         </div>
 
-        {/* Bottom bar */}
-        <div className="mt-12 pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+        {/* Bottom copyright */}
+        <div className="mt-10 pt-6 border-t border-ocean-900 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] font-mono text-ocean-400">
           <div>
-            &copy; {new Date().getFullYear()} ApprovalIQ Technologies. {t('footer.rights', 'All rights reserved.')}
+            © {new Date().getFullYear()} ApprovalIQ. All statutory rule citations verified against official gazettes.
           </div>
-          <div>
-            {t('footer.disclaimer', 'Regulatory guidance platform for informational & clearance facilitation purposes.')}
+          <div className="flex items-center gap-4 text-ocean-300">
+            <span>Deterministic Compliance Intelligence</span>
           </div>
         </div>
       </div>

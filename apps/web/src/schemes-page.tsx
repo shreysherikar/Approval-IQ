@@ -22,7 +22,7 @@ import {
   roadmapApi,
   type RoadmapResponse,
 } from './api-client';
-import { EmptyState, LoadingSpinner } from './components';
+import { EmptyState, LoadingSpinner, QuickOverviewCard } from './components';
 import { SCHEME_ADVISORY_MAP } from './roadmap';
 import { PROFILE_FIELD_LABELS } from './profile-form';
 
@@ -450,6 +450,9 @@ export function SchemesPage(): JSX.Element {
           </Link>
         </div>
       </div>
+
+      {/* Dynamic AI Quick Overview / Company Profile Review */}
+      <QuickOverviewCard projectId={projectId} />
 
       {/* Top View Mode Switcher */}
       <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200 max-w-2xl">
